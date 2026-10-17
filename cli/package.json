@@ -1,0 +1,21 @@
+{
+  "name": "anydock",
+  "version": "0.1.0",
+  "description": "AnyDock CLI: share and hand over agent work across people and agents",
+  "type": "module",
+  "bin": {
+    "anydock": "src/main.ts"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

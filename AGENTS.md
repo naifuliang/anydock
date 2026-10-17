@@ -105,6 +105,11 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - Test: `test/e2e.mjs` — two/three-user end-to-end run against `wrangler dev` (`npm run test:e2e -- dev.log`). Run it after server changes.
   - Cloudflare account `7f1052dd81e37b78c2c47fdaa53533a9`; D1 `anydock-v2`; R2 `anydock-trajectories`.
   - Dev: `cd server && npx wrangler d1 migrations apply anydock-v2 --local && npx wrangler dev` (secrets in `server/.dev.vars`, gitignored).
+- `cli/` — the `anydock` CLI. Zero runtime dependencies (Node 26: built-in fetch, WebSocket, recursive fs.watch, parseArgs); runs `src/main.ts` directly. Dev: `cd cli && npm link`, or `node cli/src/main.ts …`.
+  - `src/sources/claude.ts`, `codex.ts` parse transcripts into the shared `Step` shape (`src/sources/types.ts`); `discover.ts` lists files, caches parses by mtime, and applies redaction (`src/redact.ts`) to everything that may upload.
+  - `src/config.ts` — `~/.anydock/config.json` (server, token; mode 0600) and `state.json` (sync rules). `src/sync.ts` — idempotent upload (server `stepCount` is the source of truth) and the `watch` loop. `src/login.ts` — device flow.
+  - Env overrides for tests: `ANYDOCK_HOME`, `ANYDOCK_SERVER`, `ANYDOCK_CLAUDE_ROOT`, `ANYDOCK_CODEX_HOME`.
+  - Test: `node cli/test/e2e.mjs <server dev.log>` — synthetic transcripts in temp dirs, never touches real sessions.
 - `SETUP.md` — manual account steps (OAuth apps, Primitive, secrets). Agents never create accounts or handle these secrets.
 
 ## Conventions
@@ -136,7 +141,8 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 - [x] D1 tables (auth + AnyDock domain), created locally; remote D1 and R2 created but not migrated yet.
 - [ ] Not deployed yet — blocked on SETUP.md steps 1–4.
 - [x] Works API: upload + live step sync, list/get, share, handover (incl. to people without accounts), revoke, inbox, live push over WebSocket. `test/e2e.mjs` passes locally (21 checks).
-- [ ] Next: local client (`anydock` CLI) — login, discover Claude Code / Codex sessions, live sync, localhost UI, MCP.
+- [x] CLI: `login` (device flow) / `logout` / `whoami`, `sessions` (Claude Code + Codex), `sync <id>` / `sync --dir`, `unsync`, `rules`, `watch` (live incremental upload + live inbox events). Nothing uploads without a rule; secrets redacted; meta/injected text dropped. `cli/test/e2e.mjs` passes (18 checks).
+- [ ] Next candidates: CLI `share` / `handover` commands, Dock MCP (share / handover / ask / get method), localhost UI, distill (summary + method), deploy, self-update bundle.
 
 ## Open questions
 
