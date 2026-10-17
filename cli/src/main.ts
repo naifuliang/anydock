@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { api, requireLogin } from "./api.ts";
 import { isAuthorized, loadState, saveState, type SyncRule } from "./config.ts";
+import { installMcp, uninstallMcp } from "./install.ts";
 import { login, logout } from "./login.ts";
+import { serveMcp } from "./mcp.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import { syncSession, watchAndSync } from "./sync.ts";
 
@@ -20,6 +22,8 @@ Usage:
   anydock unsync <session-id> | --dir [path]    Stop syncing
   anydock rules                                 Show what is allowed to sync
   anydock watch                                 Keep allowed sessions in sync live
+  anydock mcp install | uninstall               Add AnyDock tools to Claude Code and Codex
+  anydock mcp                                   Run the MCP server (agents launch this)
 
 Nothing leaves this machine unless you allowed it with "anydock sync".`;
 
@@ -119,6 +123,11 @@ async function main(): Promise<void> {
       for (const r of rules) console.log(r.kind === "dir" ? `dir      ${tilde(r.path)}` : `session  ${r.source} ${r.sessionId}`);
       return;
     }
+
+    case "mcp":
+      if (arg === "install") return installMcp();
+      if (arg === "uninstall") return uninstallMcp();
+      return serveMcp();
 
     case "watch":
       requireLogin();

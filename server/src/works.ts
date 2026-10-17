@@ -135,12 +135,12 @@ works.put("/works", async (c) => {
 works.get("/works", async (c) => {
   const userId = c.get("user").id;
   const { results } = await c.env.DB.prepare(
-    `select w.*, case
+    `select w.*, o."name" as "ownerName", o."email" as "ownerEmail", case
         when w."ownerId" = ?1 then 'owner'
         when w."assigneeId" = ?1 then 'assignee'
         when exists (select 1 from "share" s where s."workId" = w."id" and s."toUserId" = ?1 and s."revokedAt" is null) then 'shared'
         else 'project' end as "role"
-     from "work" w
+     from "work" w join "user" o on o."id" = w."ownerId"
      where w."ownerId" = ?1 or w."assigneeId" = ?1
         or exists (select 1 from "share" s where s."workId" = w."id" and s."toUserId" = ?1 and s."revokedAt" is null)
         or (w."visibility" = 'project' and exists (
@@ -156,7 +156,10 @@ works.get("/works", async (c) => {
 works.get("/works/:id", async (c) => {
   const loaded = await loadWork(c);
   if (loaded instanceof Response) return loaded;
-  return c.json({ work: workJson(loaded.work, loaded.role) });
+  const owner = await c.env.DB.prepare(`select "name", "email" from "user" where "id" = ?1`)
+    .bind(loaded.work.ownerId)
+    .first<{ name: string; email: string }>();
+  return c.json({ work: { ...workJson(loaded.work, loaded.role), ownerName: owner?.name ?? null, ownerEmail: owner?.email ?? null } });
 });
 
 // ---------- trajectory ----------

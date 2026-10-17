@@ -109,7 +109,8 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - `src/sources/claude.ts`, `codex.ts` parse transcripts into the shared `Step` shape (`src/sources/types.ts`); `discover.ts` lists files, caches parses by mtime, and applies redaction (`src/redact.ts`) to everything that may upload.
   - `src/config.ts` — `~/.anydock/config.json` (server, token; mode 0600) and `state.json` (sync rules). `src/sync.ts` — idempotent upload (server `stepCount` is the source of truth) and the `watch` loop. `src/login.ts` — device flow.
   - Env overrides for tests: `ANYDOCK_HOME`, `ANYDOCK_SERVER`, `ANYDOCK_CLAUDE_ROOT`, `ANYDOCK_CODEX_HOME`.
-  - Test: `node cli/test/e2e.mjs <server dev.log>` — synthetic transcripts in temp dirs, never touches real sessions.
+  - `src/mcp.ts` — `anydock mcp`, a stdio MCP server (hand-rolled JSON-RPC, no SDK). Tools: `anydock_share`, `anydock_handover` (default to the *current* session: newest session of the launching agent whose cwd, compared by real path, equals the MCP's cwd; sharing also adds a sync rule), `anydock_inbox`, `anydock_list_works`, `anydock_read_work` (numbered, clipped, paged), `anydock_ask_why` (lexical retrieval of relevant steps + original goal; the calling agent writes the answer and cites `[n]`). `src/install.ts` — `anydock mcp install|uninstall` for Claude Code (`claude mcp add --scope user`) and Codex (`~/.codex/config.toml`).
+  - Tests: `node cli/test/e2e.mjs <server dev.log>` (CLI) and `node cli/test/mcp-e2e.mjs <server dev.log>` (MCP over stdio, two users). Synthetic transcripts in temp dirs; never touch real sessions or real agent config.
 - `SETUP.md` — manual account steps (OAuth apps, Primitive, secrets). Agents never create accounts or handle these secrets.
 
 ## Conventions
@@ -142,9 +143,12 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 - [ ] Not deployed yet — blocked on SETUP.md steps 1–4.
 - [x] Works API: upload + live step sync, list/get, share, handover (incl. to people without accounts), revoke, inbox, live push over WebSocket. `test/e2e.mjs` passes locally (21 checks).
 - [x] CLI: `login` (device flow) / `logout` / `whoami`, `sessions` (Claude Code + Codex), `sync <id>` / `sync --dir`, `unsync`, `rules`, `watch` (live incremental upload + live inbox events). Nothing uploads without a rule; secrets redacted; meta/injected text dropped. `cli/test/e2e.mjs` passes (18 checks).
-- [ ] Next candidates: CLI `share` / `handover` commands, Dock MCP (share / handover / ask / get method), localhost UI, distill (summary + method), deploy, self-update bundle.
+- [x] AnyDock MCP for Claude Code and Codex: share, handover, inbox, list works, read a work's trajectory, ask why. `cli/test/mcp-e2e.mjs` passes (23 checks).
+- [ ] Not yet installed into the real Claude Code / Codex config (`anydock mcp install`) — needs the deployed server, or `ANYDOCK_SERVER=http://localhost:8787` for local trials.
+- [ ] Next candidates: deploy, localhost UI, distill (summary + method), delegate actions (Slack / email / call) + permission panel, self-update bundle.
 
 ## Open questions
 
 - Passkey sign-in: deferred until the core flow works (Better Auth passkey plugin).
+- Manufact track ("best MCP server", mcp-use): the local MCP is hand-rolled to keep the CLI dependency-free. To compete there, add a remote mcp-use server on the Worker exposing the same read-side tools.
 - Armature analytics SDK requires MCP SDK 1.x; mcp-use v2 uses SDK v2 — check compatibility before targeting both tracks.

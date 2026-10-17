@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Source } from "./sources/types.ts";
@@ -60,11 +60,21 @@ export function saveState(state: State): void {
   writeJson(STATE, state);
 }
 
+// Compare folders by real path: symlinks (e.g. macOS /var -> /private/var) name the same place differently.
+export function realPath(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
 export function isAuthorized(state: State, s: { source: Source; sessionId: string; cwd?: string }): boolean {
   return state.rules.some((r) => {
     if (r.kind === "session") return r.source === s.source && r.sessionId === s.sessionId;
     if (!s.cwd) return false;
-    const cwd = resolve(s.cwd);
-    return cwd === r.path || cwd.startsWith(r.path.endsWith("/") ? r.path : r.path + "/");
+    const cwd = realPath(s.cwd);
+    const dir = realPath(r.path);
+    return cwd === dir || cwd.startsWith(dir.endsWith("/") ? dir : dir + "/");
   });
 }
