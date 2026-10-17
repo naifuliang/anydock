@@ -113,6 +113,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - Env overrides for tests: `ANYDOCK_HOME`, `ANYDOCK_SERVER`, `ANYDOCK_CLAUDE_ROOT`, `ANYDOCK_CODEX_HOME`.
   - `src/mcp.ts` — `anydock mcp`, a stdio MCP server (hand-rolled JSON-RPC, no SDK). Tools: `anydock_share`, `anydock_handover` (default to the *current* session: newest session of the launching agent whose cwd, compared by real path, equals the MCP's cwd; sharing also adds a sync rule), `anydock_inbox`, `anydock_list_works`, `anydock_read_work` (numbered, clipped, paged), `anydock_ask_why` (lexical retrieval of relevant steps + original goal; the calling agent writes the answer and cites `[n]`). `src/install.ts` — `anydock mcp install|uninstall` for Claude Code (`claude mcp add --scope user`) and Codex (`~/.codex/config.toml`).
   - Tests: `node cli/test/e2e.mjs <server dev.log>` (CLI) and `node cli/test/mcp-e2e.mjs <server dev.log>` (MCP over stdio, two users). Synthetic transcripts in temp dirs; never touch real sessions or real agent config.
+- `tasks/` — self-contained task briefs for another agent (e.g. `tasks/oauth-setup.md` for Codex).
 - `SETUP.md` — manual account steps (OAuth apps, Primitive, secrets). Agents never create accounts or handle these secrets.
 
 ## Conventions
