@@ -20,9 +20,9 @@ Production URL: `https://anydock.ai` · Local dev URL: `http://localhost:8787`
 
 ## 2. Google sign-in
 
-Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@gmail.com`. Branding wizard prepared with AnyDock, support/contact `qizi297@gmail.com`, External audience. Paused at Google API Services User Data Policy acceptance; branding is not yet saved and no OAuth client exists. No existing project named AnyDock appeared in the account project list. No projects/apps deleted.
+Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@gmail.com`. Branding saved with AnyDock, support/contact `qizi297@gmail.com`, External audience; User Data Policy accepted with explicit user confirmation. Test user `qizi297@gmail.com` saved. Web client form prepared as `AnyDock web` with both origins and redirect URIs below; user must click Create because this generates credentials. No OAuth client exists yet. No existing project named AnyDock appeared in the account project list. No projects/apps deleted.
 
-- [ ] https://console.cloud.google.com → APIs & Services → OAuth consent screen: External, app name `AnyDock`, add your email as a test user
+- [x] OAuth consent configuration saved: External, app name `AnyDock`, test user `qizi297@gmail.com`
 - [ ] Credentials → Create credentials → OAuth client ID → Web application
   - Authorized JavaScript origins: `https://anydock.ai`, `http://localhost:8787`
   - Authorized redirect URIs: `https://anydock.ai/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
