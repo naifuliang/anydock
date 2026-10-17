@@ -19,7 +19,9 @@ We are vendor-neutral, so project knowledge lives here — not in a vendor-speci
 
 ## Thesis
 
-**"Git for work, not just code."** We are the system of record for work: every piece of work — done by a human or an agent — keeps its context, trajectory, permissions and environment, so anyone (or any agent) can pick it up.
+**One-liner: "Agents made individuals 10x. AnyDock makes teams 10x."**
+
+Positioning line: **"Git for work, not just code."** We are the system of record for work: every piece of work — done by a human or an agent — keeps its context, trajectory, permissions and environment, so anyone (or any agent) can pick it up.
 
 Two pains, one product:
 
@@ -38,37 +40,66 @@ Positioning:
 
 Taglines: "The person leaves. The work doesn't." · "Stop teaching people. Teach their agents." · "The meeting that never happened."
 
+## The three verbs (demo + pitch spine)
+
+| Verb | Pain | In the product |
+|---|---|---|
+| **delegate** | Human glue (access in) | Dock MCP + permission panel: the agent acts within *your* permissions (Slack message, email, phone call…) |
+| **share** | "Where did this come from?", teaching meetings (know-how out) | Share a trajectory; the recipient's agent can ask *why* and replay the method |
+| **handover** | Work stopped mid-way | "Hand over to Ashley": context, progress and access move together |
+
+"Delegate lets agents in, share lets know-how out, handover keeps work going."
+Vision only: **hire** an agent = a seat with no human in it.
+
 ## Core concepts
 
 - **Work** — the unit of work. Fields: goal, artifacts, trajectory (steps, sources, decisions with rationale), open questions, access needed (grant references, never raw tokens), runtime pointer, assignees.
-- **Seat** (vision only, not in demo) — a role: standing access, responsibilities, ongoing Work, agents it sponsors. Hiring an agent = a seat with no human in it.
-- **Verbs**: `share`, `handover`, `ask` (why/where-from on any claim), later `delegate`, `hire`, `revoke`.
+- **Seat** (vision only) — a role: standing access, responsibilities, ongoing Work, agents it sponsors.
+- **Visibility** — every session is **Private** by default (local only). **Project**: you link a local project to a team project, its trajectories auto-sync, members can see them. **Shared**: you explicitly share one Work with a person. Nobody can see anything you haven't shared or synced.
 
-## Demo story (draft)
+## Demo story
+
+Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claude Code and chose what to build. Real trajectory, and the judges are the sponsors.
 
 1. Hook: "At my internship I spent all day copy-pasting between Slack and Claude. Am I the agent, or is it?"
-2. Nolan, in **Claude Code**, makes a competitor report: agent reads team Slack + web, posts the report to Slack.
-3. Instead of booking a meeting to teach Jason: `share with Jason`.
-4. Jason, in **Codex** (different vendor), says "do what Nolan did, for competitor C". His agent runs Nolan's method using **Jason's own permissions**.
-5. A judge asks "why did you do it this way?" — the agent answers from Nolan's trajectory.
-6. "The meeting that never happened." Vision slide: org graph + work graph; sponsors as the pipes below.
+2. Open Dock App: this morning's sponsor-research session is listed.
+3. **share**: in Claude Code, "share this research with Jason" → Jason gets a Slack notification.
+4. Jason, in **Codex** (different vendor): "use Nolan's method to research next month's YC hackathon sponsors" → his agent replays the method.
+5. Main aha: a judge (e.g. from Primitive) asks "why did you pick our track?" — answered from today's real trajectory.
+6. **handover** to a judge: their phone gets an iMessage (Inkbox): "Nolan handed this to you, reply with any question." They reply; the agent answers.
+7. **delegate**: the agent tries to call someone; the permission panel says "ask me" → approval pops up → call goes out.
+8. Close: "Agents made individuals 10x. AnyDock makes teams 10x." / "The person leaves. The work doesn't."
 
-## Architecture (planned)
+## Architecture
 
-- **Capture**: local client reads agent transcripts — Claude Code `~/.claude/projects/<cwd-slug>/<session>.jsonl`, Codex `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`; both support hooks.
-- **Distill**: trajectory → Work (summary, decisions, sources, reusable method). Initially via `claude -p` headless (no API key needed).
-- **Serve**: MCP server (mcp-use, for the Manufact track) exposing share / handover / ask / get-method.
-- **Surface**: Slack app (Bolt, Socket Mode).
+- **Local client (Dock App)** — background service + local web UI on `localhost` (native menubar app later).
+  - Discovers all local sessions: Claude Code `~/.claude/projects/<cwd-slug>/<session>.jsonl`, Codex `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`.
+  - Normalizes both into one trajectory format; distills via the user's own agent (`claude -p` / `codex exec`), so no API key is needed and raw data stays local.
+  - Syncs only what the user authorized (project link or explicit share); redacts secrets before upload.
+- **Dock MCP** — installed into Claude Code and Codex. Context tools (share, handover, attach session to project, ask, get method) and action tools (Slack message, email via Primitive, call / iMessage via Inkbox), all gated by the permission panel (allow / ask me / deny).
+- **Cloud** — Cloudflare Workers on `anydock.ai`: D1 for Works, users, permissions; R2 for raw trajectories; Slack app; web views.
 - Stack: Node 26 + TypeScript, Hono, mcp-use v2, zod, @slack/bolt.
+
+## Build order
+
+- **Phase 1 — context (must)**: local service + session list → distill into Work → cloud storage with share/handover → Dock MCP (share, handover, ask, get method).
+- **Phase 2 — access (minimum)**: Slack DM + channel read → permission panel with at least one "ask me" action and approval → Inkbox iMessage/call on handover.
+- **Phase 3 — polish**: project auto-sync, Primitive email, web "blame" view (click a sentence → its source step).
+- **Minimum demo** = Phase 1 + Slack notification + one "ask me" action in the permission panel.
+
+## Decisions log
+
+- Product name: **AnyDock** (domain `anydock.ai`, CLI `dock`). Repo dir is still `relay/`.
+- Cloud: Cloudflare (existing account and domain). Old AnyDock worker deleted Oct 17; old D1/R2/KV kept; old code archived at `naifuliang/anydock-legacy`.
+- Local client ships as a local web UI first.
+- Demo scenario: the sponsor-research session from this hackathon.
 
 ## Status
 
 - [x] Repo created, dependencies installed
-- [ ] Everything else — not started
+- [ ] Phase 1 — not started
 
 ## Open questions
 
-- Product name (placeholder: `relay`).
-- Demo task: competitor report, or a real workflow from Nolan's internship?
-- Storage: local SQLite first vs InsForge/Supabase (sponsor tracks).
+- Auth method(s) for the server (email / Google / GitHub / passkey).
 - Armature analytics SDK requires MCP SDK 1.x; mcp-use v2 uses SDK v2 — check compatibility before targeting both tracks.
