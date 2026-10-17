@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "gen:auth-schema": "node scripts/gen-auth-schema.ts"
+    "gen:auth-schema": "node scripts/gen-auth-schema.ts",
+    "test:e2e": "node test/e2e.mjs",
+    "dev": "wrangler dev"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +16,8 @@
   "private": "true",
   "dependencies": {
     "better-auth": "^1.7.10",
-    "hono": "^4.13.13"
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",

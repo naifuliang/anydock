@@ -15,6 +15,9 @@
   "r2_buckets": [
     { "binding": "TRAJECTORIES", "bucket_name": "anydock-trajectories" }
   ],
+  // One UserHub per user fans out live events to that user's sockets.
+  "durable_objects": { "bindings": [{ "name": "HUB", "class_name": "UserHub" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }],
   "observability": { "enabled": true }
   // Secrets (wrangler secret put / .dev.vars): BETTER_AUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
   // GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PRIMITIVE_API_KEY, EMAIL_FROM. See SETUP.md.

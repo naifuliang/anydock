@@ -100,7 +100,9 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 
 - `server/` — Cloudflare Worker (`anydock`): Hono + Better Auth on D1.
   - `src/index.ts` routes · `src/auth.ts` Better Auth config (shared with the schema generator) · `src/pages.ts` sign-in and device-approval pages · `src/email.ts` Primitive sender (logs the email when unconfigured).
-  - `migrations/0001_auth.sql` is **generated** (`npm run gen:auth-schema`) — regenerate after changing auth plugins, never hand-edit. `0002_anydock.sql` holds our tables: `project`, `projectMember`, `work`, `share`, `inboxItem`.
+  - `src/works.ts` Works API · `src/hub.ts` `UserHub` Durable Object (live push) · `src/types.ts` shared types.
+  - `migrations/0001_auth.sql` is **generated** (`npm run gen:auth-schema`) — regenerate after changing auth plugins, never hand-edit. `0002_anydock.sql` holds our tables: `project`, `projectMember`, `work`, `share`, `inboxItem`; `0003_assignee.sql` adds `work.assigneeId/assigneeEmail`.
+  - Test: `test/e2e.mjs` — two/three-user end-to-end run against `wrangler dev` (`npm run test:e2e -- dev.log`). Run it after server changes.
   - Cloudflare account `7f1052dd81e37b78c2c47fdaa53533a9`; D1 `anydock-v2`; R2 `anydock-trajectories`.
   - Dev: `cd server && npx wrangler d1 migrations apply anydock-v2 --local && npx wrangler dev` (secrets in `server/.dev.vars`, gitignored).
 - `SETUP.md` — manual account steps (OAuth apps, Primitive, secrets). Agents never create accounts or handle these secrets.
@@ -111,13 +113,30 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 - Better Auth is built per request (Workers bindings are per request).
 - Auth endpoints live under `/api/auth/*`. The CLI signs in with the device flow (`client_id` `anydock-cli`) and then sends `Authorization: Bearer <token>`.
 
+## Server API (all under `/api`, auth by session cookie or `Authorization: Bearer`)
+
+| Method & path | What it does | Who |
+|---|---|---|
+| `PUT /works` | Upsert my work for one agent session (`source` + `sessionId`); returns it with `role` | anyone signed in |
+| `GET /works` | Mine, assigned to me, shared with me, via my projects; each with `role` | — |
+| `GET /works/:id` | One work | anyone with access |
+| `PUT /works/:id/steps` | Live sync: `{fromIndex, steps}`; overlap is fine, a gap returns `409 {stepCount}` | owner |
+| `GET /works/:id/steps?from=&limit=` | Read the trajectory | anyone with access |
+| `POST /works/:id/share` · `/handover` | `{to: email, note}`. Works before the recipient has an account (bound on their first sign-in). Handover sets the assignee | owner or assignee |
+| `GET /works/:id/shares` · `DELETE /shares/:id` | List / revoke shares | owner/assignee · creator or owner |
+| `GET /inbox?unread=1` · `POST /inbox/:id/read` | Shares, handovers (later: questions) | — |
+| `GET /live` (WebSocket) | Events `inbox.new`, `work.updated`; CLI passes `?token=` | — |
+
+Access rules: **owner** (uploads, created it) · **assignee** (current responsible person after a handover) · **shared** (explicit share, until revoked) · **project** (member of the linked project and `visibility = project`). Missing and forbidden both return 404. Raw trajectories live in R2 at `works/<id>/trajectory.json`.
+
 ## Status
 
 - [x] Repo created, dependencies installed
 - [x] Server auth: email code, GitHub, Google (both enabled only when their secrets are set), CLI device login + bearer tokens; `/login`, `/device`, `/api/me`. Verified locally with email code and device flow.
 - [x] D1 tables (auth + AnyDock domain), created locally; remote D1 and R2 created but not migrated yet.
 - [ ] Not deployed yet — blocked on SETUP.md steps 1–4.
-- [ ] Next: Works API (upload, share, handover, inbox) + live push.
+- [x] Works API: upload + live step sync, list/get, share, handover (incl. to people without accounts), revoke, inbox, live push over WebSocket. `test/e2e.mjs` passes locally (21 checks).
+- [ ] Next: local client (`anydock` CLI) — login, discover Claude Code / Codex sessions, live sync, localhost UI, MCP.
 
 ## Open questions
 

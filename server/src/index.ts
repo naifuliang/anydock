@@ -1,18 +1,10 @@
 import { Hono } from "hono";
-import { createAuth, type Auth, type AuthEnv } from "./auth.ts";
+import { createAuth } from "./auth.ts";
 import { devicePage, homePage, loginPage } from "./pages.ts";
+import type { AppEnv, Env } from "./types.ts";
+import { works } from "./works.ts";
 
-export interface Env extends AuthEnv {
-  DB: D1Database;
-  TRAJECTORIES: R2Bucket;
-}
-
-type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
-
-type AppEnv = {
-  Bindings: Env;
-  Variables: { auth: Auth; session: Session | null };
-};
+export { UserHub } from "./hub.ts";
 
 const app = new Hono<AppEnv>();
 
@@ -20,7 +12,7 @@ const app = new Hono<AppEnv>();
 app.use("*", async (c, next) => {
   const auth = createAuth(c.env, c.env.DB);
   c.set("auth", auth);
-  c.set("session", await auth.api.getSession({ headers: c.req.raw.headers }));
+  c.set("session", await auth.api.getSession({ headers: sessionHeaders(c.req.raw) }));
   await next();
 });
 
@@ -34,6 +26,8 @@ app.get("/api/me", (c) => {
   const { id, name, email, image } = session.user;
   return c.json({ user: { id, name, email, image } });
 });
+
+app.route("/api", works);
 
 const providers = (env: Env) => ({
   github: Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
@@ -56,6 +50,16 @@ app.get("/device", (c) => {
   }
   return c.html(devicePage({ userCode, email: c.get("session")!.user.email }));
 });
+
+// WebSocket clients can't set headers, so /api/live also accepts the bearer token as ?token=.
+function sessionHeaders(req: Request): Headers {
+  const url = new URL(req.url);
+  const token = url.searchParams.get("token");
+  if (url.pathname !== "/api/live" || !token || req.headers.has("Authorization")) return req.headers;
+  const headers = new Headers(req.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+}
 
 // Only same-site relative paths, so /login can't be used as an open redirect.
 function safeNext(next: string | undefined): string {
