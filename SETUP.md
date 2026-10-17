@@ -8,16 +8,19 @@ Production URL: `https://anydock.ai` · Local dev URL: `http://localhost:8787`
 
 ## 1. GitHub sign-in
 
-- [ ] Create an OAuth App at https://github.com/settings/applications/new
+- [x] Reused existing AnyDock OAuth App (`3892579`, owner `naifuliang`); updated production callback on Oct 17. https://github.com/settings/applications/3892579
   - Application name: `AnyDock`
   - Homepage URL: `https://anydock.ai`
   - Authorization callback URL: `https://anydock.ai/api/auth/callback/github`
 - [ ] Create a second OAuth App for local dev (GitHub allows one callback per app)
   - Name `AnyDock (dev)`, homepage `http://localhost:8787`, callback `http://localhost:8787/api/auth/callback/github`
-- [ ] Production: `npx wrangler secret put GITHUB_CLIENT_ID` and `npx wrangler secret put GITHUB_CLIENT_SECRET`
+- [x] Production: `GITHUB_CLIENT_ID` saved in Cloudflare (Oct 17).
+- [ ] Production: `GITHUB_CLIENT_SECRET` still required; existing GitHub secret is masked. User must generate/enter the credential directly.
 - [ ] Dev: add `GITHUB_CLIENT_ID=…` and `GITHUB_CLIENT_SECRET=…` (from the dev app) to `server/.dev.vars`
 
 ## 2. Google sign-in
+
+Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@gmail.com`. Branding wizard prepared with AnyDock, support/contact `qizi297@gmail.com`, External audience. Paused at Google API Services User Data Policy acceptance; branding is not yet saved and no OAuth client exists. No existing project named AnyDock appeared in the account project list. No projects/apps deleted.
 
 - [ ] https://console.cloud.google.com → APIs & Services → OAuth consent screen: External, app name `AnyDock`, add your email as a test user
 - [ ] Credentials → Create credentials → OAuth client ID → Web application
