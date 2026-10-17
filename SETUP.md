@@ -20,7 +20,7 @@ Production URL: `https://anydock.ai` · Local dev URL: `http://localhost:8787`
 
 ## 2. Google sign-in
 
-Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@gmail.com`. Branding saved with AnyDock, support/contact `qizi297@gmail.com`, External audience; User Data Policy accepted with explicit user confirmation. Test user `qizi297@gmail.com` saved. User created `AnyDock web`; both Google credentials saved directly to Cloudflare. Production login shows Google and reaches the account chooser with callback `/api/auth/callback/google` and scopes `email profile openid`. Full callback/session verification awaits the user completing Google Touch ID/passkey authentication. No existing project named AnyDock appeared in the account project list. No projects/apps deleted.
+Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@gmail.com`. Branding saved with AnyDock, support/contact `qizi297@gmail.com`, External audience; User Data Policy accepted with explicit user confirmation. Test user `qizi297@gmail.com` saved. User created `AnyDock web`; both Google credentials saved directly to Cloudflare. Production login shows Google and reaches the account chooser with callback `/api/auth/callback/google` and scopes `email profile openid`. Full Google sign-in verified Oct 17: consent completed, AnyDock displayed Signed in, and authenticated `/api/me` returned `qizi297@gmail.com`. Google remains in Testing with that test user. No existing project named AnyDock appeared in the account project list. No projects/apps deleted.
 
 - [x] OAuth consent configuration saved: External, app name `AnyDock`, test user `qizi297@gmail.com`
 - [x] Created OAuth client ID → Web application (`AnyDock web`)
