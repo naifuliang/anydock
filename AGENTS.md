@@ -76,6 +76,8 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - Discovers all local sessions: Claude Code `~/.claude/projects/<cwd-slug>/<session>.jsonl`, Codex `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`.
   - Normalizes both into one trajectory format; distills via the user's own agent (`claude -p` / `codex exec`), so no API key is needed and raw data stays local.
   - Syncs only what the user authorized (project link or explicit share); redacts secrets before upload.
+  - **Live sync**: watches session files; new steps appear in the local UI immediately and, for authorized sessions, upload incrementally so recipients see progress live (pushed via a per-user Durable Object WebSocket).
+  - **Self-update**: the CLI is bundled into one JS file served from `anydock.ai`. On start (and daily while running) it checks the latest version; if newer, it downloads it, replaces itself and restarts the background service. Install via `curl -fsSL https://anydock.ai/install.sh | sh`.
 - **Dock MCP** — installed into Claude Code and Codex. Context tools (share, handover, attach session to project, ask, get method) and action tools (Slack message, email via Primitive, call / iMessage via Inkbox), all gated by the permission panel (allow / ask me / deny).
 - **Cloud** — Cloudflare Workers on `anydock.ai`: D1 for Works, users, permissions; R2 for raw trajectories; Slack app; web views.
 - Stack: Node 26 + TypeScript, Hono, mcp-use v2, zod, @slack/bolt.
