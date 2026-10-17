@@ -34,7 +34,7 @@ const providers = (env: Env) => ({
   google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
 });
 
-app.get("/", (c) => c.html(homePage(c.get("session")?.user ?? null)));
+app.get("/", (c) => c.html(homePage(c.get("session")?.user ?? null, new URL(c.req.url).origin)));
 
 app.get("/login", (c) => {
   const next = safeNext(c.req.query("next"));

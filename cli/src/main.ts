@@ -9,6 +9,8 @@ import { login, logout } from "./login.ts";
 import { serveMcp } from "./mcp.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import { syncSession, watchAndSync } from "./sync.ts";
+import { selfUpdate, startAutoUpdate, updateInBackground } from "./update.ts";
+import { VERSION } from "./version.ts";
 
 const HELP = `anydock — share and hand over agent work
 
@@ -24,6 +26,8 @@ Usage:
   anydock watch                                 Keep allowed sessions in sync live
   anydock mcp install | uninstall               Add AnyDock tools to Claude Code and Codex
   anydock mcp                                   Run the MCP server (agents launch this)
+  anydock update                                Update to the latest version
+  anydock version                               Show the installed version
 
 Nothing leaves this machine unless you allowed it with "anydock sync".`;
 
@@ -127,11 +131,23 @@ async function main(): Promise<void> {
     case "mcp":
       if (arg === "install") return installMcp();
       if (arg === "uninstall") return uninstallMcp();
+      updateInBackground();
       return serveMcp();
 
     case "watch":
       requireLogin();
+      startAutoUpdate();
       return watchAndSync();
+
+    case "update": {
+      const v = await selfUpdate();
+      console.log(v ? `Updated AnyDock ${VERSION} → ${v}.` : `AnyDock ${VERSION} is up to date.`);
+      return;
+    }
+
+    case "version":
+      console.log(VERSION);
+      return;
 
     case undefined:
     case "help":

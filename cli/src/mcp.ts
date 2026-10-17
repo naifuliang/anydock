@@ -4,12 +4,12 @@ import { loadConfig, loadState, realPath, saveState } from "./config.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import type { ParsedSession, Source, Step } from "./sources/types.ts";
 import { syncSession } from "./sync.ts";
+import { VERSION } from "./version.ts";
 
 // `anydock mcp`: a stdio MCP server that Claude Code and Codex launch. Agents use it to share or hand over
 // the session they are in, see what teammates sent them, read a teammate's trajectory, and ask why.
 // Plain newline-delimited JSON-RPC 2.0 — no SDK, so the CLI stays dependency-free.
 
-const VERSION = "0.1.0";
 
 interface Tool {
   name: string;

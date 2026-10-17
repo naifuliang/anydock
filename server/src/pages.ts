@@ -34,6 +34,12 @@ function layout(title: string, body: string, script = ""): string {
   .msg { min-height:20px; font-size:13px; color:var(--muted); }
   .msg.err { color:var(--err); }
   [hidden] { display:none !important; }
+  .cmd { display:flex; gap:8px; align-items:center; border:1px solid var(--line); border-radius:9px; padding:8px 8px 8px 12px; margin-bottom:12px; }
+  .cmd code { flex:1; font:13px/1.4 ui-monospace, monospace; overflow-x:auto; white-space:nowrap; }
+  .cmd button { width:auto; margin:0; padding:6px 10px; font-size:13px; }
+  .steps { margin:0 0 18px; padding-left:20px; color:var(--muted); font-size:14px; }
+  .steps code { font:13px ui-monospace, monospace; color:var(--fg); }
+  main { max-width:460px; }
 </style>
 </head>
 <body><main><div class="brand">AnyDock</div>${body}</main>
@@ -52,15 +58,36 @@ ${script}
 </body></html>`;
 }
 
-export function homePage(user: { name: string; email: string } | null): string {
+const INSTALL = `curl -fsSL ${"https://anydock.ai"}/install.sh | sh`;
+
+function installBlock(origin: string): string {
+  const cmd = origin === "https://anydock.ai" ? INSTALL : `curl -fsSL ${origin}/install.sh | ANYDOCK_SERVER=${origin} sh`;
+  return `<label>Install the CLI (macOS / Linux, Node 22+)</label>
+     <div class="cmd"><code id="cmd">${esc(cmd)}</code><button id="copy" type="button">Copy</button></div>
+     <ol class="steps"><li><code>anydock login</code></li><li><code>anydock mcp install</code> — adds the tools to Claude Code and Codex</li>
+     <li>In your agent: <em>"share this with jason@company.com"</em></li></ol>`;
+}
+
+const COPY_SCRIPT = `document.getElementById("copy").onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById("cmd").textContent);
+  document.getElementById("copy").textContent = "Copied"; setTimeout(() => document.getElementById("copy").textContent = "Copy", 1500);
+};`;
+
+export function homePage(user: { name: string; email: string } | null, origin: string): string {
   if (!user) {
-    return layout("AnyDock", `<h1>Agents made individuals 10x.</h1><p>AnyDock makes teams 10x.</p><a class="btn" href="/login">Sign in</a>`);
+    return layout(
+      "AnyDock",
+      `<h1>Agents made individuals 10x.</h1><p>AnyDock makes teams 10x: share and hand over your agent's work — context, trajectory and all — to teammates and their agents.</p>
+       ${installBlock(origin)}<a class="btn" href="/login">Sign in</a>`,
+      COPY_SCRIPT,
+    );
   }
   return layout(
     "AnyDock",
     `<h1>Signed in</h1><p>${esc(user.name || user.email)} · ${esc(user.email)}</p>
-     <button id="out">Sign out</button><div id="msg" class="msg"></div>`,
-    `document.getElementById("out").onclick = async () => { await api("/api/auth/sign-out", {}); location.href = "/"; };`,
+     ${installBlock(origin)}<button id="out">Sign out</button><div id="msg" class="msg"></div>`,
+    `${COPY_SCRIPT}
+     document.getElementById("out").onclick = async () => { await api("/api/auth/sign-out", {}); location.href = "/"; };`,
   );
 }
 

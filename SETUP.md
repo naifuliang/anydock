@@ -37,11 +37,12 @@ Without these, sign-in codes are only printed in the server log (fine for local 
 
 ## 4. Server secret
 
-- [ ] Production: `openssl rand -hex 32 | npx wrangler secret put BETTER_AUTH_SECRET`
-  (local dev already has one in `server/.dev.vars`)
+- [x] Production `BETTER_AUTH_SECRET` set (random, Oct 17). Local dev has its own in `server/.dev.vars`.
 
-## 5. First deploy (an agent can do this once 1–4 are done and you say go)
+## 5. Deploy
 
-- `npx wrangler d1 migrations apply anydock-v2 --remote`
-- `npx wrangler deploy`
-- Attach the custom domain `anydock.ai` to the `anydock` Worker (Cloudflare dashboard → Workers → anydock → Domains, or a `routes` entry in `wrangler.jsonc`)
+- [x] Deployed to `https://anydock.ai` (Oct 17). Redeploy any time with `cd server && npm run deploy`.
+
+## Until 1–3 are done
+
+Sign-in codes are only written to the Worker log. To sign in anyway: run `cd server && npx wrangler tail` in one terminal, request a code on https://anydock.ai/login, and read it from the log line `[email:dev] … sign-in code is NNNNNN`.

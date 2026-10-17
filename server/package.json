@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "gen:auth-schema": "node scripts/gen-auth-schema.ts",
     "test:e2e": "node test/e2e.mjs",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "build:cli": "npm --prefix ../cli run build",
+    "deploy": "npm run build:cli && wrangler d1 migrations apply anydock-v2 --remote && wrangler deploy"
   },
   "keywords": [],
   "author": "",

@@ -10,12 +10,14 @@
     "node": ">=26"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "build": "node scripts/build.mjs"
   },
   "license": "UNLICENSED",
   "private": true,
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
 }
