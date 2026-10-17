@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anydock",
+  "account_id": "7f1052dd81e37b78c2c47fdaa53533a9",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // Better Auth needs AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BETTER_AUTH_URL": "https://anydock.ai"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "anydock-v2", "database_id": "ab0d9d1f-6abc-4109-bc6b-d8ef56ed832c", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [
+    { "binding": "TRAJECTORIES", "bucket_name": "anydock-trajectories" }
+  ],
+  "observability": { "enabled": true }
+  // Secrets (wrangler secret put / .dev.vars): BETTER_AUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
+  // GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PRIMITIVE_API_KEY, EMAIL_FROM. See SETUP.md.
+}

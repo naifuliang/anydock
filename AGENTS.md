@@ -96,12 +96,30 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 - Local client ships as a local web UI first.
 - Demo scenario: the sponsor-research session from this hackathon.
 
+## Repo layout
+
+- `server/` — Cloudflare Worker (`anydock`): Hono + Better Auth on D1.
+  - `src/index.ts` routes · `src/auth.ts` Better Auth config (shared with the schema generator) · `src/pages.ts` sign-in and device-approval pages · `src/email.ts` Primitive sender (logs the email when unconfigured).
+  - `migrations/0001_auth.sql` is **generated** (`npm run gen:auth-schema`) — regenerate after changing auth plugins, never hand-edit. `0002_anydock.sql` holds our tables: `project`, `projectMember`, `work`, `share`, `inboxItem`.
+  - Cloudflare account `7f1052dd81e37b78c2c47fdaa53533a9`; D1 `anydock-v2`; R2 `anydock-trajectories`.
+  - Dev: `cd server && npx wrangler d1 migrations apply anydock-v2 --local && npx wrangler dev` (secrets in `server/.dev.vars`, gitignored).
+- `SETUP.md` — manual account steps (OAuth apps, Primitive, secrets). Agents never create accounts or handle these secrets.
+
+## Conventions
+
+- TypeScript run directly by Node 26 / bundled by wrangler: use explicit `.ts` extensions in relative imports.
+- Better Auth is built per request (Workers bindings are per request).
+- Auth endpoints live under `/api/auth/*`. The CLI signs in with the device flow (`client_id` `anydock-cli`) and then sends `Authorization: Bearer <token>`.
+
 ## Status
 
 - [x] Repo created, dependencies installed
-- [ ] Phase 1 — not started
+- [x] Server auth: email code, GitHub, Google (both enabled only when their secrets are set), CLI device login + bearer tokens; `/login`, `/device`, `/api/me`. Verified locally with email code and device flow.
+- [x] D1 tables (auth + AnyDock domain), created locally; remote D1 and R2 created but not migrated yet.
+- [ ] Not deployed yet — blocked on SETUP.md steps 1–4.
+- [ ] Next: Works API (upload, share, handover, inbox) + live push.
 
 ## Open questions
 
-- Auth method(s) for the server (email / Google / GitHub / passkey).
+- Passkey sign-in: deferred until the core flow works (Better Auth passkey plugin).
 - Armature analytics SDK requires MCP SDK 1.x; mcp-use v2 uses SDK v2 — check compatibility before targeting both tracks.
