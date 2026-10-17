@@ -22,7 +22,7 @@ export async function login(opts: { server?: string; openBrowser: boolean }): Pr
 
   const code = await api<DeviceCode>("POST", "/api/auth/device/code", { client_id: CLIENT_ID }, cfg);
   console.log(`\nOpen ${code.verification_uri} and confirm this code:\n\n    ${code.user_code}\n`);
-  if (opts.openBrowser) openUrl(code.verification_uri_complete);
+  if (opts.openBrowser && !process.env.ANYDOCK_NO_BROWSER) openUrl(code.verification_uri_complete);
 
   let interval = code.interval * 1000;
   const deadline = Date.now() + code.expires_in * 1000;

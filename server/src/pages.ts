@@ -37,8 +37,10 @@ function layout(title: string, body: string, script = ""): string {
   .cmd { display:flex; gap:8px; align-items:center; border:1px solid var(--line); border-radius:9px; padding:8px 8px 8px 12px; margin-bottom:12px; }
   .cmd code { flex:1; font:13px/1.4 ui-monospace, monospace; overflow-x:auto; white-space:nowrap; }
   .cmd button { width:auto; margin:0; padding:6px 10px; font-size:13px; }
-  .steps { margin:0 0 18px; padding-left:20px; color:var(--muted); font-size:14px; }
-  .steps code { font:13px ui-monospace, monospace; color:var(--fg); }
+  .tabs { display:flex; gap:4px; margin:4px 0 12px; border-bottom:1px solid var(--line); }
+  .tabs .tab { width:auto; margin:0 0 -1px; border:0; border-bottom:2px solid transparent; border-radius:0; padding:8px 10px; color:var(--muted); }
+  .tabs .tab.on { color:var(--fg); border-bottom-color:var(--fg); }
+  .fine { font-size:13px; margin:0 0 18px; }
   main { max-width:460px; }
 </style>
 </head>
@@ -58,20 +60,36 @@ ${script}
 </body></html>`;
 }
 
-const INSTALL = `curl -fsSL ${"https://anydock.ai"}/install.sh | sh`;
-
+// Two ways in: one shell command, or one prompt for whatever agent the user already runs.
 function installBlock(origin: string): string {
-  const cmd = origin === "https://anydock.ai" ? INSTALL : `curl -fsSL ${origin}/install.sh | ANYDOCK_SERVER=${origin} sh`;
-  return `<label>Install the CLI (macOS / Linux, Node 22+)</label>
-     <div class="cmd"><code id="cmd">${esc(cmd)}</code><button id="copy" type="button">Copy</button></div>
-     <ol class="steps"><li><code>anydock login</code></li><li><code>anydock mcp install</code> — adds the tools to Claude Code and Codex</li>
-     <li>In your agent: <em>"share this with jason@company.com"</em></li></ol>`;
+  const prod = origin === "https://anydock.ai";
+  const cmd = prod ? "curl -fsSL https://anydock.ai/install.sh | sh" : `curl -fsSL ${origin}/install.sh | ANYDOCK_SERVER=${origin} sh`;
+  const prompt = `Set up AnyDock for me: follow ${origin}/agents.md`;
+  return `<div class="tabs" role="tablist">
+       <button type="button" role="tab" class="tab on" data-tab="agent">Ask your agent</button>
+       <button type="button" role="tab" class="tab" data-tab="term">Terminal</button>
+     </div>
+     <div data-pane="agent">
+       <label>Paste into Claude Code, Codex, Cursor…</label>
+       <div class="cmd"><code>${esc(prompt)}</code><button type="button" class="copy">Copy</button></div>
+     </div>
+     <div data-pane="term" hidden>
+       <label>macOS / Linux, Node 22+</label>
+       <div class="cmd"><code>${esc(cmd)}</code><button type="button" class="copy">Copy</button></div>
+     </div>
+     <p class="fine">Signs you in through the browser, connects Claude Code and Codex, and starts background sync.
+       Nothing leaves your machine until you say <em>"share this with jason@company.com"</em>.</p>`;
 }
 
-const COPY_SCRIPT = `document.getElementById("copy").onclick = async () => {
-  await navigator.clipboard.writeText(document.getElementById("cmd").textContent);
-  document.getElementById("copy").textContent = "Copied"; setTimeout(() => document.getElementById("copy").textContent = "Copy", 1500);
-};`;
+const INSTALL_SCRIPT = `
+document.querySelectorAll(".copy").forEach((b) => b.onclick = async () => {
+  await navigator.clipboard.writeText(b.previousElementSibling.textContent);
+  b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1500);
+});
+document.querySelectorAll(".tab").forEach((t) => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === t));
+  document.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== t.dataset.tab);
+});`;
 
 export function homePage(user: { name: string; email: string } | null, origin: string): string {
   if (!user) {
@@ -79,14 +97,14 @@ export function homePage(user: { name: string; email: string } | null, origin: s
       "AnyDock",
       `<h1>Agents made individuals 10x.</h1><p>AnyDock makes teams 10x: share and hand over your agent's work — context, trajectory and all — to teammates and their agents.</p>
        ${installBlock(origin)}<a class="btn" href="/login">Sign in</a>`,
-      COPY_SCRIPT,
+      INSTALL_SCRIPT,
     );
   }
   return layout(
     "AnyDock",
     `<h1>Signed in</h1><p>${esc(user.name || user.email)} · ${esc(user.email)}</p>
      ${installBlock(origin)}<button id="out">Sign out</button><div id="msg" class="msg"></div>`,
-    `${COPY_SCRIPT}
+    `${INSTALL_SCRIPT}
      document.getElementById("out").onclick = async () => { await api("/api/auth/sign-out", {}); location.href = "/"; };`,
   );
 }
@@ -161,7 +179,7 @@ export function devicePage(opts: { userCode: string; email: string }): string {
        try {
          await api("/api/auth/device/" + action, { userCode });
          document.getElementById("confirm").hidden = true;
-         say(action === "approve" ? "Approved. You can return to your terminal." : "Denied.");
+         say(action === "approve" ? "Approved. You can go back to your terminal or agent." : "Denied.");
        } catch (e) { say(e.message, true); }
      }
      document.getElementById("codeForm").onsubmit = (ev) => { ev.preventDefault(); userCode = document.getElementById("code").value.trim().toUpperCase(); claim(); };

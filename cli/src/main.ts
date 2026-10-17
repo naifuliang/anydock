@@ -7,6 +7,8 @@ import { isAuthorized, loadState, saveState, type SyncRule } from "./config.ts";
 import { installMcp, uninstallMcp } from "./install.ts";
 import { login, logout } from "./login.ts";
 import { serveMcp } from "./mcp.ts";
+import { installService, serviceStatus, uninstallService } from "./service.ts";
+import { setup } from "./setup.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import { syncSession, watchAndSync } from "./sync.ts";
 import { selfUpdate, startAutoUpdate, updateInBackground } from "./update.ts";
@@ -15,6 +17,7 @@ import { VERSION } from "./version.ts";
 const HELP = `anydock — share and hand over agent work
 
 Usage:
+  anydock setup [--no-browser] [--no-service]   Sign in, connect Claude Code + Codex, start background sync
   anydock login [--server URL] [--no-browser]   Sign in (opens the browser)
   anydock logout                                Forget the saved token
   anydock whoami                                Show who you are signed in as
@@ -26,6 +29,7 @@ Usage:
   anydock watch                                 Keep allowed sessions in sync live
   anydock mcp install | uninstall               Add AnyDock tools to Claude Code and Codex
   anydock mcp                                   Run the MCP server (agents launch this)
+  anydock service install | uninstall | status  Background sync at login (launchd / systemd)
   anydock update                                Update to the latest version
   anydock version                               Show the installed version
 
@@ -46,6 +50,7 @@ async function main(): Promise<void> {
     options: {
       server: { type: "string" },
       "no-browser": { type: "boolean" },
+      "no-service": { type: "boolean" },
       limit: { type: "string" },
       all: { type: "boolean" },
       dir: { type: "boolean" },
@@ -55,6 +60,14 @@ async function main(): Promise<void> {
   const [cmd, arg] = positionals;
 
   switch (values.help ? "help" : cmd) {
+    case "setup":
+      return setup({ openBrowser: !values["no-browser"], service: !values["no-service"] });
+
+    case "service":
+      if (arg === "install") return console.log(installService());
+      if (arg === "uninstall") return console.log(uninstallService());
+      return console.log(serviceStatus());
+
     case "login":
       return login({ server: values.server, openBrowser: !values["no-browser"] });
 

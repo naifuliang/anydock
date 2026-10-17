@@ -1,6 +1,8 @@
 #!/bin/sh
 # AnyDock installer:  curl -fsSL https://anydock.ai/install.sh | sh
-# Installs the CLI into ~/.anydock/bin and puts `anydock` on your PATH. Re-run any time to reinstall.
+# Installs the CLI into ~/.anydock/bin, puts `anydock` on your PATH, then runs `anydock setup`
+# (browser sign-in, connect Claude Code + Codex, background sync). Re-run any time; every step is idempotent.
+# ANYDOCK_NO_SETUP=1 installs only (agents use this, then run the steps themselves — see /agents.md).
 set -eu
 
 SERVER="${ANYDOCK_SERVER:-https://anydock.ai}"
@@ -50,10 +52,11 @@ else
   say "Added $BIN to PATH in $PROFILE (open a new terminal, or run: $LINE)"
 fi
 
+say "AnyDock $("$BIN/anydock" version) installed at $BIN/anydock"
+
+if [ -n "${ANYDOCK_NO_SETUP:-}" ]; then
+  say "Next: anydock setup   (sign in, connect Claude Code + Codex, background sync)"
+  exit 0
+fi
 say ""
-say "AnyDock $("$BIN/anydock" version) installed."
-say ""
-say "Next:"
-say "  anydock login          sign in (opens your browser)"
-say "  anydock mcp install    give Claude Code and Codex the AnyDock tools"
-say "  anydock watch          keep the sessions you share in sync"
+exec "$BIN/anydock" setup
