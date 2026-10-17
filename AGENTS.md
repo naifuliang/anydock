@@ -89,7 +89,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 
 ## Decisions log
 
-- Product name: **AnyDock** (domain `anydock.ai`, CLI `dock`). Repo dir is still `relay/`.
+- Product name: **AnyDock** everywhere — domain `anydock.ai`, GitHub repo `naifuliang/anydock`, npm package and CLI command `anydock` (e.g. `anydock login`, `anydock app`, `anydock mcp`). The local folder is still `relay/`.
 - Cloud: Cloudflare (existing account and domain). Old AnyDock worker deleted Oct 17; old D1/R2/KV kept; old code archived at `naifuliang/anydock-legacy`.
 - Local client ships as a local web UI first.
 - Demo scenario: the sponsor-research session from this hackathon.
