@@ -57,3 +57,13 @@ App `1561232574444081184` created with Nolan-approved terms and human verificati
 Nolan authorized a private demo server and accepted Discord Community Guidelines. Created **AnyDock demo**, guild `1561273593331982466`, default #general `1561273594372423784`. No people invited. AnyDock verification project `5cc6e01a-e9dd-421f-9451-fd0444bc3c42` has only the owner qizi297@gmail.com.
 
 Installation prepared from the AnyDock project. Final Discord consent lists View Channels, Send Messages, Embed Links (permission bitfield 19456), plus bot/applications.commands scopes. Page says it cannot read messages or send as the user. Paused at Authorize for action-time confirmation; no bot installation or channel test claimed yet.
+
+## Oct 18 live verification — complete
+
+Nolan explicitly approved bot installation, #general linking, notification and command tests, then completed hCaptcha. The original OAuth state expired while waiting; refreshed the same approved flow without changing scope or destination. Callback succeeded, commands registered and #general connected to verification project 5cc6e01a-e9dd-421f-9451-fd0444bc3c42.
+
+- Discord visibly confirmed AnyDock app added to the private server.
+- At 00:35 PDT, #general received the **AnyDock is connected** embed naming Connector verification.
+- Real `/anydock recent` invocation returned **No works in Connector verification yet. Link one from a work's page in AnyDock.** This is the expected empty-project response; signed interaction route and live reply verified.
+- No other people invited. Permissions remain View Channels / Send Messages / Embed Links; no privileged intents. No production trajectories were uploaded for this test. Rich work/handover cards and populated `/anydock why` results are not covered by this empty-project smoke test.
+- Server: https://discord.com/channels/1561273593331982466/1561273594372423784

@@ -188,7 +188,7 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | Cursor, Windsurf, VS Code | MCP config documented in `/agents.md`; **not yet tested** | Codex: `tasks/mcp-clients-qa.md` |
 | GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
 | Email sign-in codes (Cloudflare) | Live: existing Workers Paid plan, restricted login@anydock.ai binding; domain mail delivered | Production auth OTP inbox receipt verified |
-| Discord | Application/secrets configured; private AnyDock demo server created | Final bot authorization and live channel test pending |
+| Discord | Live in private AnyDock demo: #general connection embed and /anydock recent response verified Oct 18 | Populated work/why scenarios not covered by this smoke test |
 | Slack (delegate: post as you + approval DMs) | New app installed with explicit approval; self-DM delivery verified | Human Slack approval-button check remains optional |
 | Organization communication resources (Primitive) | Account and credit ready; not a platform mail fallback | Organization-scoped Primitive connector remains to implement |
 | Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | **Code done** + tested with mocks (`src/mailbox.ts`); Gmail reuses the Google OAuth client (needs `gmail.send` scope on the consent screen), Outlook needs `MS_CLIENT_ID/SECRET` | Codex: `tasks/email-accounts-setup.md` |
@@ -289,11 +289,13 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 - System authentication/account email uses Cloudflare Email Service from login@anydock.ai. Existing Workers Paid plan confirmed in account UI; no plan purchase. Sending domain enabled, DNS checked, and real Outlook receipt verified. Worker version cb8559bd-9f58-45fd-9d33-2f11cfd11dce deployed with sender-restricted EMAIL binding.
 - Primitive is reserved for organization-controlled communication resources. Its credentials are retained but no system or global agent-email fallback uses them. Organization-level Primitive allocation is not implemented yet. Gmail/Outlook delegated email requires the acting user’s connected mailbox and permission check.
 - Live checks complete: Gmail approved send to own Outlook received; Inkbox repaired identity-only key and approved AnyDock iMessage received in Messages; Slack own DM received; original email-code login completed by Nolan and authenticated session checked.
-- Remaining setup blockers: Discord account has no manageable server; personal Outlook account has no Entra tenant; Cursor/Windsurf/VS Code are absent for editor QA. Armature live instrumentation is separate implementation work.
+- Remaining setup blockers: personal Outlook account has no Entra tenant; Cursor/Windsurf/VS Code are absent for editor QA. Armature live instrumentation is separate implementation work.
 
 ### Blaxel setup and sponsor credits (Oct 17–18)
 
 - Workspace `anydock`, Google qizi297@gmail.com, free Tier 0; 15 credits awarded (10 signup + 5 first sandbox), wallet says “In 11 Months” expiry. No card/top-up. The 180-credit bonus requires a first paid top-up and was skipped. No Blaxel redemption code found in YC chat.
 - `BLAXEL_API_KEY` (workspace-only Member service account `anydock-runtime`, 30 days) and `BLAXEL_WORKSPACE` stored through Wrangler and names verified.
 - One provider smoke sandbox ran Node v24.11.1; file/process/private port/public preview returned expected JSON; cleanup confirmed TERMINATED. Full app-artifact integration is not claimed by this provider smoke check.
-- Setup table reconciled in tasks/RUNBOOK.md. CLI installed and authenticated; editor apps absent. Discord still needs a manageable server; Outlook tenant blocker remains.
+- Setup table reconciled in tasks/RUNBOOK.md. CLI installed and authenticated; editor apps absent. Discord private server connection and command test now verified; Outlook tenant blocker remains.
+
+- Oct 18 00:35 PDT: Discord private server 1561273593331982466, #general 1561273594372423784, linked to owner-only Connector verification project 5cc6e01a-e9dd-421f-9451-fd0444bc3c42. Actual connected embed and signed `/anydock recent` empty-project reply verified after user-approved install. No invitations or trajectory uploads.

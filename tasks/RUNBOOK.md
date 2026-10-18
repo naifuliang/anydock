@@ -28,7 +28,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | # | Task | Unlocks | Status | Waiting on Nolan |
 |---|---|---|---|---|
 | 1 | `tasks/slack-app-setup.md` | Slack posting and approval DMs | ✅ live verified | None; authorized workspace connection and self-DM received |
-| 2 | `tasks/discord-setup.md` | Project channels and slash commands | ⏸ configuration done | Private AnyDock demo server created; final bot authorization pending |
+| 2 | `tasks/discord-setup.md` | Project channels and slash commands | ✅ live verified | Private server connected; notification received and /anydock recent answered |
 | 3 | `tasks/google-access-and-email.md` | Cloudflare own-domain email login; Primitive resource account | ✅ | Google extra test users deferred; Primitive organization connector is separate implementation |
 | 4 | `tasks/email-accounts-setup.md` | Gmail / Outlook delegated mail | ⏸ Outlook blocked | Gmail delivered; personal Microsoft account lacks Entra tenant (AADSTS16000) |
 | 5 | `tasks/inkbox-setup.md` | iMessage | ✅ live verified | Approved AnyDock message received; SMS/voice require separate availability |
@@ -101,4 +101,8 @@ Nolan clarified “code” means free sponsor quota/credits. Searched the authen
 
 Workspace anydock, Google qizi297@gmail.com, Tier 0. Received 10 signup + 5 first-sandbox credits; UI expiration “In 11 Months”. Member service-account key, 30 days, stored in Cloudflare with BLAXEL_WORKSPACE; names verified. Real Node 24 smoke server answered via authenticated endpoint and public preview; disposable sandbox deletion confirmed TERMINATED. No payment method/top-up, no invitation, no running smoke resource. See tasks/blaxel-setup.md for exact contract/timings. The 180-credit offer requires a paid top-up and was skipped.
 
-Remaining blocked setup: Discord needs a manageable server (private demo-server request pending); Outlook needs an Entra tenant; editor UI QA needs installed editors. Primitive organization allocation and Armature instrumentation are implementation backlog, not completed account-setup tasks.
+Remaining blocked setup: Outlook needs an Entra tenant; editor UI QA needs installed editors. Primitive organization allocation and Armature instrumentation are implementation backlog, not completed account-setup tasks.
+
+## Discord completed — Oct 18 00:35 PDT
+
+Explicitly authorized private AnyDock demo server and bot installation; Nolan completed hCaptcha. Connected #general to the owner-only verification project. Actual connection embed and `/anydock recent` empty-project reply received in Discord. Setup task 2 is complete. Remaining account/setup blockers are Outlook tenant and absent editor apps.
