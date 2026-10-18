@@ -1,0 +1,8 @@
+{
+  "name": "anydock-permission-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "mcp-use": "2.10.1", "zod": "4.6.7" }
+}
