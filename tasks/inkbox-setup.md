@@ -26,7 +26,9 @@ allows it (default for calls/texts: **ask me**).
    - `INKBOX_API_KEY=… npx @inkbox/cli identity create anydock --display-name "AnyDock"` — set the key in that one
      command's environment only; don't export it into the shell profile.
    - If the free tier offers iMessage/SMS on the identity, enable it. If a phone number requires a paid plan, skip it and note that.
-4. `npx wrangler secret put INKBOX_IDENTITY` → `anydock`
+4. `npx wrangler secret put INKBOX_IDENTITY` → `anydock`, and `npx wrangler secret put INKBOX_IDENTITY_ID` → the identity's
+   **UUID** (`GET https://inkbox.ai/api/v1/identities` with header `X-API-Key`, or the console). If the identity has a phone
+   number, also set `INKBOX_PHONE_NUMBER_ID` → that number's UUID (used for SMS when iMessage isn't possible).
 5. Test once: send a text from the `anydock` identity to Nolan's own phone ("AnyDock test — reply STOP to ignore"), confirm
    it arrives, then note in `AGENTS.md` which channels work on the current plan (SMS / iMessage / voice).
 6. Write down (in `AGENTS.md`, Status) the exact REST endpoint + auth header the SDK uses for "send text", from
@@ -34,7 +36,7 @@ allows it (default for calls/texts: **ask me**).
 
 ## Done when
 
-- [ ] `INKBOX_API_KEY` and `INKBOX_IDENTITY` secrets set.
+- [ ] `INKBOX_API_KEY`, `INKBOX_IDENTITY` and `INKBOX_IDENTITY_ID` secrets set (`INKBOX_PHONE_NUMBER_ID` too if there is a number).
 - [ ] Identity `anydock` exists; test message to Nolan arrived (or the paid-plan blocker is written down).
 - [ ] REST endpoint + header for sending a text recorded in `AGENTS.md`.
 - [ ] Your commit pushed.
