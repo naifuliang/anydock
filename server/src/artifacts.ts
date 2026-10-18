@@ -691,9 +691,20 @@ usercontent.get("/u/:id/:sig/*", async (c) => {
     f = path ? await find(path) : null;
   }
   if (!f) return c.text("Not found", 404);
-  const obj = await c.env.TRAJECTORIES.get(f.r2Key);
-  if (!obj) return c.text("Not found", 404);
   // Text without a declared charset is UTF-8 (agents write UTF-8; browsers would otherwise guess Latin-1).
   const type = /^(text\/|application\/(javascript|json))/.test(f.contentType) && !/charset/i.test(f.contentType) ? `${f.contentType}; charset=utf-8` : f.contentType;
-  return new Response(obj.body, { headers: { ...headers, "Content-Type": type } });
+  // Byte ranges, so apps can seek in their own video and audio.
+  const m = /^bytes=(\d*)-(\d*)$/.exec(c.req.header("range") ?? "");
+  if (m) {
+    const head = await c.env.TRAJECTORIES.head(f.r2Key);
+    if (!head) return c.text("Not found", 404);
+    const size = head.size, start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2])), end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+    if (start > end || start >= size) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${size}` } });
+    const part = await c.env.TRAJECTORIES.get(f.r2Key, { range: { offset: start, length: end - start + 1 } });
+    if (!part) return c.text("Not found", 404);
+    return new Response(part.body, { status: 206, headers: { ...headers, "Content-Type": type, "Accept-Ranges": "bytes", "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) } });
+  }
+  const obj = await c.env.TRAJECTORIES.get(f.r2Key);
+  if (!obj) return c.text("Not found", 404);
+  return new Response(obj.body, { headers: { ...headers, "Content-Type": type, "Accept-Ranges": "bytes", "Content-Length": String(obj.size) } });
 });
