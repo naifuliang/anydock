@@ -25,6 +25,7 @@ const HUMAN_ONLY: [string, RegExp][] = [
   ["DELETE", /^\/api\/organizations\/[^/]+\/(members|manufact)/],
   ["POST", /^\/api\/organizations\/[^/]+\/requests\/[^/]+\/decision$/],
   ["DELETE", /^\/api\/approval-keys\//],
+  ["DELETE", /^\/api\/artifacts\/[^/]+$/],
 ];
 // Of Better Auth's own endpoints, an agent session may only read itself or sign out
 // (no approving device logins, changing email, linking accounts or listing/revoking sessions).

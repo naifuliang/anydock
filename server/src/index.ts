@@ -12,8 +12,11 @@ import { projects } from "./projects.ts";
 import { works } from "./works.ts";
 import { organizations } from "./organizations.ts";
 import { agentForbidden, isAgentSession, recordDeviceLogin } from "./trust.ts";
+import { artifacts, usercontent } from "./artifacts.ts";
+import { artifactPage } from "./artifact-page.ts";
 
 export { UserHub } from "./hub.ts";
+export { ArtifactRoom } from "./room.ts";
 
 const app = new Hono<AppEnv>();
 
@@ -58,6 +61,8 @@ app.get("/api/me", async (c) => {
 });
 
 // Before projects/works: their middleware requires a session, but Discord calls /api/discord/* itself.
+app.route("/", usercontent);
+app.route("/api", artifacts);
 app.route("/api", discord);
 app.route("/api", delegate);
 app.route("/api", mailbox);
@@ -79,6 +84,13 @@ app.get("/app", (c) => {
   return c.html(appPage(session.user, new URL(c.req.url).origin, discordEnabled(c.env)));
 });
 
+app.get("/a/:id", (c) => {
+  const session = c.get("session");
+  if (!session) return c.redirect(`/login?next=${encodeURIComponent(`/a/${c.req.param("id")}`)}`);
+  const { id, name, email } = session.user;
+  return c.html(artifactPage({ id: c.req.param("id"), me: { id, name: name || email.split("@")[0]!, email }, origin: new URL(c.req.url).origin }));
+});
+
 app.get("/login", (c) => {
   const next = safeNext(c.req.query("next"));
   if (c.get("session")) return c.redirect(next);
@@ -94,11 +106,11 @@ app.get("/device", (c) => {
   return c.html(devicePage({ userCode, email: c.get("session")!.user.email }));
 });
 
-// WebSocket clients can't set headers, so /api/live also accepts the bearer token as ?token=.
+// WebSocket clients can't set headers, so live sockets (/api/live, /api/artifacts/:id/live) accept the bearer token as ?token=.
 function sessionHeaders(req: Request): Headers {
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
-  if (url.pathname !== "/api/live" || !token || req.headers.has("Authorization")) return req.headers;
+  if (!url.pathname.endsWith("/live") || !token || req.headers.has("Authorization")) return req.headers;
   const headers = new Headers(req.headers);
   headers.set("Authorization", `Bearer ${token}`);
   return headers;

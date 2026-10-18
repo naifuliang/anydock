@@ -4,6 +4,8 @@ export interface Env extends AuthEnv {
   DB: D1Database;
   TRAJECTORIES: R2Bucket;
   HUB: DurableObjectNamespace;
+  ROOM: DurableObjectNamespace;
+  USERCONTENT_ORIGIN?: string; // where apps run, e.g. https://u.anydock.ai (local: http://127.0.0.1:8787)
   // Discord connector (see tasks/discord-setup.md). All three are needed for it to turn on.
   DISCORD_APPLICATION_ID?: string;
   DISCORD_PUBLIC_KEY?: string;

@@ -10,7 +10,9 @@
   "assets": { "directory": "./public" },
   "vars": {
     "BETTER_AUTH_URL": "https://anydock.ai",
-    "SYSTEM_EMAIL_FROM": "login@anydock.ai"
+    "SYSTEM_EMAIL_FROM": "login@anydock.ai",
+    // Artifacts' web pages and small apps run here, a different site from anydock.ai.
+    "USERCONTENT_ORIGIN": "https://u.anydock.ai"
   },
   "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["login@anydock.ai"] }],
   "d1_databases": [
@@ -20,9 +22,10 @@
     { "binding": "TRAJECTORIES", "bucket_name": "anydock-trajectories" }
   ],
   // One UserHub per user fans out live events to that user's sockets.
-  "durable_objects": { "bindings": [{ "name": "HUB", "class_name": "UserHub" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }],
-  "routes": [{ "pattern": "anydock.ai", "custom_domain": true }],
+  // One ArtifactRoom per artifact: live edits and presence for everyone who has it open.
+  "durable_objects": { "bindings": [{ "name": "HUB", "class_name": "UserHub" }, { "name": "ROOM", "class_name": "ArtifactRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }, { "tag": "v2", "new_sqlite_classes": ["ArtifactRoom"] }],
+  "routes": [{ "pattern": "anydock.ai", "custom_domain": true }, { "pattern": "u.anydock.ai", "custom_domain": true }],
   // Keep local dev on localhost; otherwise wrangler dev rewrites requests to the route's host and auth rejects them.
   "dev": { "port": 8787, "host": "localhost:8787" },
   "observability": { "enabled": true }

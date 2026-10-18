@@ -13,6 +13,9 @@ import { findSession, listSessionFiles, parseSession } from "./sources/discover.
 import { syncSession, watchAndSync } from "./sync.ts";
 import { selfUpdate, startAutoUpdate, updateInBackground } from "./update.ts";
 import { VERSION } from "./version.ts";
+import { readFileSync } from "node:fs";
+import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, uploadArtifact, writeArtifact, type Kind } from "./artifacts.ts";
+import { openInViewer } from "./native/viewer.ts";
 
 const HELP = `anydock — share and hand over agent work
 
@@ -27,7 +30,14 @@ Usage:
   anydock unsync <session-id> | --dir [path]    Stop syncing
   anydock rules                                 Show what is allowed to sync
   anydock watch                                 Keep allowed sessions in sync live
-  anydock mcp install | uninstall               Add AnyDock tools to Claude Code and Codex
+  anydock artifact create <title> --type doc|slides|sheet|latex|html [--outline "A: brief|B|C"] [--file F | --content S]
+  anydock artifact write <id> [section|new|all] --file F | --content S | -   (stdin)  [--heading H] [--after S]
+  anydock artifact read <id> [section]          Markdown / CSV / source of an artifact
+  anydock artifact upload <path> [--id ID] [--title T]   A folder (app), Office/PDF/image file, or .md/.csv/.tex/.html
+  anydock artifact list                         Yours, shared with you, and your works'
+  anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
+  anydock open <artifact-id>                    Open it (a native window on Mac, else the browser)
+  anydock mcp install | uninstall               Add AnyDock tools + skill to Claude Code and Codex
   anydock mcp                                   Run the MCP server (agents launch this)
   anydock service install | uninstall | status  Background sync at login (launchd / systemd)
   anydock update                                Update to the latest version
@@ -45,7 +55,15 @@ const ago = (ms: number) => {
 };
 
 async function main(): Promise<void> {
+  // Text options take their next argument literally, even when it starts with "-" (Markdown bullets do).
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length - 1; i++) {
+    if (["--content", "--heading", "--note", "--outline", "--title"].includes(argv[i]!) && argv[i + 1]!.startsWith("-") && argv[i + 1] !== "-") {
+      argv.splice(i, 2, `${argv[i]}=${argv[i + 1]}`);
+    }
+  }
   const { values, positionals } = parseArgs({
+    args: argv,
     allowPositionals: true,
     options: {
       server: { type: "string" },
@@ -54,6 +72,17 @@ async function main(): Promise<void> {
       limit: { type: "string" },
       all: { type: "boolean" },
       dir: { type: "boolean" },
+      type: { type: "string" },
+      outline: { type: "string" },
+      file: { type: "string" },
+      content: { type: "string" },
+      heading: { type: "string" },
+      after: { type: "string" },
+      id: { type: "string" },
+      title: { type: "string" },
+      note: { type: "string" },
+      viewer: { type: "boolean" },
+      handover: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -141,6 +170,18 @@ async function main(): Promise<void> {
       return;
     }
 
+    case "artifact":
+    case "artifacts":
+      return console.log(await artifactCommand(arg ?? "list", positionals.slice(2), values));
+
+    case "open": {
+      if (!arg) throw new Error("Usage: anydock open <artifact-id>");
+      requireLogin();
+      const { url, title } = await artifactUrl(await resolveId(arg));
+      console.log(openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`);
+      return;
+    }
+
     case "mcp":
       if (arg === "install") return installMcp();
       if (arg === "uninstall") return uninstallMcp();
@@ -170,6 +211,48 @@ async function main(): Promise<void> {
     default:
       console.error(`Unknown command "${cmd}".\n\n${HELP}`);
       process.exit(1);
+  }
+}
+
+// Same core as the MCP tools (src/artifacts.ts), for agents that prefer the shell.
+async function artifactCommand(sub: string, rest: string[], v: Record<string, string | boolean | undefined>): Promise<string> {
+  const text = (): string => {
+    if (typeof v.content === "string") return v.content;
+    if (typeof v.file === "string") return v.file === "-" ? readFileSync(0, "utf8") : readFileSync(v.file, "utf8");
+    if (rest.includes("-")) return readFileSync(0, "utf8");
+    return "";
+  };
+  requireLogin();
+  switch (sub) {
+    case "create": {
+      const title = rest[0];
+      const type = v.type as Kind | undefined;
+      if (!title || !type) throw new Error('Usage: anydock artifact create "<title>" --type doc|slides|sheet|latex|html [--outline "A: brief|B|C"] [--file F]');
+      const body = text();
+      return createArtifact({ title, type, outline: typeof v.outline === "string" ? v.outline.split("|").map((x) => x.trim()).filter(Boolean) : undefined, content: body || undefined });
+    }
+    case "write": {
+      if (!rest[0]) throw new Error("Usage: anydock artifact write <id> [section|new|all] --file F | --content S | -");
+      const section = rest[1] && rest[1] !== "-" ? rest[1] : undefined;
+      return writeArtifact({ id: await resolveId(rest[0]), section, content: text(), heading: v.heading as string | undefined, after: v.after as string | undefined });
+    }
+    case "read":
+      if (!rest[0]) throw new Error("Usage: anydock artifact read <id> [section]");
+      return readArtifact(await resolveId(rest[0]), rest[1]);
+    case "upload":
+      if (!rest[0]) throw new Error("Usage: anydock artifact upload <path> [--id ID] [--title T]");
+      return uploadArtifact({ path: resolve(rest[0]), title: v.title as string | undefined, id: v.id ? await resolveId(v.id as string) : undefined });
+    case "list":
+      return listArtifacts();
+    case "share":
+      if (!rest[0] || !rest[1]) throw new Error("Usage: anydock artifact share <id> <email> [--viewer] [--handover] [--note N]");
+      return shareArtifact({ id: await resolveId(rest[0]), to: rest[1], role: v.viewer ? "viewer" : "editor", handover: Boolean(v.handover), note: v.note as string | undefined });
+    case "open": {
+      const { url, title } = await artifactUrl(await resolveId(rest[0] ?? ""));
+      return openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`;
+    }
+    default:
+      throw new Error(`Unknown: anydock artifact ${sub}. Try: create, write, read, upload, list, share, open.`);
   }
 }
 

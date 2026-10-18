@@ -1,11 +1,14 @@
 import { createInterface } from "node:readline";
 import { api, ApiError } from "./api.ts";
-import { loadConfig, loadState, realPath, saveState } from "./config.ts";
-import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
+import { loadConfig, loadState, saveState } from "./config.ts";
+import { listSessionFiles, parseSession } from "./sources/discover.ts";
 import type { ParsedSession, Source, Step } from "./sources/types.ts";
 import { syncSession } from "./sync.ts";
 import { askOnThisMac, nativeApprovalPossible } from "./native/approve.ts";
 import { VERSION } from "./version.ts";
+import { currentSession, launchingAgent } from "./session.ts";
+import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, uploadArtifact, writeArtifact } from "./artifacts.ts";
+import { openInViewer } from "./native/viewer.ts";
 
 // `anydock mcp`: a stdio MCP server that Claude Code and Codex launch. Agents use it to share or hand over
 // the session they are in, see what teammates sent them, read a teammate's trajectory, and ask why.
@@ -25,28 +28,6 @@ const sessionArg = {
   description:
     "Optional local session id (or unique prefix). Defaults to the session this agent is running in: the most recently active one in the current working directory.",
 };
-
-// ---------- current session ----------
-
-// The agent that launched us; both put their own env vars in the child's environment.
-function launchingAgent(): Source | undefined {
-  if (Object.keys(process.env).some((k) => k.startsWith("CLAUDE_CODE_"))) return "claude-code";
-  if (Object.keys(process.env).some((k) => k.startsWith("CODEX_"))) return "codex";
-  return undefined;
-}
-
-function currentSession(idPrefix?: string): ParsedSession {
-  const files = listSessionFiles();
-  if (idPrefix) return findSession(files, idPrefix);
-  const cwd = realPath(process.cwd());
-  const agent = launchingAgent();
-  const candidates = files.filter((f) => !agent || f.source === agent);
-  for (const f of candidates.slice(0, 50)) {
-    const s = parseSession(f);
-    if (s.cwd && realPath(s.cwd) === cwd) return s;
-  }
-  throw new Error(`Couldn't find an active ${agent ?? "agent"} session for ${cwd}. Pass "session" explicitly (see: anydock sessions).`);
-}
 
 // Sharing a session implies allowing it to sync; the rule keeps later progress flowing to recipients.
 async function authorizeAndSync(s: ParsedSession) {
@@ -344,6 +325,91 @@ const tools: Tool[] = [
       return describeAction(action);
     },
   },
+
+  // ---------- artifacts (same core as `anydock artifact …`) ----------
+  {
+    name: "anydock_artifact_create",
+    description:
+      "Create a live document, slide deck, spreadsheet, LaTeX document or web page the user and teammates can open, co-edit, share and hand over. " +
+      "For docs and decks, lay down the skeleton first: pass `outline` (one entry per section/slide, \"Heading: what goes here\"), then fill sections one by one with anydock_artifact_write so the user watches it come together. " +
+      "Pass `content` instead to create it in one go (Markdown for doc/slides, CSV for sheet, source for latex/html). For apps, Office files, PDFs or images use anydock_artifact_upload.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        type: { type: "string", enum: ["doc", "slides", "sheet", "latex", "html"] },
+        outline: { type: "array", items: { type: "string" }, description: "Sections (doc) or slides (slides), e.g. [\"# Launch plan: one-line goal\", \"Timeline: key dates\", \"Risks\"]. A leading # makes a top-level heading." },
+        content: { type: "string", description: "Full content instead of an outline." },
+      },
+      required: ["title", "type"],
+    },
+    annotations: { openWorldHint: true },
+    run: (a) => createArtifact(a),
+  },
+  {
+    name: "anydock_artifact_write",
+    description:
+      "Write into an artifact: fill or rewrite one section/slide (by number or heading), add a new one (section=\"new\" with heading, optionally after=<section>), or replace everything (section=\"all\"). " +
+      "Sheets take CSV (or TSV) for a tab; latex/html take the full source. Sections someone is editing are locked — pick another and come back.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        section: { type: "string", description: "Section number (1-based) or heading; \"new\" to add; \"all\" to replace the whole thing." },
+        content: { type: "string", description: "Markdown for the section body (no heading line), CSV for sheets, full source for latex/html." },
+        heading: { type: "string", description: "Rename the section, or the heading of a new one." },
+        after: { type: "string", description: "With section=\"new\": insert after this section (number or heading)." },
+      },
+      required: ["id", "content"],
+    },
+    annotations: { openWorldHint: true },
+    async run(a) { return writeArtifact({ ...a, id: await resolveId(a.id) }); },
+  },
+  {
+    name: "anydock_artifact_read",
+    description: "Read an artifact (yours, shared with you, or attached to a work you can see): Markdown for docs/decks, CSV for sheets, source for LaTeX/HTML, the file list otherwise. Optionally one section.",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "Artifact id, unique prefix, or exact title." }, section: { type: "string" } }, required: ["id"] },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    async run(a) { return readArtifact(await resolveId(a.id), a.section); },
+  },
+  {
+    name: "anydock_artifact_upload",
+    description:
+      "Publish a local file or folder as an artifact (or a new version of one with `id`). A folder with index.html becomes a running app (sandboxed, on its own origin); " +
+      ".docx/.pptx/.xlsx/.pdf/images are kept as-is with versions and previewed in the browser (the user can turn Office files into live docs/decks/sheets); " +
+      ".md/.csv/.tex/.html become live, co-editable artifacts.",
+    inputSchema: { type: "object", properties: { path: { type: "string", description: "Absolute or relative path." }, id: { type: "string", description: "Upload as a new version of this artifact." }, title: { type: "string" } }, required: ["path"] },
+    annotations: { openWorldHint: true },
+    async run(a) { return uploadArtifact({ path: a.path, title: a.title, id: a.id ? await resolveId(a.id) : undefined }); },
+  },
+  {
+    name: "anydock_artifact_list",
+    description: "List artifacts you own, that were shared with you, or that belong to works you can see.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    run: () => listArtifacts(),
+  },
+  {
+    name: "anydock_artifact_share",
+    description: "Share an artifact with a teammate by email (editor by default, or viewer), or hand it over (they become the owner with its history; you keep edit access). It lands in their AnyDock inbox.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, to: { type: "string" }, role: { type: "string", enum: ["editor", "viewer"] }, handover: { type: "boolean" }, note: { type: "string" } },
+      required: ["id", "to"],
+    },
+    annotations: { openWorldHint: true },
+    async run(a) { return shareArtifact({ ...a, id: await resolveId(a.id) }); },
+  },
+  {
+    name: "anydock_artifact_open",
+    description: "Open an artifact for the user when you have no built-in browser: on a Mac, its own window (already signed in); elsewhere, the default browser. If you do have a built-in browser, open the artifact's URL there instead.",
+    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    async run(a) {
+      const { url, title } = await artifactUrl(await resolveId(a.id));
+      const how = openInViewer(url, title);
+      return how === "window" ? `Opened "${title}" in an AnyDock window on the user's Mac.` : `Opened ${url} in the user's browser.`;
+    },
+  },
 ];
 
 // ---------- delegate ----------
@@ -453,7 +519,7 @@ async function handle(msg: Msg): Promise<void> {
         capabilities: { tools: {} },
         serverInfo: { name: "anydock", title: "AnyDock", version: VERSION },
         instructions:
-          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked).",
+          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked). When the user wants a document, deck, spreadsheet, page or small app that teammates can open, edit or take over, make it an AnyDock artifact (anydock_artifact_create: skeleton first, then fill section by section; anydock_artifact_upload for files and apps) and show it to them in your built-in browser, or with anydock_artifact_open.",
       });
     case "ping":
       return void reply({});

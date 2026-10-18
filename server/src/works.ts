@@ -34,7 +34,7 @@ async function claimPending(db: D1Database, user: User): Promise<void> {
   ]);
 }
 
-async function roleFor(db: D1Database, work: WorkRow, userId: string): Promise<Role | null> {
+export async function roleFor(db: D1Database, work: WorkRow, userId: string): Promise<Role | null> {
   if (work.ownerId === userId) return "owner";
   if (work.assigneeId === userId) return "assignee";
   const shared = await db
@@ -130,6 +130,9 @@ works.put("/works", async (c) => {
     .bind(newId(), user.id, b.source, b.sessionId, b.title, b.cwd ?? null, b.gitBranch ?? null, b.summary ?? null,
       b.method ?? null, b.visibility ?? null, b.projectId ?? null, b.lastActivityAt ?? null, ts)
     .first<WorkRow>();
+  // Artifacts the agent made in this session join its Work (and move with its shares and handovers).
+  await c.env.DB.prepare(`update "artifact" set "workId" = ?1 where "workId" is null and "ownerId" = ?2 and "source" = ?3 and "sessionId" = ?4`)
+    .bind(work!.id, work!.ownerId, work!.source, work!.sessionId).run();
   return c.json({ work: workJson(work!, "owner") });
 });
 
@@ -315,11 +318,12 @@ works.delete("/shares/:shareId", async (c) => {
 // ---------- inbox ----------
 
 const INBOX_SELECT = `
-  select i."id", i."kind", i."body", i."readAt", i."createdAt", i."workId", i."shareId",
-         w."title" as "workTitle", w."source" as "workSource",
+  select i."id", i."kind", i."body", i."readAt", i."createdAt", i."workId", i."shareId", i."artifactId",
+         w."title" as "workTitle", w."source" as "workSource", a."title" as "artifactTitle", a."kind" as "artifactKind",
          u."name" as "fromName", u."email" as "fromEmail"
   from "inboxItem" i
   left join "work" w on w."id" = i."workId"
+  left join "artifact" a on a."id" = i."artifactId"
   left join "user" u on u."id" = i."fromUserId"`;
 
 async function inboxItemById(db: D1Database, id: string) {

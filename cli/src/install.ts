@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { COMMAND } from "./version.ts";
+import { installSkills, uninstallSkills } from "./skill.ts";
 
 // Registers `anydock mcp` with Claude Code (user scope) and Codex (~/.codex/config.toml).
 const [CMD, ...CMD_ARGS] = COMMAND as [string, ...string[]];
@@ -15,6 +16,8 @@ function claude(args: string[]) {
 }
 
 export function installMcp(): void {
+  const skills = installSkills();
+  if (skills.length) console.log(`Skill: added the AnyDock skill to ${skills.join(" and ")}.`);
   // Claude Code
   const probe = claude(["--version"]);
   if (probe.error) {
@@ -41,6 +44,7 @@ export function installMcp(): void {
 }
 
 export function uninstallMcp(): void {
+  uninstallSkills();
   const r = claude(["mcp", "remove", "--scope", "user", "anydock"]);
   console.log(r.error ? "Claude Code: not found." : r.status === 0 ? "Claude Code: removed AnyDock MCP." : "Claude Code: AnyDock MCP wasn't installed.");
   if (existsSync(CODEX_CONFIG)) {

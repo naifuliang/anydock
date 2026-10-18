@@ -14,6 +14,7 @@ const ICONS = {
   permissions: line("shield-check", 17), connections: line("plug", 17), search: line("search", 15), share: line("arrow-left-right", 15),
   handover: line("repeat", 15), why: line("message-circle-question", 15), user: line("users", 14), tool: line("terminal", 14),
   key: line("key-round", 16), sparkles: line("sparkles", 15), mail: line("mail", 16), zap: line("zap", 16), lock: line("lock", 14),
+  artifacts: line("file-text", 17), deck: line("presentation", 15),
   check: line("shield-check", 15), logout: line("log-out", 15), bot: line("bot", 15), refresh: line("refresh-cw", 14), plug: line("plug", 16),
 };
 const MARKS = {
@@ -93,6 +94,16 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .sec a { color:var(--muted); font-size:13px; } .sec a:hover { color:var(--text); }
   .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
+  .agrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; }
+  .acard { display:flex; flex-direction:column; gap:10px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; min-height:132px; transition:box-shadow .15s, transform .15s; }
+  .acard:hover { box-shadow:0 8px 30px rgba(0,0,0,.07); transform:translateY(-1px); }
+  .atop { display:flex; justify-content:space-between; align-items:center; } .atitle { font-weight:600; font-size:15px; line-height:1.3; flex:1; }
+  .ameta { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); }
+  .akind { display:inline-flex; align-items:center; font:600 11px Geist, sans-serif; color:var(--k); background:color-mix(in srgb, var(--k) 10%, #fff); border-radius:6px; padding:2px 7px; white-space:nowrap; }
+  .aline { display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; } .aline:first-child { border-top:0; } .aline .at { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .newmenu { position:relative; } .newpop { position:absolute; right:0; top:calc(100% + 6px); width:320px; background:#fff; border:1px solid var(--line2); border-radius:14px; box-shadow:0 16px 50px rgba(0,0,0,.12); padding:6px; z-index:30; }
+  .newpop button, .newpop .up { display:flex; gap:10px; align-items:flex-start; width:100%; border:0; background:transparent; text-align:left; padding:9px 10px; border-radius:10px; cursor:pointer; font:inherit; }
+  .newpop button:hover, .newpop .up:hover { background:var(--soft); } .newpop b { display:block; font-size:13.5px; } .newpop small { color:var(--muted); font-size:12px; } .newpop .akind { margin-top:1px; min-width:58px; justify-content:center; }
   .btn { display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:9px; border:1px solid var(--line2); background:#fff;
          color:var(--text); font:500 13.5px Geist, sans-serif; cursor:pointer; white-space:nowrap; transition:border-color .15s, box-shadow .15s, transform .15s; }
   .btn:hover { border-color:rgba(10,10,12,.3); }
@@ -295,6 +306,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
       <div class="navsec">Work</div>
       <a href="#/" data-nav="home">${ICONS.home}<span class="label">Overview</span></a>
       <a href="#/works" data-nav="works">${ICONS.works}<span class="label">Works</span></a>
+      <a href="#/artifacts" data-nav="artifacts">${ICONS.artifacts}<span class="label">Artifacts</span></a>
       <a href="#/inbox" data-nav="inbox">${ICONS.inbox}<span class="label">Inbox</span><span class="badge" id="unread" hidden></span></a>
       <div class="navsec">Team</div>
       <a href="#/projects" data-nav="projects">${ICONS.projects}<span class="label">Projects</span></a>
@@ -470,6 +482,61 @@ function workRow(w) {
     '<div class="ago">' + (fresh ? '<span class="dot" style="margin-right:6px"></span>' : '') + ago(w.lastActivityAt || w.updatedAt) + '</div></a>';
 }
 
+// ---------- artifacts ----------
+const ARTIFACT_NOUN = { doc: "a doc", slides: "a deck", sheet: "a sheet", latex: "a LaTeX doc", html: "a web page", app: "an app", file: "a file" };
+const KIND_LABEL = { doc: "Doc", slides: "Slides", sheet: "Sheet", latex: "LaTeX", html: "Web page", app: "App", file: "File" };
+const KIND_COLOR = { doc: "#2b59ff", slides: "#f76b15", sheet: "#12a594", latex: "#8e4ec6", html: "#d6409f", app: "#0a0a0b", file: "#5d5d66" };
+function artifactLine(a) {
+  return '<a class="aline" href="/a/' + a.id + '"><span class="akind" style="--k:' + KIND_COLOR[a.kind] + '">' + esc(KIND_LABEL[a.kind]) + '</span><span class="at">' + esc(a.title) + '</span><span class="ago">' + ago(a.updatedAt) + '</span></a>';
+}
+async function artifactsView(params) {
+  setNav("artifacts");
+  let filter = params.get("f") || "all", q = "";
+  view.innerHTML = head("Artifacts", "Docs, decks, sheets, pages and apps your agents and teammates make — live, shared and handed over with the work.",
+    '<div class="row"><label class="search">' + ICONS.search + '<input id="aq" placeholder="Search artifacts…"></label>' +
+    '<div class="seg" id="aseg">' + ["all", "mine", "shared"].map((f) => '<button data-f="' + f + '" class="' + (f === filter ? "on" : "") + '">' + ({ all: "All", mine: "Mine", shared: "Shared with me" })[f] + "</button>").join("") + '</div>' +
+    '<div class="newmenu"><button class="btn solid" id="newBtn">+ New</button><div class="newpop" id="newPop" hidden>' +
+      [["doc", "Document", "Write together, section by section"], ["slides", "Slides", "A deck you can present and export to .pptx"], ["sheet", "Spreadsheet", "A live grid with formulas; .xlsx in and out"], ["html", "Web page", "HTML with a live preview"], ["latex", "LaTeX", "Source with a live typeset preview"]]
+        .map((k) => '<button data-new="' + k[0] + '"><span class="akind" style="--k:' + KIND_COLOR[k[0]] + '">' + KIND_LABEL[k[0]] + '</span><span><b>' + k[1] + '</b><small>' + k[2] + '</small></span></button>').join("") +
+      '<label class="up"><input type="file" id="upFile" hidden><span class="akind" style="--k:' + KIND_COLOR.file + '">File</span><span><b>Upload a file</b><small>Word, PowerPoint, Excel, PDF, images…</small></span></label></div></div></div>') +
+    '<div class="agrid" id="alist">' + '<div class="card">' + skel(3) + '</div></div>';
+  const { artifacts } = await api("GET", "/api/artifacts");
+  const me = BOOT.user.email.toLowerCase();
+  const draw = () => {
+    const shown = artifacts.filter((a) => (filter === "all" || (filter === "mine" ? (a.ownerEmail || "").toLowerCase() === me : (a.ownerEmail || "").toLowerCase() !== me)) && (!q || a.title.toLowerCase().includes(q)));
+    $("#alist").innerHTML = shown.length ? shown.map((a) =>
+      '<a class="acard" href="/a/' + a.id + '"><div class="atop"><span class="akind" style="--k:' + KIND_COLOR[a.kind] + '">' + esc(KIND_LABEL[a.kind]) + (a.kind === "file" ? " · ." + esc(a.format) : "") + '</span><span class="ago">' + ago(a.updatedAt) + '</span></div>' +
+      '<div class="atitle">' + esc(a.title) + '</div><div class="ameta">' + av(a.ownerName, a.ownerEmail) + '<span>' + ((a.ownerEmail || "").toLowerCase() === me ? "You" : esc(a.ownerName || short(a.ownerEmail))) + '</span>' + (a.updatedBy ? '<span class="note">· edited by ' + esc(a.updatedBy) + '</span>' : '') + '</div></a>').join("")
+      : '<div class="card" style="grid-column:1/-1">' + empty("artifacts", q ? "No match" : "No artifacts yet", q ? "Nothing matches “" + esc(q) + "”." : "Ask your agent: <code>write a launch plan as an AnyDock doc</code> — or start one with + New.") + '</div>';
+  };
+  $("#aseg").onclick = (e) => { if (!e.target.dataset.f) return; filter = e.target.dataset.f; view.querySelectorAll("#aseg button").forEach((b) => b.classList.toggle("on", b === e.target)); draw(); };
+  $("#aq").oninput = (e) => { q = e.target.value.trim().toLowerCase(); draw(); };
+  $("#newBtn").onclick = (e) => { e.stopPropagation(); $("#newPop").hidden = !$("#newPop").hidden; };
+  document.addEventListener("click", (e) => { const p = $("#newPop"); if (p && !e.target.closest(".newmenu")) p.hidden = true; }, { once: false });
+  view.querySelectorAll("[data-new]").forEach((b) => (b.onclick = async () => {
+    const kind = b.dataset.new;
+    const body = { title: "Untitled " + KIND_LABEL[kind].toLowerCase(), kind };
+    if (kind === "doc") body.outline = [{ heading: "Untitled", level: 1, brief: "What is this about?" }];
+    if (kind === "slides") body.outline = [{ heading: "Title", brief: "Subtitle" }];
+    if (kind === "html") body.content = "<!doctype html>\n<h1>Hello</h1>\n";
+    if (kind === "latex") body.content = "\\documentclass{article}\n\\begin{document}\nHello.\n\\end{document}\n";
+    const { artifact } = await api("POST", "/api/artifacts", body);
+    location.href = "/a/" + artifact.id;
+  }));
+  $("#upFile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    toast("Uploading " + f.name + "…");
+    const ext = (f.name.split(".").pop() || "bin").toLowerCase();
+    const { artifact } = await api("POST", "/api/artifacts", { title: f.name, kind: "file", format: ext });
+    const { version } = await api("POST", "/api/artifacts/" + artifact.id + "/versions");
+    const res = await fetch("/api/artifacts/" + artifact.id + "/versions/" + version + "/files/" + encodeURIComponent(f.name), { method: "PUT", headers: { "content-type": f.type || "application/octet-stream" }, body: f });
+    if (!res.ok) return toast("Upload failed");
+    await api("POST", "/api/artifacts/" + artifact.id + "/versions/" + version + "/done");
+    location.href = "/a/" + artifact.id;
+  };
+  draw();
+}
+
 // ---------- inbox: everything waiting for you ----------
 const VIA = { mac: "on your Mac (Touch ID / password)", slack: "in Slack", dashboard: "in the dashboard", agent: "in your agent", rule: "by your rule" };
 async function inboxView() {
@@ -482,10 +549,10 @@ async function inboxView() {
       '<div class="note">Your rule: ask me · ' + ago(a.createdAt) + ' · also on your Mac and in Slack if connected</div></div>' +
       '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div></div>').join("") + '</div>' : "";
   const sent = '<div class="sec"' + (pend.length ? '' : ' style="margin-top:0"') + '><h2>From teammates</h2><span class="note">' + plural(items.filter((i) => !i.readAt).length, "unread") + '</span></div><div class="card">' + (items.length ? items.map((i) =>
-    '<a class="msg' + (i.readAt ? "" : " unread") + '" href="#/w/' + i.workId + '" data-read="' + (i.readAt ? "" : i.id) + '">' + av(i.fromName, i.fromEmail, "lg") +
-    '<div style="min-width:0"><div class="line1"><b>' + esc(i.fromName || short(i.fromEmail)) + '</b> ' + (i.kind === "handover" ? "handed over a work to you" : "shared a work with you") + '</div>' +
-    '<div class="t">' + (MARKS[i.workSource] || "") + esc(i.workTitle) + '</div>' + (i.body ? '<q>' + esc(i.body) + '</q>' : '') + '</div>' +
-    '<div class="row" style="flex-direction:column;align-items:flex-end;gap:6px">' + (i.readAt ? "" : '<span class="pill new">new</span>') + '<span class="pill ' + i.kind + '">' + (i.kind === "handover" ? "Handover" : "Share") + '</span><span class="ago">' + ago(i.createdAt) + "</span></div></a>").join("")
+    '<a class="msg' + (i.readAt ? "" : " unread") + '" href="' + (i.artifactId ? "/a/" + i.artifactId : "#/w/" + i.workId) + '" data-read="' + (i.readAt ? "" : i.id) + '">' + av(i.fromName, i.fromEmail, "lg") +
+    '<div style="min-width:0"><div class="line1"><b>' + esc(i.fromName || short(i.fromEmail)) + '</b> ' + (i.artifactId ? (i.kind === "artifact.handover" ? "handed over " : "shared ") + (ARTIFACT_NOUN[i.artifactKind] || "a file") + " with you" : i.kind === "handover" ? "handed over a work to you" : "shared a work with you") + '</div>' +
+    '<div class="t">' + (i.artifactId ? ICONS.artifacts + esc(i.artifactTitle) : (MARKS[i.workSource] || "") + esc(i.workTitle)) + '</div>' + (i.body ? '<q>' + esc(i.body) + '</q>' : '') + '</div>' +
+    '<div class="row" style="flex-direction:column;align-items:flex-end;gap:6px">' + (i.readAt ? "" : '<span class="pill new">new</span>') + '<span class="pill ' + (/handover/.test(i.kind) ? "handover" : "share") + '">' + (/handover/.test(i.kind) ? "Handover" : "Share") + '</span><span class="ago">' + ago(i.createdAt) + "</span></div></a>").join("")
     : empty("inbox", "Nothing from teammates yet", "When someone shares or hands over work to you, it shows up here — live.")) + '</div>';
   $("#inboxBody").innerHTML = approvals + sent;
   bindDecide();
@@ -515,6 +582,7 @@ async function workView(id) {
         '<input name="note" placeholder="Add a note (optional)"><div class="row" style="flex-wrap:nowrap"><button class="btn solid" style="flex:1;justify-content:center" name="kind" value="share">' + ICONS.share + 'Share</button>' +
         '<button class="btn" style="flex:1;justify-content:center" name="kind" value="handover">' + ICONS.handover + 'Hand over</button></div>' +
         '<div id="shareMsg" class="note"></div></form><div id="shares" style="margin-top:8px"></div></div>' : '') +
+      '<div class="card" id="workArts" hidden><h3>' + ICONS.artifacts + 'Artifacts</h3><div id="workArtList"></div></div>' +
       '<div class="card"><h3>' + ICONS.bot + 'Pick it up in your agent</h3><p class="note" style="margin:0">In Claude Code or Codex with AnyDock installed, say:</p>' +
         '<div class="pickup"><span style="flex:1">read AnyDock work ' + work.id.slice(0, 8) + ' and continue it</span><button class="iconbtn" id="copyPick" title="Copy" style="width:24px;height:24px">' + ICONS.zap + '</button></div></div>' +
       '<div class="card"><h3>' + ICONS.lock + 'About</h3><dl class="meta">' +
@@ -527,6 +595,7 @@ async function workView(id) {
           projectsRes.projects.map((p) => '<option value="' + p.id + '"' + (p.id === work.projectId ? " selected" : "") + '>' + esc(p.name) + "</option>").join("") +
           '</select><p class="note" style="margin:6px 0 0">Everyone in the project can read it.</p></div>' : '') + '</div>' +
     '</div></div>';
+  api("GET", "/api/artifacts?workId=" + work.id).then(({ artifacts }) => { if (!artifacts.length) return; $("#workArts").hidden = false; $("#workArtList").innerHTML = artifacts.map(artifactLine).join(""); }).catch(() => {});
   $("#copyPick").onclick = async () => { await navigator.clipboard.writeText("read AnyDock work " + work.id + " and continue it"); toast("Copied"); };
 
   let steps = [];
@@ -777,6 +846,7 @@ async function route() {
     let m;
     if (h === "/") await homeView();
     else if (h === "/works") await worksView(params);
+    else if (h === "/artifacts") await artifactsView(params);
     else if (h === "/inbox") await inboxView();
     else if (h === "/projects") await projectsView();
     else if (h === "/organizations") await organizationsView();

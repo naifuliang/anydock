@@ -1,0 +1,83 @@
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { COMMAND } from "./version.ts";
+
+// The AnyDock skill, installed next to the MCP server into Claude Code (~/.claude/skills) and Codex (~/.codex/skills).
+// The MCP tools give agents the capability; the skill teaches the workflow — and how to show artifacts to the person.
+const CLAUDE_SKILLS = join(homedir(), ".claude", "skills");
+const CODEX_SKILLS = join(process.env.ANYDOCK_CODEX_HOME ?? join(homedir(), ".codex"), "skills");
+
+function skill(cli: string): string {
+  return `---
+name: anydock
+description: Share and hand over agent work, and make live documents, slide decks, spreadsheets, LaTeX, web pages and small apps (AnyDock artifacts) that teammates and their agents can open, co-edit, share and take over. Use when the user wants a doc/report/deck/sheet/page/app made, shared with or handed to someone, or asks what a teammate sent or why a decision was made.
+---
+
+# AnyDock
+
+AnyDock is the team's shared workspace for agent work. Two ways to use it — same features, pick whichever is handier:
+- MCP tools \`anydock_*\` (already connected), or
+- the CLI: \`${cli}\` (run \`${cli} help\`).
+
+## Making something the user will read, edit or pass on → an artifact
+
+When the user asks for a document, report, plan, memo, deck, spreadsheet, LaTeX paper, web page or small app — and
+especially when someone else will read, edit or take it over — make it an AnyDock artifact instead of a loose local file.
+
+1. **Skeleton first.** Create it with an outline, one entry per section or slide (\`"Heading: what goes here"\`):
+   - MCP: \`anydock_artifact_create\` with \`title\`, \`type\` (doc | slides | sheet | latex | html), \`outline\`
+   - CLI: \`${cli} artifact create "Launch plan" --type doc --outline "# Launch plan: one-line goal|Timeline: key dates|Risks"\`
+2. **Show it right away**, so the user watches it fill in:
+   - If you have a built-in browser (Claude desktop app, Codex app, or any browser tool), open the artifact URL there,
+     in the side panel.
+   - Otherwise: \`anydock_artifact_open\` / \`${cli} open <id>\` (a native window on a Mac, else the default browser).
+3. **Fill it section by section** — one write per section, in order:
+   - MCP: \`anydock_artifact_write\` with \`id\`, \`section\` (number or heading), \`content\` (Markdown body, no heading line)
+   - CLI: \`${cli} artifact write <id> 2 --file section.md\` (or \`--content "…"\`, or \`-\` for stdin)
+   If a section is locked, a person is editing it: skip it, do the others, come back later.
+4. Re-read before changing something a person may have edited: \`anydock_artifact_read\` / \`${cli} artifact read <id>\`.
+
+Formats:
+- **doc** — Markdown sections (tables, code, quotes). Exports to .docx, .md, PDF.
+- **slides** — one section per slide: heading = slide title, body = short Markdown bullets. Exports to .pptx.
+- **sheet** — write CSV for a tab; formulas like \`=SUM(B2:B9)\` work. Exports to .xlsx/.csv.
+- **latex** — full source; the page typesets it live. Upload a compiled PDF too if you have one.
+- **html** — a single self-contained page; it runs sandboxed with a live preview.
+- **Small apps** — write the files to a folder with index.html, then \`anydock_artifact_upload path=<folder>\`
+  (\`${cli} artifact upload ./dist\`). Upload again with \`id\` for a new version.
+- **Word / PowerPoint / Excel / PDF / images you generated** — \`anydock_artifact_upload path=<file>\`; the user previews
+  them in the browser and can turn Office files into live docs/decks/sheets.
+
+## Passing work on
+
+- Share an artifact: \`anydock_artifact_share id=… to=email\` (\`role: viewer\` for read-only); hand it over with
+  \`handover: true\` (they become the owner, with its history).
+- Share or hand over the whole session (context, trajectory, artifacts made in it): \`anydock_share\` /
+  \`anydock_handover\`.
+- What did teammates send: \`anydock_inbox\`. Why was something decided: \`anydock_ask_why\`.
+
+## Rules
+
+- Never ask for, print or paste tokens or passwords. AnyDock holds every credential; you never need one.
+- Actions that reach people (Slack, email, texts) follow the user's rules; some wait for their approval on their Mac or
+  in AnyDock. Don't retry a denied action unless they ask.
+`;
+}
+
+const cliPath = () => (COMMAND.length === 1 ? COMMAND[0]! : "anydock");
+
+export function installSkills(): string[] {
+  const done: string[] = [];
+  for (const [name, dir] of [["Claude Code", CLAUDE_SKILLS], ["Codex", CODEX_SKILLS]] as const) {
+    if (!existsSync(join(dir, ".."))) continue; // that agent isn't installed
+    mkdirSync(join(dir, "anydock"), { recursive: true });
+    writeFileSync(join(dir, "anydock", "SKILL.md"), skill(cliPath().replace(homedir(), "~")));
+    done.push(name);
+  }
+  return done;
+}
+
+export function uninstallSkills(): void {
+  for (const dir of [CLAUDE_SKILLS, CODEX_SKILLS]) rmSync(join(dir, "anydock"), { recursive: true, force: true });
+}

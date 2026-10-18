@@ -5,6 +5,7 @@ import { login } from "./login.ts";
 import { existsSync } from "node:fs";
 import { APPROVAL_KEY, ensureApprovalHelper, nativeApprovalPossible } from "./native/approve.ts";
 import { installService } from "./service.ts";
+import { ensureViewer } from "./native/viewer.ts";
 
 // Everything after install, in one go: sign in, connect Claude Code + Codex, start background sync.
 // Safe to re-run: each step is idempotent and skips what's already done.
@@ -17,6 +18,7 @@ export async function setup(opts: { openBrowser: boolean; service: boolean }): P
   if (mac) {
     console.log("    Building the Mac approval panel (one time, ~20s)…");
     if (!ensureApprovalHelper()) console.log("    Couldn't build it; approve your agents' requests in the dashboard or Slack instead.");
+    ensureViewer(); // the artifact window behind "anydock open"
   }
   if (cfg.token) {
     try {
