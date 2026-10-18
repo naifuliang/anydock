@@ -3,8 +3,12 @@
 // CSS decides what "in" looks like (fade, fly, fill, draw, strike…). Slides auto-advance; tabs/arrows take over.
 import { line, logo } from "./icons.ts";
 
+// Avatar: a generated portrait at /img/avatars/<name>.webp when it exists (tasks/image-generation.md), else the initial.
+const PEOPLE: Record<string, string> = { N: "nolan", J: "jason", M: "mei", K: "kai", A: "ashley", L: "lead" };
 const av = (letter: string, color: string, size = 28) =>
-  `<span class="h-av" style="width:${size}px;height:${size}px;background:${color};font-size:${Math.round(size * 0.4)}px">${letter}</span>`;
+  `<span class="h-av" style="width:${size}px;height:${size}px;background:${color};font-size:${Math.round(size * 0.4)}px">${letter}${
+    PEOPLE[letter] ? `<img src="/img/avatars/${PEOPLE[letter]}.webp" alt="" loading="lazy" onerror="this.remove()">` : ""
+  }</span>`;
 
 type Slide = { key: string; tab: string; icon: string; title: string; body: string; say: string; stage: string };
 
@@ -277,7 +281,8 @@ export const HERO_CSS = `
   .hc-dots i.on { width:22px; background:var(--text); }
 
   /* shared pieces */
-  .h-av { display:inline-grid; place-items:center; border-radius:50%; color:#fff; font-family:var(--sans); font-weight:600; flex:none; }
+  .hc .h-av { position:relative; display:inline-grid !important; place-items:center; border-radius:50%; overflow:hidden; color:#fff !important; font-family:var(--sans); font-weight:600; line-height:1; margin:0 !important; padding:0 !important; flex:none; }
+  .hc .h-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .hc [data-t] { opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
   .hc [data-t].in { opacity:1; transform:none; }
   .card-w { background:#fff; border:1px solid var(--line2); border-radius:14px; box-shadow:var(--shadow); }
@@ -410,7 +415,8 @@ export const HERO_CSS = `
   /* 7. connect once */
   .st-conn { display:flex; flex-direction:column; gap:16px; }
   .st-conn .tok { position:relative; align-self:flex-start; display:flex; gap:12px; align-items:center; background:#fff; border:1px solid var(--line2); border-radius:999px; padding:6px 8px 6px 14px; font-size:13.5px; box-shadow:var(--shadow); }
-  .st-conn .tok b { font:600 15px var(--mono); padding:2px 10px; border-radius:99px; }
+  .st-conn .tok b { font:600 15px var(--mono); padding:2px 10px; border-radius:99px; min-width:46px; text-align:center; transition:opacity .35s ease, transform .35s ease; }
+  .st-conn .tok:has(.now.in) .was { opacity:0; transform:scale(.6); }
   .st-conn .tok .was { color:#b91c1c; background:#fdecec; } .st-conn .tok .now { position:absolute; right:8px; color:#15803d; background:#e8f6ec; }
   .st-conn .tok .now[data-t] { transform:scale(.6); } .st-conn .tok .now.in { transform:none; }
   .st-conn .net { display:grid; grid-template-columns:auto 1fr auto 1fr auto; align-items:center; gap:0; }
