@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- AnyDock app icon: the mark (see icon.svg) on a white tile, for home screens and previews. -->
+  <rect width="64" height="64" rx="14" fill="#fff"/>
+  <rect x="25" y="25" width="28" height="28" rx="7" fill="#0a0a0b"/>
+  <rect x="11" y="11" width="28" height="28" rx="7" fill="#2b59ff" stroke="#fff" stroke-width="4"/>
+</svg>

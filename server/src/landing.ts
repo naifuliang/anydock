@@ -7,7 +7,9 @@ import { brand, line, logo } from "./icons.ts";
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
-export const LOGO = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2" y="13" width="20" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="5" y="4" width="6" height="7" rx="1.5" fill="currentColor" opacity=".55"/><rect x="13" y="6" width="6" height="5" rx="1.5" fill="currentColor" opacity=".75"/></svg>`;
+// The AnyDock mark (same drawing as public/img/icon.svg): the blue piece of work handed on top of the next one.
+// The dark piece follows the text colour; the gap is a cutout, so it works on any background.
+export const LOGO = `<svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true"><defs><mask id="adk-gap"><rect width="64" height="64" fill="#fff"/><rect width="45" height="45" rx="12" fill="#000"/></mask></defs><rect x="24" y="24" width="36" height="36" rx="9" fill="currentColor" mask="url(#adk-gap)"/><rect x="4" y="4" width="36" height="36" rx="9" fill="#2b59ff"/></svg>`;
 
 // Monogram tile for anything without a mark.
 const mono = (text: string, bg: string, size = 20) =>
@@ -40,7 +42,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
 <meta property="og:description" content="Share and hand over your agent's work — context, trajectory, every decision — to teammates and their agents.">
 <meta property="og:image" content="${opts.origin}/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/img/icon.png">
+<link rel="icon" href="/img/icon.svg" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>

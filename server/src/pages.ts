@@ -1,4 +1,5 @@
 // Server-rendered pages for sign-in and CLI device approval. Plain HTML + fetch, no bundle.
+import { LOGO } from "./landing.ts";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
@@ -10,6 +11,7 @@ function layout(title: string, body: string, script = ""): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
+<link rel="icon" href="/img/icon.svg" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <style>
   :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --card:#fff; --line:#e7e5e4; --accent:#1c1917; --accent-fg:#fff; --err:#b91c1c; }
   @media (prefers-color-scheme: dark) {
@@ -21,7 +23,7 @@ function layout(title: string, body: string, script = ""): string {
   main { width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; }
   h1 { font-size:20px; margin:0 0 4px; }
   p { margin:0 0 16px; color:var(--muted); }
-  .brand { font-weight:600; letter-spacing:-.01em; margin-bottom:20px; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:600; letter-spacing:-.01em; margin-bottom:20px; }
   label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
   input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:transparent; color:var(--fg); font:inherit; margin-bottom:12px; }
   button, .btn { display:block; width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:transparent;
@@ -44,7 +46,7 @@ function layout(title: string, body: string, script = ""): string {
   main { max-width:460px; }
 </style>
 </head>
-<body><main><div class="brand">AnyDock</div>${body}</main>
+<body><main><div class="brand">${LOGO}AnyDock</div>${body}</main>
 <script>
 async function api(path, body) {
   const res = await fetch(path, { method: body === undefined ? "GET" : "POST", credentials: "same-origin",
