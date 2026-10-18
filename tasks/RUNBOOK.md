@@ -35,6 +35,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ✅ account setup | Workspace/key prepared; SDK instrumentation is separate |
 | 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ✅ account/connector | Free test server live; real read/deny/ask/approve/revoke verified; provider CLI unnecessary |
 | 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ⚠️ prerequisite missing | AnyDock CLI and editors absent from standard app locations; see QA report |
+| 9 | `tasks/blaxel-setup.md` | Real backends for artifact apps, in Blaxel sandboxes (sponsor) | ⬜ | |
 
 Mark Status `✅` (done), `⏸` (waiting on Nolan) or `⚠️` (blocked — say why). Commit this file after each task.
 
