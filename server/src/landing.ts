@@ -330,7 +330,7 @@ ${HERO_CSS}
 </div></nav>
 
 <header class="hero center"><div class="wrap">
-  <span class="pill"><b>YC</b>Built for agents as the user</span>
+  <span class="pill"><b>YC</b>Built at Make Something Agents Want</span>
   <h1>Agents made individuals&nbsp;10x.<br> <span class="serif">AnyDock</span> makes teams&nbsp;10x.</h1>
   <p class="lede">Share and hand over your agent's work — <em>context, trajectory, every decision</em> — to teammates and their agents. Across Claude Code, Codex and any MCP client.</p>
   ${installBox(prompt, cmd)}
