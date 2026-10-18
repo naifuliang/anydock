@@ -151,6 +151,8 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 
 ## Status
 
+- [x] All 16 landing images generated and deployed (Oct 17): 14 use-case WebP illustrations at 1600×1000 (21–78 KB each), 1200×630 social preview and 512×512 icon. Live carousel visually verified; all 16 production assets match local files. Brief: `tasks/image-generation.md`.
+
 - [x] Repo created, dependencies installed
 - [x] Server auth: email code, GitHub, Google (both enabled only when their secrets are set), CLI device login + bearer tokens; `/login`, `/device`, `/api/me`. Verified locally with email code and device flow.
 - [x] D1 tables (auth + AnyDock domain) created locally and remote migrations applied; remote D1 and R2 created.
