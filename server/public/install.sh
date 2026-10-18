@@ -51,8 +51,9 @@ fi
 say "Installing AnyDock from $SERVER …"
 mkdir -p "$BIN"
 TMP="$BIN/anydock.mjs.download"
-curl -fsSL "$SERVER/cli/anydock.mjs" -o "$TMP" || fail "could not download $SERVER/cli/anydock.mjs"
-EXPECTED="$(curl -fsSL "$SERVER/cli/version.json" | "$NODE" -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).sha256))')"
+# Read the release first (never from a cache), then fetch exactly that build.
+EXPECTED="$(curl -fsSL "$SERVER/cli/version.json?t=$(date +%s)" | "$NODE" -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).sha256))')"
+curl -fsSL "$SERVER/cli/anydock.mjs?sha=$EXPECTED" -o "$TMP" || fail "could not download $SERVER/cli/anydock.mjs"
 ACTUAL="$("$NODE" -e 'const c=require("crypto"),f=require("fs");console.log(c.createHash("sha256").update(f.readFileSync(process.argv[1])).digest("hex"))' "$TMP")"
 [ "$EXPECTED" = "$ACTUAL" ] || { rm -f "$TMP"; fail "checksum mismatch; please try again."; }
 mv "$TMP" "$BIN/anydock.mjs"

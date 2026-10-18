@@ -13,7 +13,8 @@ interface Latest {
 }
 
 export async function latestRelease(server = loadConfig().server): Promise<Latest> {
-  const res = await fetch(`${server}/cli/version.json`, { cache: "no-store" });
+  // A unique query string so no edge or proxy cache can hand back an older version.json.
+  const res = await fetch(`${server}/cli/version.json?t=${Date.now()}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Couldn't check for updates (HTTP ${res.status}).`);
   return (await res.json()) as Latest;
 }
@@ -25,7 +26,7 @@ export async function selfUpdate(): Promise<string | null> {
   const latest = await latestRelease(cfg.server);
   if (latest.build <= BUILD) return null;
 
-  const res = await fetch(new URL(latest.url, cfg.server), { cache: "no-store" });
+  const res = await fetch(new URL(`${latest.url}?sha=${latest.sha256}`, cfg.server), { cache: "no-store" }); // cache key per build
   if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}).`);
   const bytes = Buffer.from(await res.arrayBuffer());
   const digest = createHash("sha256").update(bytes).digest("hex");
