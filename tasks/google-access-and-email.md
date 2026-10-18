@@ -10,7 +10,7 @@ GitHub sign-in works for everyone. Email delivery remains needed for the demo. A
 
 1. **Google sign-in only works for listed test users.** The OAuth app (project `western-pivot-512023-a8`, client
    `AnyDock web`, under `qizi297@gmail.com`) is in *Testing*, with only `qizi297@gmail.com` allowed.
-2. **Email sign-in codes are never delivered.** No email sender is configured, so codes only appear in the Worker log.
+2. **Email sign-in codes are delivered through Cloudflare** from login@anydock.ai; see Part 2.
 
 ## Rules
 
@@ -27,26 +27,14 @@ Do not request judge email addresses or create judge accounts. Revisit only if N
 **Don't publish the app to Production yet.** Publishing needs a privacy policy and terms URL on anydock.ai, which don't
 exist. If Nolan wants it public, stop and tell him; the other agent will add `/privacy` and `/terms` pages first.
 
-## Part 2 — Email codes via Primitive (hackathon sponsor)
+## Part 2 — Cloudflare system email (supersedes Primitive instructions)
 
-The server already sends through Primitive when two secrets exist (`server/src/email.ts`:
-`POST https://api.primitive.dev/v1/send-mail` with `from`, `to`, `subject`, `body_text`).
+Nolan clarified that Primitive is an organization resource. Platform email now uses Cloudflare Email Service, an EMAIL binding restricted to login@anydock.ai, and SYSTEM_EMAIL_FROM. Production fails closed when the binding is missing; no Primitive fallback. The existing Workers Paid plan is confirmed, sending domain/DNS configured, and production OTP delivery verified in Outlook at 2026-10-18T05:16:31Z. Nolan completed the earlier OTP login and authenticated /api/me was verified.
 
-1. Sign up / sign in at https://primitive.dev (use Nolan's account; ask him which email if unsure).
-2. Create an **API key**.
-3. Find the org's managed sending subdomain (looks like `brave-otter.primitive.email`). The sender address will be
-   `login@<that-subdomain>`.
-4. In `server/`:
-   - `npx wrangler secret put PRIMITIVE_API_KEY` → paste the API key
-   - `npx wrangler secret put EMAIL_FROM` → `login@<that-subdomain>`
-5. Verify: on https://anydock.ai/login enter Nolan's email, click **Email me a code**, and confirm the code arrives and
-   signs in.
-6. If the send fails with `403 recipient_not_allowed` (new Primitive accounts restrict outside recipients), follow the
-   fix in Primitive's error message / dashboard to allow sending to outside addresses, then retry step 5. To see the
-   server-side error: `cd server && npx wrangler tail` while requesting a code.
+Primitive account, $100 redeemed credits and credentials remain reserved for a future organization-scoped connector.
 
 ## Done when
 
-- [ ] Additional Google test-user verification — deferred by Nolan; not required for the recorded demo.
-- [ ] An email code sent from https://anydock.ai/login arrives in a real inbox and signs in.
-- [ ] `SETUP.md` step 3 ticked and `AGENTS.md` Status updated; your commit pushed.
+- Additional Google test users: deferred by Nolan, not required.
+- [x] Email-code login and real email delivery verified.
+- [x] SETUP.md and AGENTS.md record Cloudflare system-email boundary.

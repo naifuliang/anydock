@@ -52,3 +52,5 @@ Old app `A0C508BD6ET` permanently deleted with explicit confirmation. New app `A
 Nolan confirmed client-secret regeneration. New client secret and signing secret stored via Wrangler, and all 3 names verified with `wrangler secret list`. Original exposed client secret is no longer the configured credential. Icon still pending.
 
 Icon uploaded from `server/public/img/icon.png`; Slack returned Success (Oct 17). Account setup complete; workspace install intentionally left for Nolan through AnyDock.
+
+Latest result: Nolan explicitly authorized connecting New Workspace and a private self-test. OAuth completed and action f3ec825a-abd5-4adf-a8b5-f59b594d3700 delivered to self-DM D0ABP15S56E (ts 1792300279.688889), visibly verified in Slack. Recipient identity is qizi297@gmail.com. No chat-history scopes were requested.

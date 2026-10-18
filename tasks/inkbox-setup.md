@@ -44,3 +44,5 @@ allows it (default for calls/texts: **ask me**).
 ## Oct 17 verification
 
 Identity-scoped production key and UUID saved. Extra Quickstart key revoked. No paid number purchased. Nolan completed recipient opt-in; Messages sent START/Hello, received by Inkbox. Console reply “AnyDock test: received your hello.” arrived in Messages. Provider bilateral iMessage verified; SMS, voice and AnyDock delegate path unverified. REST: POST https://inkbox.ai/api/v1/imessage/messages?agent_identity_id=<uuid>, X-API-Key; shared service requires recipient-first contact.
+
+Latest result: identity-only “AnyDock production repair” key created with Nolan’s approval and stored in Cloudflare. The full token includes a dot; truncating at that dot caused the prior 401. AnyDock action 10c14526-2fc2-47be-a782-0ae7497be602 was approved, provider accepted message c0967948-8338-480b-83e0-6e564c6065bf, and the exact message arrived in Messages. Old production key retained per approval scope. SMS/voice remain unverified.

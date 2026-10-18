@@ -27,15 +27,15 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 
 | # | Task | Unlocks | Status | Waiting on Nolan |
 |---|---|---|---|---|
-| 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ✅ | Account configuration complete; Nolan connects from dashboard |
-| 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ✅ | Configuration complete; Nolan connects a server from dashboard |
-| 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ⏸ delivery verified | Nolan to complete final email-code login; Google test users deferred |
-| 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail connected and actual Outlook receipt verified; Outlook sender registration still blocked |
-| 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ✅ provider setup | Identity/key configured; real bidirectional iMessage verified; AnyDock delegate test remains |
-| 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ✅ account setup | Workspace/key prepared; SDK instrumentation is separate |
-| 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ✅ account/connector | Free test server live; real read/deny/ask/approve/revoke verified; provider CLI unnecessary |
-| 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ⚠️ prerequisite missing | AnyDock CLI and editors absent from standard app locations; see QA report |
-| 9 | `tasks/blaxel-setup.md` | Real backends for artifact apps, in Blaxel sandboxes (sponsor) | ⬜ | |
+| 1 | `tasks/slack-app-setup.md` | Slack posting and approval DMs | ✅ live verified | None; authorized workspace connection and self-DM received |
+| 2 | `tasks/discord-setup.md` | Project channels and slash commands | ⏸ configuration done | Logged-in Discord account has no manageable server for installation/test |
+| 3 | `tasks/google-access-and-email.md` | Cloudflare own-domain email login; Primitive resource account | ✅ | Google extra test users deferred; Primitive organization connector is separate implementation |
+| 4 | `tasks/email-accounts-setup.md` | Gmail / Outlook delegated mail | ⏸ Outlook blocked | Gmail delivered; personal Microsoft account lacks Entra tenant (AADSTS16000) |
+| 5 | `tasks/inkbox-setup.md` | iMessage | ✅ live verified | Approved AnyDock message received; SMS/voice require separate availability |
+| 6 | `tasks/armature-setup.md` | MCP analytics account | ✅ account setup | Instrumentation/live events are separate implementation |
+| 7 | `tasks/manufact-setup.md` | Hosted MCP and organization connector | ✅ live verified | Free fixture Running; read/deny/ask/approve/revoke verified |
+| 8 | `tasks/mcp-clients-qa.md` | Cursor / Windsurf / VS Code QA | ⚠️ prerequisite missing | CLI now installed and authenticated; target editors still absent |
+| 9 | `tasks/blaxel-setup.md` | Artifact backend sandboxes | ✅ live provider test | 15 free credits awarded; scoped secrets saved; sandbox smoke passed and deleted |
 
 Mark Status `✅` (done), `⏸` (waiting on Nolan) or `⚠️` (blocked — say why). Commit this file after each task.
 
@@ -57,7 +57,7 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 - **Supabase** — Nemil Dalal, 5:09 PM: ask him near the main-room entrance for codes; no code or amount posted.
 - **Stripe** — Peter Masone, 4:13 PM: https://shipbysundown.dev/ and an Atlas incorporation discount. No Stripe API credit amount was posted; incorporation is outside this runbook.
 
-## Summary
+## Historical execution log (latest status is in the table above)
 
 - Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; added `PRIMITIVE_API_KEY` and `EMAIL_FROM` (names only).
 - Google test users deferred by Nolan; demo will be recorded by the team, without judge accounts or judge interaction.
@@ -92,3 +92,13 @@ This update supersedes earlier pending statuses above. System sign-in/account em
 Completed live: original OTP login; Gmail send and inbox receipt; authorized Slack workspace connection and self-DM receipt; repaired identity-scoped Inkbox key and AnyDock approved iMessage receipt; Manufact free server, real cross-account approval/redeploy Running, and member/grant removal.
 
 Still open: Discord bot install/channel test (no manageable servers on logged-in account); Outlook app registration (personal account lacks Entra tenant); editor QA (three target editors absent). Armature ingest credential is stored; instrumentation/live events are not implemented. No judge accounts are required.
+
+## Sponsor credit recheck — Oct 17 late evening
+
+Nolan clarified “code” means free sponsor quota/credits. Searched the authenticated YC chat for Blaxel: one match, Ankit Shah’s 4:20 PM question about Agent Drive/Applications waitlist access; no Blaxel redemption code or credit amount in that message. Public pricing advertises **up to $200** free credits, not a verified account award; Tier 0 has a 10-sandbox quota. Actual credited balance must be checked after onboarding. Terms/Privacy and Google login approved by Nolan. Source: https://messages.ycombinator.com/messages/267340 and https://blaxel.ai/pricing.
+
+## Blaxel setup completed
+
+Workspace anydock, Google qizi297@gmail.com, Tier 0. Received 10 signup + 5 first-sandbox credits; UI expiration “In 11 Months”. Member service-account key, 30 days, stored in Cloudflare with BLAXEL_WORKSPACE; names verified. Real Node 24 smoke server answered via authenticated endpoint and public preview; disposable sandbox deletion confirmed TERMINATED. No payment method/top-up, no invitation, no running smoke resource. See tasks/blaxel-setup.md for exact contract/timings. The 180-credit offer requires a paid top-up and was skipped.
+
+Remaining blocked setup: Discord needs a manageable server (private demo-server request pending); Outlook needs an Entra tenant; editor UI QA needs installed editors. Primitive organization allocation and Armature instrumentation are implementation backlog, not completed account-setup tasks.

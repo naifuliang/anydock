@@ -29,15 +29,15 @@ Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@g
 - [x] Dev: Google credentials saved in gitignored `server/.dev.vars` (mode 0600); `BETTER_AUTH_URL=http://localhost:8787`. Local login and authenticated `/api/me` verified for `qizi297@gmail.com`.
 - [x] Google Data Access saved with exactly `openid`, `userinfo.email`, and `userinfo.profile`; no sensitive or restricted scopes.
 
-## 3. Email codes via Primitive — configured, delivery verified
+## 3. System email via Cloudflare — deployed and received
 
-Oct 17: signed in via existing GitHub `naifuliang` (`qizi297@outlook.com`), created the **AnyDock** organization, and accepted terms with Nolan's explicit approval. Redeemed `AGENTS-WANT-IT-ALL`: dashboard confirmed **$100 credits, no expiry** (in addition to the Developer allowance).
+- [x] Existing Workers Paid plan verified; no new purchase.
+- [x] anydock.ai sending domain enabled; SPF, DKIM, bounce MX and DMARC checked.
+- [x] Worker EMAIL binding restricted to login@anydock.ai, SYSTEM_EMAIL_FROM configured.
+- [x] Real production authentication OTP delivered to Outlook at 2026-10-18T05:16:31Z.
+- [x] Nolan completed the earlier email-code login and authenticated /api/me was verified.
 
-- [x] Primitive account and API key `AnyDock production email` created with Nolan's approval.
-- [x] Managed domain: `lush-fig.primitive.email`; sender `login@lush-fig.primitive.email`.
-- [x] Production secrets `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved through Wrangler. Key never written to a file or printed in logs.
-- [x] Production sign-in-code request returned success; Outlook connector verified the real email arrived at `qizi297@outlook.com` from the configured sender (Oct 17, 8:53 PM PDT).
-- [ ] Completing sign-in with the delivered code remains unverified. The mailbox connector withholds one-time authentication codes; Nolan can complete this check directly.
+Primitive's AnyDock organization and $100 hackathon credits remain available for organization communication resources. Its saved credentials are not used for system mail or a global delegated-mail fallback. Organization-scoped Primitive allocation remains implementation work.
 
 ## 4. Server secret
 
@@ -49,4 +49,4 @@ Oct 17: signed in via existing GitHub `naifuliang` (`qizi297@outlook.com`), crea
 
 ## Email login verification
 
-GitHub and Google OAuth remain verified. Primitive email delivery is now verified; complete a fresh email-code login at https://anydock.ai/login to verify the final session. Never publish codes or credentials.
+GitHub, Google and email-code login verified. System email now uses Cloudflare and our own domain; real production OTP receipt verified. Never publish codes or credentials.
