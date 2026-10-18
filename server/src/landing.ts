@@ -124,6 +124,35 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
   @keyframes blink { 50% { opacity:0; } }
   @keyframes flow { 0% { stroke-dashoffset:0; opacity:1; } 100% { stroke-dashoffset:-208; opacity:1; } }
 
+  /* hero scene player */
+  .demo { margin:72px auto 0; max-width:1040px; }
+  .scenes { display:inline-flex; flex-wrap:wrap; justify-content:center; gap:4px; padding:4px; border:1px solid var(--line2); border-radius:999px; background:#fff; box-shadow:var(--shadow); }
+  .scene { position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:7px; border:0; background:transparent; color:var(--muted); font:500 13.5px var(--sans); padding:8px 14px; border-radius:999px; cursor:pointer; }
+  .scene:hover { color:var(--text); }
+  .scene.on { background:var(--text); color:#fff; }
+  .scene i { position:absolute; left:14px; right:14px; bottom:4px; height:2px; border-radius:2px; background:rgba(255,255,255,.35); transform-origin:left; transform:scaleX(0); }
+  .scene.on.playing i { animation:fill var(--dur, 8s) linear forwards; }
+  @keyframes fill { to { transform:scaleX(1); } }
+  .demo .relay { margin-top:28px; }
+  .scene-cap { margin:22px auto 0; color:var(--faint); font:13px var(--mono); max-width:640px; }
+  .win .body { min-height:250px; }
+  .ln.warn { color:#b45309; }
+  .ln .chipx { display:inline-flex; align-items:center; gap:5px; padding:1px 8px; border:1px solid var(--line2); border-radius:99px; font-size:11.5px; color:var(--text); background:#fff; vertical-align:1px; }
+  .ln.msg { display:grid; grid-template-columns:26px 1fr; gap:10px; font-family:var(--sans); font-size:13.5px; line-height:1.5; color:#2a2a30; }
+  .ln.msg .av { width:26px; height:26px; border-radius:7px; display:grid; place-items:center; color:#fff; font:600 11px var(--sans); }
+  .ln.msg b { font-weight:600; color:var(--text); margin-right:6px; } .ln.msg small { color:var(--faint); font:11px var(--mono); }
+  .ln.mail { font-family:var(--sans); font-size:13px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:#2a2a30; }
+  .ln.mail .h { display:flex; gap:8px; color:var(--faint); font:11.5px var(--mono); margin-bottom:4px; } .ln.mail .s { font-weight:600; color:var(--text); margin-bottom:2px; }
+  .ln.row { display:grid; grid-template-columns:22px 1fr auto; gap:10px; align-items:center; font-family:var(--sans); font-size:13.5px; padding:7px 0; border-bottom:1px dashed var(--line); }
+  .ln.row + .ln.row { margin-top:0; }
+  .ln.row .av { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; color:#fff; font:600 10px var(--sans); }
+  .ln.row b { font-weight:500; } .ln.row span { color:var(--muted); } .ln.row small { font:11px var(--mono); color:var(--faint); }
+  .ln.row .lv { color:#15803d; }
+  .ln.step { display:grid; grid-template-columns:30px 1fr; gap:8px; font-size:12.5px; }
+  .ln.step .n { color:var(--faint); text-align:right; }
+  .ln.step.hit .x { outline:1.5px solid var(--accent); outline-offset:3px; border-radius:6px; }
+  .ln.step .x { padding:2px 4px; overflow-wrap:anywhere; }
+
   /* works-with logos */
   .strip { border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:26px 0; }
   .strip .wrap { display:flex; align-items:center; gap:40px; flex-wrap:wrap; justify-content:center; }
@@ -299,6 +328,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
 
   @media (max-width: 960px) {
     .relay { grid-template-columns:1fr; gap:0; }
+    .scenes { border-radius:16px; }
     .node { height:100px; } .node svg.path { display:none; }
     .node::before { content:""; position:absolute; top:0; bottom:0; left:50%; border-left:1.5px dashed var(--line2); }
     .app { grid-template-columns:1fr; } .app .nav2, .app .side2 { display:none; }
@@ -330,29 +360,10 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
   <p class="lede">Share and hand over your agent's work — <em>context, trajectory, every decision</em> — to teammates and their agents. Across Claude Code, Codex and any MCP client.</p>
   ${installBox(prompt, cmd)}
 
-  <div class="relay" aria-label="A handover from Claude Code to Codex through AnyDock">
-    <div class="win">
-      <div class="bar"><i></i><i></i><i></i><span class="who">nolan <span class="tag">${brand("claude", 13)}Claude Code</span></span></div>
-      <div class="body">
-        <div class="ln u" style="animation-delay:.3s">I'm heading out. hand this over to jason@team.dev</div>
-        <div class="ln t" style="animation-delay:.9s">● <b>anydock_handover</b>(to: "jason@team.dev")</div>
-        <div class="ln ok" style="animation-delay:1.4s">✓ Handed over "Pick our hackathon tracks"<br>&nbsp;&nbsp;412 steps · 23 decisions · still syncing</div>
-      </div>
-    </div>
-    <div class="node">
-      <svg class="path" viewBox="0 0 140 100" preserveAspectRatio="none" aria-hidden="true">
-        <path class="track" d="M0 50 L140 50"/><path class="glow" d="M0 50 L140 50"/>
-      </svg>
-      <div class="chip">${LOGO}<b>AnyDock</b>context<br>trajectory<br>access</div>
-    </div>
-    <div class="win">
-      <div class="bar"><i></i><i></i><i></i><span class="who">jason <span class="tag">${logo("codex", 13)}Codex</span></span></div>
-      <div class="body">
-        <div class="ln u" style="animation-delay:2.4s">why did Nolan pick Primitive over Blaxel?</div>
-        <div class="ln t" style="animation-delay:3s">● <b>anydock_ask_why</b> → 6 moments in Nolan's session</div>
-        <div class="ln a" style="animation-delay:3.6s">Primitive pays the most cash ($3k first) and fits agent-to-human messaging <span class="c">[3]</span>. Blaxel was skipped: smaller prize, weak fit with handover <span class="c">[4]</span>. <span class="caret"></span></div>
-      </div>
-    </div>
+  <div class="demo">
+    <div class="scenes" role="tablist" aria-label="What AnyDock does">${SCENES.map((sc, i) => `<button class="scene${i === 0 ? " on" : ""}" type="button" role="tab" data-i="${i}">${line(sc.icon, 15)}<span>${esc(sc.label)}</span><i></i></button>`).join("")}</div>
+    <div class="relay" id="relay" aria-live="polite">${renderScene(SCENES[0]!)}</div>
+    <p class="scene-cap" id="sceneCap">${esc(SCENES[0]!.caption)}</p>
   </div>
 </div></header>
 
@@ -498,6 +509,24 @@ document.querySelectorAll(".copy").forEach((b) => b.onclick = async () => {
   const t = b.textContent; b.textContent = "Copied ✓"; setTimeout(() => b.textContent = t, 1400);
 });
 
+// Hero scene player: tabs, autoplay (stops when the visitor picks a scene), windows re-animate on each switch.
+(() => {
+  const SC = ${JSON.stringify(SCENES.map((sc) => ({ html: renderScene(sc), caption: sc.caption })))};
+  const relay = document.getElementById("relay"), cap = document.getElementById("sceneCap");
+  const tabs = [...document.querySelectorAll(".scene")];
+  const DUR = 8000; let i = 0, timer = null;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const show = (n) => {
+    i = (n + SC.length) % SC.length;
+    relay.innerHTML = SC[i].html; cap.textContent = SC[i].caption;
+    tabs.forEach((t, k) => { t.classList.toggle("on", k === i); t.classList.remove("playing"); t.setAttribute("aria-selected", k === i); });
+    if (timer) { void tabs[i].offsetWidth; tabs[i].classList.add("playing"); }
+  };
+  const play = () => { if (reduce) return; tabs[i].style.setProperty("--dur", DUR + "ms"); timer = setInterval(() => { show(i + 1); tabs[i].style.setProperty("--dur", DUR + "ms"); }, DUR); show(i); };
+  tabs.forEach((t, k) => t.onclick = () => { clearInterval(timer); timer = null; show(k); });
+  play();
+})();
+
 // Use-case carousel: arrows, progress bar, role filter, gentle autoplay that stops once the visitor takes over.
 (() => {
   const track = document.getElementById("track"), bar = document.getElementById("bar");
@@ -538,6 +567,116 @@ const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersec
 document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 </script>
 </body></html>`;
+}
+
+// ---------- hero scenes ----------
+
+type Ln =
+  | { k: "u" | "a" | "ok" | "warn" | "t"; html: string }
+  | { k: "msg"; av: string; color: string; who: string; when: string; html: string }
+  | { k: "mail"; to: string; subject: string; html: string }
+  | { k: "row"; av: string; color: string; who: string; html: string; when: string; live?: boolean }
+  | { k: "step"; n: number; html: string; hit?: boolean };
+type Pane = { who: string; tag: string; lines: Ln[] };
+type Scene = { label: string; icon: string; caption: string; chip: string; left: Pane; right: Pane };
+
+const tag = (k: string, name: string) => `<span class="tag">${logo(k, 13)}${esc(name)}</span>`;
+const tagLine = (icon: string, name: string) => `<span class="tag">${line(icon, 13)}${esc(name)}</span>`;
+const cite = (n: number) => `<span class="c">[${n}]</span>`;
+const tool = (name: string, rest = "") => `● <b>${name}</b>${rest}`;
+
+const SCENES: Scene[] = [
+  {
+    label: "Hand over", icon: "repeat", chip: "context<br>trajectory<br>access",
+    caption: "Nolan logs off mid-task. Jason's agent — a different vendor — picks up exactly where he stopped.",
+    left: { who: "nolan", tag: tag("claude", "Claude Code"), lines: [
+      { k: "u", html: "I'm heading out. hand this over to jason@team.dev" },
+      { k: "t", html: tool("anydock_handover", '(to: "jason@team.dev")') },
+      { k: "ok", html: '✓ Handed over "Pick our hackathon tracks"<br>&nbsp;&nbsp;412 steps · 23 decisions · still syncing' } ] },
+    right: { who: "jason", tag: tag("codex", "Codex"), lines: [
+      { k: "u", html: "what's left on Nolan's tracks work?" },
+      { k: "t", html: tool("anydock_read_work", " → 412 steps, handed to you") },
+      { k: "a", html: `6 of 8 sponsors are ranked ${cite(41)}. Stripe and Supabase are still open, and Nolan was about to weigh prize against fit ${cite(44)}. I'll continue from there.` } ] },
+  },
+  {
+    label: "Ask why", icon: "message-circle-question", chip: "trajectory<br>citations",
+    caption: "A manager asks why. The answer comes from Nolan's real session, with the exact steps it rests on.",
+    left: { who: "manager", tag: tag("claude", "Claude Code"), lines: [
+      { k: "u", html: "why did Nolan pick Primitive over Blaxel?" },
+      { k: "t", html: tool("anydock_ask_why", " → 6 moments in Nolan's session") },
+      { k: "a", html: `Primitive pays the most cash ($3k first) and fits agent-to-human messaging ${cite(3)}. Blaxel was skipped: smaller prize, weak fit with handover ${cite(4)}.` } ] },
+    right: { who: "nolan's session", tag: tag("claude", "trajectory"), lines: [
+      { k: "step", n: 2, html: "← WebFetch Primitive $3k/$2k/$1k · Blaxel $1k" },
+      { k: "step", n: 3, html: "Target Primitive: most cash, fits agent-to-human communication.", hit: true },
+      { k: "step", n: 4, html: "Skip Blaxel for now: smaller prize, weaker fit with handover.", hit: true },
+      { k: "step", n: 5, html: "Hand the ranking over to Jason when I log off." } ] },
+  },
+  {
+    label: "Get status", icon: "layers", chip: "live works<br>project",
+    caption: "No stand-up needed: ask what the team is doing and get it from their live work, not from memory.",
+    left: { who: "ashley", tag: tag("cursor", "Cursor"), lines: [
+      { k: "u", html: "what's everyone on the launch project doing right now?" },
+      { k: "t", html: tool("anydock_list_works", " → project “Launch” · 4 live") },
+      { k: "a", html: `Nolan is mid-way through pricing research, Jason took over the landing copy an hour ago, and Mei's churn report is waiting on a Stripe export ${cite(118)}.` } ] },
+    right: { who: "launch", tag: tagLine("folder-kanban", "Project feed"), lines: [
+      { k: "row", av: "N", color: "#d97757", who: "Nolan", html: "Pricing research · 212 steps", when: "2m ago", live: true },
+      { k: "row", av: "J", color: "#10a37f", who: "Jason", html: "Landing copy · handed over", when: "1h" },
+      { k: "row", av: "M", color: "#7c3aed", who: "Mei", html: "Churn report · waiting on data", when: "8m", live: true },
+      { k: "row", av: "A", color: "#2b59ff", who: "Ashley", html: "Launch checklist · 41 steps", when: "now", live: true } ] },
+  },
+  {
+    label: "Trace a number", icon: "chart-column", chip: "sources<br>steps",
+    caption: "Every conclusion keeps its receipts: where the data came from, how it was filtered, and why.",
+    left: { who: "lead", tag: tag("codex", "Codex"), lines: [
+      { k: "u", html: "where does the 32% churn in Mei's report come from?" },
+      { k: "t", html: tool("anydock_ask_why", " → 3 steps in Mei's session") },
+      { k: "a", html: `September's Stripe export ${cite(118)}, paid plans only ${cite(121)}; trials were excluded because they skew churn ${cite(123)}.` } ] },
+    right: { who: "mei's session", tag: tag("claude", "trajectory"), lines: [
+      { k: "step", n: 118, html: "→ stripe.subscriptions.export(cohort: 2026-09)", hit: true },
+      { k: "step", n: 121, html: "filter: plan != 'trial' → 1,284 accounts", hit: true },
+      { k: "step", n: 123, html: "Exclude trials: they churn by design and would inflate the rate.", hit: true },
+      { k: "step", n: 124, html: "Churn = 411 / 1,284 = 32.0%" } ] },
+  },
+  {
+    label: "Message a teammate", icon: "messages-square", chip: "your access<br>ask me",
+    caption: "Your agent reaches people with your permissions — Slack is allowed, outside email waits for your OK. (delegate · preview)",
+    left: { who: "nolan", tag: tag("claude", "Claude Code"), lines: [
+      { k: "u", html: "tell Jason in Slack the ranking is ready, and email the summary to the team" },
+      { k: "t", html: `${tool("slack.post")} <span class="chipx">${logo("slack", 11)}allowed</span>` },
+      { k: "warn", html: `${tool("email.send")} <span class="chipx">${logo("gmail", 11)}ask me</span> → approved ✓` } ] },
+    right: { who: "#hackathon", tag: tag("slack", "Slack"), lines: [
+      { k: "msg", av: "N", color: "#d97757", who: "Nolan's agent", when: "now", html: "@Jason the sponsor ranking is ready — Primitive first, Stripe second. Full trail in AnyDock." },
+      { k: "mail", to: "team@team.dev", subject: "Sponsor ranking: summary", html: "Primitive ($3k) and Stripe ($3k credits) are our two tracks. Reasons and sources are linked in the work." } ] },
+  },
+];
+
+function lnHtml(l: Ln, delay: number): string {
+  const st = `style="animation-delay:${delay.toFixed(2)}s"`;
+  switch (l.k) {
+    case "msg":
+      return `<div class="ln msg" ${st}><span class="av" style="background:${l.color}">${l.av}</span><div><b>${esc(l.who)}</b><small>${esc(l.when)}</small><br>${l.html}</div></div>`;
+    case "mail":
+      return `<div class="ln mail" ${st}><div class="h">${line("mail", 12)}to ${esc(l.to)}</div><div class="s">${esc(l.subject)}</div>${l.html}</div>`;
+    case "row":
+      return `<div class="ln row" ${st}><span class="av" style="background:${l.color}">${l.av}</span><div><b>${esc(l.who)}</b> <span>· ${l.html}</span></div><small class="${l.live ? "lv" : ""}">${l.live ? "● " : ""}${esc(l.when)}</small></div>`;
+    case "step":
+      return `<div class="ln step${l.hit ? " hit" : ""}" ${st}><span class="n">${l.n}</span><span class="x">${l.html}</span></div>`;
+    default:
+      return `<div class="ln ${l.k}" ${st}>${l.html}${l.k === "a" ? ' <span class="caret"></span>' : ""}</div>`;
+  }
+}
+
+function paneHtml(p: Pane, start: number): string {
+  return `<div class="win"><div class="bar"><i></i><i></i><i></i><span class="who">${esc(p.who)} ${p.tag}</span></div>
+    <div class="body">${p.lines.map((l, k) => lnHtml(l, start + k * 0.6)).join("")}</div></div>`;
+}
+
+function renderScene(sc: Scene): string {
+  const rightStart = 0.3 + sc.left.lines.length * 0.6 + 0.4;
+  return `${paneHtml(sc.left, 0.3)}
+    <div class="node"><svg class="path" viewBox="0 0 140 100" preserveAspectRatio="none" aria-hidden="true"><path class="track" d="M0 50 L140 50"/><path class="glow" d="M0 50 L140 50"/></svg>
+      <div class="chip">${LOGO}<b>AnyDock</b>${sc.chip}</div></div>
+    ${paneHtml(sc.right, rightStart)}`;
 }
 
 // ---------- content ----------
