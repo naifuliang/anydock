@@ -23,11 +23,14 @@
   ],
   // One UserHub per user fans out live events to that user's sockets.
   // One ArtifactRoom per artifact: live edits and presence for everyone who has it open.
-  "durable_objects": { "bindings": [{ "name": "HUB", "class_name": "UserHub" }, { "name": "ROOM", "class_name": "ArtifactRoom" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }, { "tag": "v2", "new_sqlite_classes": ["ArtifactRoom"] }],
+  // AppContainer: an app's backend in Cloudflare Containers (src/container.ts), from the public Node image — no build.
+  "durable_objects": { "bindings": [{ "name": "HUB", "class_name": "UserHub" }, { "name": "ROOM", "class_name": "ArtifactRoom" }, { "name": "APP_CONTAINER", "class_name": "AppContainer" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }, { "tag": "v2", "new_sqlite_classes": ["ArtifactRoom"] }, { "tag": "v3", "new_sqlite_classes": ["AppContainer"] }],
+  "containers": [{ "class_name": "AppContainer", "image": "docker.io/library/node:22-slim", "instance_type": "basic", "max_instances": 10 }],
   "routes": [{ "pattern": "anydock.ai", "custom_domain": true }, { "pattern": "u.anydock.ai", "custom_domain": true }],
   // Keep local dev on localhost; otherwise wrangler dev rewrites requests to the route's host and auth rejects them.
-  "dev": { "port": 8787, "host": "localhost:8787" },
+  // Containers need Docker locally; dev skips them (app backends are tested against a mock runtime).
+  "dev": { "port": 8787, "host": "localhost:8787", "enable_containers": false },
   "observability": { "enabled": true }
   // Secrets (wrangler secret put / .dev.vars): BETTER_AUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
   // GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PRIMITIVE_API_KEY, EMAIL_FROM. See SETUP.md.

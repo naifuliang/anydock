@@ -5,6 +5,8 @@ export interface Env extends AuthEnv {
   TRAJECTORIES: R2Bucket;
   HUB: DurableObjectNamespace;
   ROOM: DurableObjectNamespace;
+  APP_CONTAINER?: DurableObjectNamespace; // Cloudflare Containers runtime for app backends (container.ts)
+  APP_RUNTIME?: string; // "cloudflare" (default) | "blaxel"
   BLAXEL_API_KEY?: string;
   BLAXEL_WORKSPACE?: string;
   BLAXEL_API?: string; // test override for the Blaxel control plane

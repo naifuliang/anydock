@@ -2,7 +2,7 @@
 // person → agent → app: an app gets only what an agent holds, only after the person approves the grant, and every call
 // re-checks the chain (expiry, revocation, the agent's login, the person's current rule).
 // Local dev must have (server/.dev.vars): BLAXEL_API_KEY=test-blaxel, BLAXEL_WORKSPACE=test-ws,
-// BLAXEL_API=http://localhost:8796/v0, USERCONTENT_ORIGIN=http://127.0.0.1:8787
+// BLAXEL_API=http://localhost:8796/v0, APP_RUNTIME=blaxel (local dev has no containers), USERCONTENT_ORIGIN=http://127.0.0.1:8787
 // Usage: npx wrangler dev > dev.log 2>&1 &   then   node test/apps-e2e.mjs dev.log
 import { createServer } from "node:http";
 import { generateKeyPairSync, sign } from "node:crypto";

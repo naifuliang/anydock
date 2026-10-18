@@ -18,6 +18,7 @@ import { artifactPage } from "./artifact-page.ts";
 
 export { UserHub } from "./hub.ts";
 export { ArtifactRoom } from "./room.ts";
+export { AppContainer } from "./container.ts";
 
 const app = new Hono<AppEnv>();
 

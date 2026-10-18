@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { appSig, type ArtifactRow } from "./artifacts.ts";
 import { ACTIONS, actionJson, classify, requestAction, type ActionRow, type Grantable } from "./delegate.ts";
 import { sandboxRuntime } from "./sandbox.ts";
+import { hmacHex } from "./secure.ts";
 import type { AppEnv, Env, User } from "./types.ts";
 
 // The backend every app (artifact kind app/html) gets, on its own origin under /u/<id>/<capability>/:
@@ -155,12 +156,29 @@ apps.all("/u/:id/:sig/_backend/*", async (c) => {
   const entry = files.results.find((f) => f.path === "server.js" || f.path === "server/index.js" || f.path === "package.json");
   if (!entry) return c.json({ error: "no_backend", message: "This app has no backend (add server.js that listens on $PORT)." }, 404);
   const runtime = sandboxRuntime(c.env);
-  if (!runtime) return c.json({ error: "runtime_not_configured", message: "App backends run in a sandbox (Blaxel), which isn't configured on this server yet." }, 503);
+  if (!runtime) return c.json({ error: "runtime_not_configured", message: "App backends run in a sandbox (Blaxel or Cloudflare Containers), and neither is configured on this server." }, 503);
   const url = await ensureBackend(c.env, runtime, a, files.results, `${c.env.USERCONTENT_ORIGIN ?? new URL(c.req.url).origin}${base(c)}`);
   const rest = c.req.path.split("/_backend/")[1] ?? "";
   const headers = new Headers(c.req.raw.headers);
   ["cookie", "authorization", "host"].forEach((h) => headers.delete(h));
   return runtime.request(c.env, `${url.replace(/\/$/, "")}/${rest}${new URL(c.req.url).search}`, { method: c.req.method, headers, body: ["GET", "HEAD"].includes(c.req.method) ? undefined : await c.req.arrayBuffer() });
+});
+
+// The app's files for a sandbox that fetches them itself (Cloudflare Containers): signed per app + version.
+const bundleSig = (env: Env, id: string, v: number) => hmacHex(env.BETTER_AUTH_SECRET, `artifact-bundle:${id}:${v}`).then((h) => h.slice(0, 32));
+apps.get("/u/:id/:sig/_bundle/:v/:bsig", async (c) => {
+  const a = await app(c);
+  if (a instanceof Response) return a;
+  const v = Number(c.req.param("v"));
+  if (c.req.param("bsig") !== (await bundleSig(c.env, a.id, v))) return c.json({ error: "not_found" }, 404);
+  const { results } = await c.env.DB.prepare(`select "path","r2Key" from "artifactFile" where "artifactId" = ?1 and "version" = ?2`).bind(a.id, v).all<{ path: string; r2Key: string }>();
+  const files = await Promise.all(results.map(async (f) => {
+    const bytes = new Uint8Array(await (await c.env.TRAJECTORIES.get(f.r2Key))!.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { path: f.path, data: btoa(bin) };
+  }));
+  return c.json({ files }, 200, { "Cache-Control": "no-store" });
 });
 
 async function ensureBackend(env: Env, runtime: NonNullable<ReturnType<typeof sandboxRuntime>>, a: ArtifactRow, files: { path: string; r2Key: string }[], appBase: string): Promise<string> {
@@ -170,7 +188,8 @@ async function ensureBackend(env: Env, runtime: NonNullable<ReturnType<typeof sa
   const bundle = await Promise.all(files.map(async (f) => ({ path: f.path, bytes: new Uint8Array(await (await env.TRAJECTORIES.get(f.r2Key))!.arrayBuffer()) })));
   // The backend calls AnyDock exactly like the app's page does — through its own capability URL — so it gets the
   // same grants and nothing more. It never receives a user token.
-  const started = await runtime.start(env, { name: `anydock-${a.id.slice(0, 8)}`, files: bundle, env: { ANYDOCK_APP_URL: appBase, PORT: "3000" }, port: 3000 });
+  const bundleUrl = `${appBase}_bundle/${a.version}/${await bundleSig(env, a.id, a.version)}`;
+  const started = await runtime.start(env, { name: `anydock-${a.id.slice(0, 8)}`, files: bundle, bundleUrl, env: { ANYDOCK_APP_URL: appBase, PORT: "3000" }, port: 3000 });
   await env.DB.prepare(`insert into "appRuntime" ("artifactId","provider","sandboxId","url","version","status","updatedAt") values (?1,?2,?3,?4,?5,'running',?6)
     on conflict ("artifactId") do update set "provider" = excluded."provider", "sandboxId" = excluded."sandboxId", "url" = excluded."url", "version" = excluded."version", "status" = 'running', "updatedAt" = excluded."updatedAt"`)
     .bind(a.id, runtime.name, started.id, started.url, a.version, now()).run();

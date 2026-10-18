@@ -1,22 +1,51 @@
 import type { Env } from "./types.ts";
 
-// Where an app's backend code runs. Swappable: Blaxel today (hackathon sponsor); Cloudflare Containers or another
-// provider can implement the same interface. AnyDock proxies every request to the backend itself, so the sandbox needs
+// Where an app's backend code runs. Swappable: Blaxel (hackathon sponsor) or Cloudflare Containers (our own account);
+// another provider can implement the same interface. AnyDock proxies every request to the backend itself, so the sandbox needs
 // no public URL, and the backend reaches AnyDock only through the app's own capability URL (ANYDOCK_APP_URL) —
 // the same grants as the app's page, never a user token.
 export interface SandboxRuntime {
   name: string;
-  start(env: Env, app: { name: string; files: { path: string; bytes: Uint8Array }[]; env: Record<string, string>; port: number }): Promise<{ id: string; url: string }>;
+  start(env: Env, app: { name: string; files: { path: string; bytes: Uint8Array }[]; bundleUrl: string; env: Record<string, string>; port: number }): Promise<{ id: string; url: string }>;
   alive(env: Env, id: string): Promise<boolean>;
   stop(env: Env, id: string): Promise<void>;
   // Send a request to the running backend (adds the provider's auth).
   request(env: Env, url: string, init: RequestInit): Promise<Response>;
 }
 
+// Cloudflare Containers by default (Nolan, Oct 18: our own paid plan); APP_RUNTIME=blaxel switches to Blaxel.
 export function sandboxRuntime(env: Env): SandboxRuntime | null {
-  if (env.BLAXEL_API_KEY && env.BLAXEL_WORKSPACE) return blaxel;
-  return null;
+  if (env.APP_RUNTIME === "blaxel") return env.BLAXEL_API_KEY && env.BLAXEL_WORKSPACE ? blaxel : null;
+  return env.APP_CONTAINER ? cloudflare : null;
 }
+
+// ---------- Cloudflare Containers (src/container.ts) ----------
+// The container fetches the app's files itself from a signed bundle URL; requests go through its Durable Object.
+const stub = (env: Env, name: string) => env.APP_CONTAINER!.get(env.APP_CONTAINER!.idFromName(name));
+const cloudflare: SandboxRuntime = {
+  name: "cloudflare",
+  async start(env, app) {
+    const r = await stub(env, app.name).fetch("http://app/__start", {
+      method: "POST",
+      body: JSON.stringify({ env: { ...app.env, PORT: String(app.port), ANYDOCK_BUNDLE_URL: app.bundleUrl } }),
+    });
+    if (!r.ok) throw new Error(`Container start: ${r.status} ${await r.text()}`);
+    return { id: app.name, url: `cf:${app.name}` };
+  },
+  async alive(env, id) {
+    const r = await stub(env, id).fetch("http://app/__alive").catch(() => null);
+    return Boolean(r?.ok && ((await r.json()) as { alive?: boolean }).alive);
+  },
+  async stop(env, id) {
+    await stub(env, id).fetch("http://app/__stop").catch(() => {});
+  },
+  request(env, url, init) {
+    const rest = url.replace(/^cf:/, "");
+    const i = rest.indexOf("/");
+    const name = i < 0 ? rest : rest.slice(0, i);
+    return stub(env, name).fetch(`http://app/__app${i < 0 ? "/" : rest.slice(i)}`, init);
+  },
+};
 
 // ---------- Blaxel (https://docs.blaxel.ai, OpenAPI: controlplane + sandbox API) ----------
 // Control plane: https://api.blaxel.ai/v0 with Authorization: Bearer <key> + X-Blaxel-Workspace.

@@ -5,6 +5,9 @@ When done, tick the boxes, update the RUNBOOK row and the Status section of `AGE
 changed** (this file, `tasks/RUNBOOK.md`, `AGENTS.md`), `git pull --rebase`, and push. Another agent (Claude) writes the
 runtime code at the same time — don't edit `server/src/**`, `cli/src/**` or tests.
 
+> **Update Oct 18:** app backends now run on **Cloudflare Containers by default** (live). Blaxel is the optional,
+> sponsor-track runtime behind the same interface (`APP_RUNTIME=blaxel`). This task is still useful but no longer blocking.
+
 ## Why
 
 AnyDock artifacts include small apps (a folder with `index.html`). Today they're static sites with a built-in data
