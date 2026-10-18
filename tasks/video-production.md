@@ -78,7 +78,7 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - [ ] Stage set (two accounts, two agents, two Edge profiles), cleanup done, one dry run passed.
 - [ ] Real seed session recorded and renamed.
 - [ ] Raw clips for shots 2, 4–8 in `video/raw/`, logged in `video/shots.md`.
-- [ ] Voice recorded or chosen.
+- [x] Voice recorded or chosen.
 - [ ] Handed to Claude for the cut.
 
 ## Production notes — Oct 18
@@ -94,3 +94,12 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Local Qwen3-TTS 1.7B CustomVoice 6-bit ran successfully through MLX on this M2 / 16 GB Mac; both weight files matched the publisher's SHA-256 after the interrupted download was retried. No paid service used.
 - New auditions: `../video/voice/qwen-warm.wav` (Ryan, 26.32 s, warm conversational storytelling) and `../video/voice/qwen-confident.wav` (Aiden, 16.72 s, brighter product-demo delivery). Same excerpt, continuous model generation with style instructions. Peak amplitudes 0.723 / 0.555, below clipping. Nolan's listening judgment is pending.
 - Full narration, Jason sign-in, staging, seed session and raw footage are still pending.
+
+### Full Aiden narration — selected by Nolan
+
+- Nolan chose Aiden and authorized faster pacing and more expressive emotion. Generated all nine narration passages from the current `DEMO.md` with Qwen3-TTS, Aiden, locally. Spoken-only normalizations: ten-x → ten X, AnyDock → Any Dock, #launch → launch.
+- Complete listening preview: `../video/voice/aiden-full-v1/AnyDock-Aiden-full.m4a` (75.096 s). This is a continuous audition; final picture timing is not locked.
+- Editable shot masters: `../video/voice/aiden-full-v1/01.wav` through `09.wav` (24-bit WAV), with M4A copies. Canonical `../video/voice/01.m4a` through `09.m4a` also populated. Raw model takes retained in the version folder.
+- Cut handoff bundle: `../video/voice/AnyDock-Aiden-voice-pack.zip`; includes all shot files, preview, exact narration and timing notes, and `timing.json`. Shot durations: 1.995 / 10.640 / 4.160 / 1.360 / 6.715 / 13.200 / 14.720 / 11.995 / 6.560 s. Shot 02 needs about 0.64 s from the following title card if keeping the script timeline.
+- Validation: every delivered audio file decodes and peaks below clipping; full-preview local ASR covers all nine sections without repeated outros. Short-clip ASR produced hallucinated tails, so those were not treated as spoken content. Proper-name recognition remains imperfect; subjective performance approval is Nolan's listening decision.
+- Voice pack ready for the eventual cut; no direct message to Claude sent. Jason login, stage, seed session, dry run and raw footage remain pending.
