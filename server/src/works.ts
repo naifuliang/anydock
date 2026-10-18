@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
+import { notifyDiscord } from "./discord.ts";
 import { publish } from "./hub.ts";
 import type { AppEnv, Env, User, WorkRow } from "./types.ts";
 
@@ -269,6 +270,9 @@ async function createShare(c: Context<AppEnv>, kind: "share" | "handover") {
   }
   await db.batch(stmts);
 
+  c.executionCtx.waitUntil(
+    notifyDiscord(c.env, new URL(c.req.url).origin, work, { kind, actor: me.name || me.email, to: toEmail, note }),
+  );
   if (toUserId) {
     const item = await inboxItemById(db, inboxId);
     c.executionCtx.waitUntil(publish(c.env, [toUserId], { type: "inbox.new", item }));

@@ -4,8 +4,8 @@ import { LOGO } from "./landing.ts";
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
-export function appPage(user: { name: string; email: string; image?: string | null }, origin: string): string {
-  const boot = JSON.stringify({ user: { name: user.name, email: user.email }, origin }).replace(/</g, "\\u003c");
+export function appPage(user: { name: string; email: string; image?: string | null }, origin: string, discord = false): string {
+  const boot = JSON.stringify({ user: { name: user.name, email: user.email }, origin, discord }).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -358,7 +358,7 @@ async function projectsView() {
   $("#newProj").onsubmit = async (e) => { e.preventDefault(); const { project } = await api("POST", "/api/projects", { name: new FormData(e.target).get("name") }); location.hash = "#/p/" + project.id; };
 }
 
-async function projectView(id) {
+async function projectView(id, params = new URLSearchParams()) {
   setNav("projects");
   const { project, members, works } = await api("GET", "/api/projects/" + id);
   view.innerHTML = '<div class="row" style="margin-bottom:6px"><a class="btn ghost" href="#/projects">← Projects</a></div>' +
@@ -367,12 +367,41 @@ async function projectView(id) {
       '<div class="empty">No works linked yet. Open one of your works and pick this project in the sidebar.</div>') + '</div></div>' +
     '<div class="side"><div class="card"><h3>Members</h3>' + members.map((m) =>
       '<div class="row" style="justify-content:space-between;padding:4px 0"><span>' + esc(m.name || m.email) + '<br><span class="note">' + esc(m.email) + '</span></span><span class="pill ' + (m.role === "owner" ? "owner" : "project") + '">' + m.role + "</span></div>").join("") +
-      '<form id="addMember" style="margin-top:12px"><input type="email" name="email" required placeholder="teammate@company.com"><button class="btn">Add member</button><div id="memberMsg" class="note"></div></form></div></div></div>';
+      '<form id="addMember" style="margin-top:12px"><input type="email" name="email" required placeholder="teammate@company.com"><button class="btn">Add member</button><div id="memberMsg" class="note"></div></form></div>' +
+      '<div class="card" id="discordCard"><h3>Discord</h3><div class="note">Loading…</div></div></div></div>';
+  discordCard(id, params.get("guild"));
   $("#addMember").onsubmit = async (e) => {
     e.preventDefault();
     try { await api("POST", "/api/projects/" + id + "/members", { email: new FormData(e.target).get("email") }); projectView(id); toast("Member added"); }
     catch (err) { $("#memberMsg").innerHTML = '<span class="err">' + esc(err.message) + "</span>"; }
   };
+}
+
+// Discord: connect a channel to this project (posts shares/handovers; /anydock commands answer there).
+async function discordCard(projectId, guildId) {
+  const card = $("#discordCard");
+  const { configured, links } = await api("GET", "/api/projects/" + projectId + "/discord");
+  const head = '<h3>Discord</h3>';
+  if (!configured) { card.innerHTML = head + '<p class="note" style="margin:0">Coming soon — the AnyDock bot is being set up.</p>'; return; }
+  const list = links.map((l) => '<div class="row note" style="justify-content:space-between;padding:3px 0"><span><b style="color:var(--fg)">#' + esc(l.channelName) + '</b> · ' + esc(l.guildName) +
+    '</span><button class="btn ghost" data-unlink="' + l.id + '" style="padding:2px 6px">Disconnect</button></div>').join("");
+  if (guildId) {
+    card.innerHTML = head + '<p class="note" style="margin:0 0 8px">Pick the channel AnyDock should post to:</p><div class="note">Loading channels…</div>';
+    try {
+      const { guild, channels } = await api("GET", "/api/projects/" + projectId + "/discord/channels?guild=" + encodeURIComponent(guildId));
+      card.innerHTML = head + '<p class="note" style="margin:0 0 8px">Server <b style="color:var(--fg)">' + esc(guild.name) + '</b> — pick a channel:</p>' +
+        '<select id="dch" style="width:100%;margin-bottom:8px">' + channels.map((ch) => '<option value="' + ch.id + '">#' + esc(ch.name) + '</option>').join("") + '</select>' +
+        '<button class="btn solid" id="dconnect">Connect channel</button>';
+      $("#dconnect").onclick = async () => {
+        await api("POST", "/api/projects/" + projectId + "/discord", { guildId, channelId: $("#dch").value });
+        toast("Discord connected"); location.hash = "#/p/" + projectId;
+      };
+    } catch (e) { card.innerHTML = head + '<p class="err">' + esc(e.message) + '</p>'; }
+    return;
+  }
+  card.innerHTML = head + (list || '<p class="note" style="margin:0 0 10px">Post shares and handovers to a channel, and ask <code>/anydock why</code> there.</p>') +
+    '<a class="btn" style="margin-top:8px" href="/api/discord/install?projectId=' + projectId + '">' + (links.length ? "Add another channel" : "Connect Discord") + '</a>';
+  card.querySelectorAll("[data-unlink]").forEach((b) => b.onclick = async () => { await api("DELETE", "/api/projects/" + projectId + "/discord/" + b.dataset.unlink); toast("Disconnected"); discordCard(projectId); });
 }
 
 function settingsView() {
@@ -382,7 +411,8 @@ function settingsView() {
     '<div class="card">' +
       '<div class="conn"><div class="ic" style="background:#111">›_</div><div><b>Claude Code &amp; Codex</b><div class="note">One prompt in your agent: <code>Set up AnyDock for me: follow ' + esc(BOOT.origin) + '/agents.md</code>' +
         '<br>or a terminal: <code>curl -fsSL ' + esc(BOOT.origin) + '/install.sh | ' + (prod ? "" : "ANYDOCK_SERVER=" + esc(BOOT.origin) + " ") + 'sh</code></div></div><span class="pill shared">available</span></div>' +
-      '<div class="conn"><div class="ic" style="background:#5865F2">D</div><div><b>Discord</b><div class="note">Post shares and handovers to a channel, and let teammates ask why from Discord.</div></div><span class="pill">coming soon</span></div>' +
+      '<div class="conn"><div class="ic" style="background:#5865F2">D</div><div><b>Discord</b><div class="note">Post shares and handovers to a channel, and ask <code>/anydock why</code> from Discord. Connect it from a project page.</div></div>' +
+        (BOOT.discord ? '<a class="btn" href="#/projects">Choose a project</a>' : '<span class="pill">coming soon</span>') + '</div>' +
       '<div class="conn"><div class="ic" style="background:#4A154B">S</div><div><b>Slack</b><div class="note">Notify teammates in Slack when work is shared or handed to them.</div></div><span class="pill">coming soon</span></div>' +
     '</div><div class="row" style="margin-top:24px"><button class="btn" id="signout">Sign out</button></div>';
   $("#signout").onclick = async () => { await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/"; };
@@ -392,7 +422,8 @@ function settingsView() {
 let cleanup = () => {};
 async function route() {
   cleanup(); cleanup = () => {};
-  const h = location.hash.replace(/^#/, "") || "/";
+  const [h0, qs] = (location.hash.replace(/^#/, "") || "/").split("?");
+  const h = h0 || "/"; const params = new URLSearchParams(qs || "");
   try {
     let m;
     if (h === "/" ) await worksView();
@@ -400,7 +431,7 @@ async function route() {
     else if (h === "/projects") await projectsView();
     else if (h === "/settings") settingsView();
     else if ((m = h.match(/^\/w\/([\w-]+)$/))) await workView(m[1]);
-    else if ((m = h.match(/^\/p\/([\w-]+)$/))) await projectView(m[1]);
+    else if ((m = h.match(/^\/p\/([\w-]+)$/))) await projectView(m[1], params);
     else location.hash = "#/";
   } catch (e) {
     view.innerHTML = '<div class="empty">' + (e.message === "not_found" ? "Not found, or you don't have access." : esc(e.message)) + "</div>";

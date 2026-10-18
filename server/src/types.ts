@@ -4,6 +4,11 @@ export interface Env extends AuthEnv {
   DB: D1Database;
   TRAJECTORIES: R2Bucket;
   HUB: DurableObjectNamespace;
+  // Discord connector (see tasks/discord-setup.md). All three are needed for it to turn on.
+  DISCORD_APPLICATION_ID?: string;
+  DISCORD_PUBLIC_KEY?: string;
+  DISCORD_BOT_TOKEN?: string;
+  DISCORD_API?: string; // override for tests; default https://discord.com/api/v10
 }
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;

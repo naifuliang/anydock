@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { createAuth } from "./auth.ts";
 import { appPage } from "./app.ts";
+import { discord, discordEnabled } from "./discord.ts";
 import { landingPage } from "./landing.ts";
 import { devicePage, loginPage } from "./pages.ts";
 import type { AppEnv, Env } from "./types.ts";
@@ -30,6 +31,8 @@ app.get("/api/me", (c) => {
   return c.json({ user: { id, name, email, image } });
 });
 
+// Before projects/works: their middleware requires a session, but Discord calls /api/discord/* itself.
+app.route("/api", discord);
 app.route("/api", projects);
 app.route("/api", works);
 
@@ -43,7 +46,7 @@ app.get("/", (c) => c.html(landingPage({ signedIn: Boolean(c.get("session")), or
 app.get("/app", (c) => {
   const session = c.get("session");
   if (!session) return c.redirect("/login?next=/app");
-  return c.html(appPage(session.user, new URL(c.req.url).origin));
+  return c.html(appPage(session.user, new URL(c.req.url).origin, discordEnabled(c.env)));
 });
 
 app.get("/login", (c) => {

@@ -1,0 +1,5 @@
+{
+  "note": "TEST-ONLY Ed25519 key for local Discord interaction tests. Not used anywhere real.",
+  "publicKeyHex": "b65698533cf927468a9da100259900f455f147eb3e60a79747f1ccda9f41df90",
+  "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIAwMG/eB8FmbGZXyI9EQiJdlSjZAO43qNJVM7Z5lLl9i\n-----END PRIVATE KEY-----\n"
+}

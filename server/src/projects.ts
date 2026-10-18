@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { notifyDiscord } from "./discord.ts";
 import type { AppEnv, WorkRow } from "./types.ts";
 
 // Projects: a team space. Members see every work linked to it (work.visibility = 'project').
@@ -120,5 +121,11 @@ projects.put("/works/:id/project", async (c) => {
     .prepare(`update "work" set "projectId" = ?2, "visibility" = ?3, "updatedAt" = ?4 where "id" = ?1`)
     .bind(work.id, projectId, visibility, now())
     .run();
+  if (projectId && projectId !== work.projectId) {
+    const me = c.get("user");
+    c.executionCtx.waitUntil(
+      notifyDiscord(c.env, new URL(c.req.url).origin, { ...work, projectId, visibility }, { kind: "linked", actor: me.name || me.email }),
+    );
+  }
   return c.json({ ok: true, projectId, visibility });
 });
