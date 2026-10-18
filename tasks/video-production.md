@@ -99,7 +99,7 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 ## Done when
 
 - [ ] Stage set (two accounts, two agents, two Edge profiles), cleanup done, one dry run passed.
-- [ ] Real seed session recorded and renamed.
+- [x] Real seed session recorded and renamed (d4da0d79-029c-48c9-8e1c-23b3057c60f7).
 - [ ] Raw clips for shots 2, 4–8 in `video/raw/`, logged in `video/shots.md`.
 - [ ] Voice recorded or chosen (Nolan will read; recording pending).
 - [ ] Handed to Claude for the cut.
@@ -157,3 +157,14 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Seed attempt via a new named Claude Code session stopped with `Failed to authenticate: OAuth session expired and could not be refreshed`. No research completed, no false seed completion claimed. Nolan must reauthenticate Claude Code before retrying.
 - Computer-use tool explicitly rejected Terminal with `Computer Use is not allowed to use the app 'com.apple.Terminal' for safety reasons.` No alternate UI automation used to bypass it. Asked Nolan to prepare two independent terminal windows.
 - Remaining: Claude sign-in, interactive agent checks, Slack #launch, test-artifact cleanup, Focus/layout/wallpaper, full dry run with Nolan, all raw clips and narration. No recordings yet.
+
+
+### First live recording attempt — cards delegated to Claude
+
+- Nolan explicitly assigned all cards/title animation/landing material to Claude; Codex records only real product operations (shots 4–8). Do not record or extract landing cards.
+- Claude CLI login verified. Completed real named seed session d4da0d79-029c-48c9-8e1c-23b3057c60f7 with 16 WebSearch and 10 WebFetch calls. Findings: ../video/seed-research.txt. Primitive recommended on thematic fit with caveats about unverified judging rules.
+- Screen Recording access verified; Do Not Disturb visibly On. Window-ID video capture tested while another app covered Edge: captures target window without occluding app. Overlapping windows are workable. Preflight retained separately, not final footage.
+- Nolan resumed seed in a standalone Claude terminal and sent the exact create/share prompt. Claude created doc 7f544e1d-4be3-4067-bf7f-afda00f4c113, title YC Make Something Agents Want: Sponsor Recommendation; independent native viewer opened.
+- Product issue observed during recording: Jason Inbox live toast read `Nolan shared “undefined”`, then sidebar Inbox badge became 1. Stopped under the report-product-misbehavior rule. No code fixes or UI workarounds performed.
+- Capture mistake: SIGINT stopped the three action recordings without finalizing movies (exit 130). They are NOT delivered footage and require retakes. Use short timed recordings that end naturally. Only ../video/raw/05-jason-inbox-before-share.mov finalized (6.033 s, 2940×1724; opening plate only).
+- Handoff log: ../video/shots.md. Raw actions 4–8, dry run, cleanup and voice remain incomplete.
