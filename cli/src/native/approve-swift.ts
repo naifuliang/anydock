@@ -158,11 +158,12 @@ struct ApprovalView: View {
       }
       HStack(spacing: 8) {
         Label("Your rule: " + rule, systemImage: "lock.shield").font(.system(size: 11.5)).foregroundColor(.secondary)
+          .lineLimit(2).layoutPriority(-1)
         Spacer()
-        Button("Deny", action: deny).keyboardShortcut(.cancelAction).controlSize(.large)
+        Button("Deny", action: deny).keyboardShortcut(.cancelAction).controlSize(.large).fixedSize()
           .disabled(model.phase != .idle)
         if !sessionMessage.isEmpty {
-          Button("This session", action: approveSession).controlSize(.large)
+          Button("This session", action: approveSession).controlSize(.large).fixedSize()
             .help("Allow this kind of action for the rest of this agent session")
             .disabled(model.phase != .idle)
         }
@@ -178,7 +179,7 @@ struct ApprovalView: View {
       }
     }
     .padding(16)
-    .frame(width: 380)
+    .frame(width: 404)
     .background(Blur())
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.primary.opacity(0.08)))
