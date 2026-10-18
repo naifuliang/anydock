@@ -47,7 +47,7 @@ next; this task just prepares the account and records how deployment works.
 - REST base: `https://cloud.manufact.com/api/v1`, Bearer auth. Connection validates `GET /organizations` and each allowed `GET /servers/:id`; only id/name/slug/status returned to clients. Redeploy uses `POST /deployments` with `{serverId,trigger:"redeploy",branch?}`; accepted deployment ID means submitted, not deployed. Sources: https://cloud.manufact.com/docs and https://docs.manufact.com/dashboard/api-keys.
 - Owner controls membership, encrypted connection and server grants; admin may approve another member's redeployment; members default deny. Ask expires after 15 minutes; policy, connection and membership edits cancel pending requests. Execution atomically checks current access and claims request once. Reusing a request UUID prevents duplicated submissions. Already-running upstream actions cannot be recalled.
 - MCP: `anydock_organizations`, `anydock_manufact_servers`, `anydock_manufact_server`, `anydock_manufact_redeploy`, `anydock_organization_requests`. No approval/key-management MCP tool. Agents use their human bearer identity; agent-specific tokens and SSO/project inheritance are not implemented.
-- Production verification still needs approved deployment/migration, an approved key connection and a selected real Manufact server. Do not redeploy a user's server solely to test without their authorization.
+- Deployment/migration and the approved key connection are verified. Live server-operation verification still needs a selected real Manufact server. Do not redeploy a user's server solely to test without their authorization.
 
 ## Production verification Oct 17
 
