@@ -52,3 +52,5 @@ Project `western-pivot-512023-a8`, client `AnyDock web` (already used for "Conti
 ## Oct 17 status
 
 Gmail configuration complete, no mailbox grant/send test yet. Outlook registration blocked: personal `qizi297@outlook.com` gets AADSTS16000 in Microsoft Services tenant. No subscription created, no admin consent granted.
+
+Oct 17 live Gmail authorization: Nolan explicitly approved gmail.send for qizi297@gmail.com and a test to his own Outlook. Google consent completed; AnyDock shows “Agents send as qizi297@gmail.com.” Credential remains encrypted in the server connection. Actual send/delivery pending refreshed local CLI authorization.

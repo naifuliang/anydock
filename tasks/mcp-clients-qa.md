@@ -43,3 +43,5 @@ Fill in, commit this file, push:
 ## Findings
 
 Oct 17: prerequisite AnyDock executable `~/.anydock/bin/anydock` is absent. No MCP config changed and no editor installed. Live compatibility is unverified; treat these clients as MCP-compatible in principle, not tested live. Nolan must install/sign in to AnyDock and provide an editor before end-to-end QA.
+
+Oct 17 recheck during remaining-task audit: Cursor, Windsurf and VS Code remain absent at the standard /Applications and ~/Applications paths. Existing AnyDock config now exists but its stored credential returns HTTP 401. Started a fresh device login for the Google test identity, awaiting Nolan authorization. No editor configuration modified; editor UI compatibility remains unverified.
