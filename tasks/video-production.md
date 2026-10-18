@@ -1,92 +1,82 @@
-# Task: produce the 2-minute AnyDock demo video
+# Task: record the raw footage for the 2-minute AnyDock video
 
-For: Codex (computer use + shell). Read `AGENTS.md`, then **`DEMO.md` — it is the script** (shot list, narration,
-continuity). This file is how to make it. Deadline: final MP4 well before **Oct 18, 9:30 AM PDT**.
+For: Codex (computer use + shell). Read `AGENTS.md`, then **`DEMO.md` — it is the script** (story, shots, narration,
+continuity, cast). You set the stage and record **raw clips**; Claude cuts the final video from them. Deadline: all raw
+clips by **Oct 18, 7:30 AM PDT**.
 
 ## Rules
 
-- **Real product only.** Every product shot is anydock.ai with the real demo accounts (DEMO.md "Cast"). Don't build fake UI.
-  The only non-product footage is the landing page's own animations and the two title cards.
-- **Clean frames.** Record windows only (never the full screen), composite them on Nolan's wallpaper. Turn on Do Not
-  Disturb / Focus first. No other apps, no personal browser tabs or bookmarks bar, no notification banners, no tokens,
-  no email addresses except the two demo accounts. Check every clip before using it.
-- **Never approve as Nolan.** Touch ID / password moments (shot 9) and the phone (shot 8) need Nolan — stop and ask him;
-  don't click Approve in the dashboard to fake it.
-- Only message the demo accounts (qizi297@gmail.com, qizi297@outlook.com), `#general` in the demo Slack workspace, and
-  Nolan's own phone. Nobody else.
-- Don't edit `server/src/**`, `cli/src/**` or tests. Put working files in `~/Documents/ychackathon/video/` (outside the
-  repo). Commit only this file's checkboxes / notes and `DEMO.md` timing tweaks.
-- If something in the product misbehaves on camera, stop and tell Nolan (and Claude) what you saw — don't work around it.
+- **Real product, no mock data.** Real accounts, a real agent session, real messages (DEMO.md "Rules").
+- **Window-only recordings**, never the full screen. Focus / Do Not Disturb on first. No other apps, personal tabs,
+  bookmarks bar, notification banners, tokens, or addresses other than the two demo accounts. Check each clip.
+- **Never approve as Nolan.** The two Touch ID moments (shots 6 and 8) and the phone (shot 7) are Nolan's — stop and ask.
+  Don't click Approve in a dashboard to stand in for him.
+- Only message the two demo accounts, `#launch` in the demo Slack workspace, and Nolan's own phone.
+- Don't edit `server/src/**`, `cli/src/**` or tests. Working files go in `~/Documents/ychackathon/video/` (outside the
+  repo). Commit only this file's checkboxes and notes.
+- If the product misbehaves on camera, stop and report exactly what you saw (to Nolan and Claude). Don't work around it.
 
 ## Stop and ask Nolan when
 
-- macOS asks for **Screen Recording** permission (for the app you record with) — he grants it.
-- Shot 8 (the iMessage on his phone, shown with iPhone Mirroring) and shot 9 (Touch ID on the panel).
-- Step 2 of DEMO.md "Before recording" (Jason's second sign-in) if not done yet — it needs his browser approval.
-- The voice: he either records the narration himself or picks a TTS voice from your samples.
+- Installing the Codex CLI (`npm i -g @openai/codex`) and signing in to anydock.ai in the "Jason" Edge profile.
+- Approving Jason's AnyDock CLI login in the browser.
+- macOS asks for **Screen Recording** permission.
+- Creating `#launch` in his Slack workspace (if it doesn't exist).
+- Shots 6 and 8 (Touch ID) and 7 (the phone, via iPhone Mirroring).
+- The voice: he records the narration, or picks one of your TTS samples.
 
-## 1. Set up the stage
+## 1. Stage (one Mac, two people)
 
-1. Focus on, Dock auto-hidden, menu bar clean (quit apps you don't need).
-2. Get Nolan's wallpaper as a 2560×1600 (or screen-size) PNG, `video/wallpaper.png`, with nothing on it (from System
-   Settings' wallpaper file, or a capture of the empty desktop). This is the background for every window clip.
-3. Two browser profiles in Microsoft Edge: **Nolan** (anydock.ai signed in as qizi297@gmail.com) and **Jason**
-   (signed in as qizi297@outlook.com). Hide the bookmarks bar; page zoom 110–125% so text reads at 1080p.
-4. Terminal for Claude Code (left) and for Codex (right): font 16–18 pt, clean prompt, light theme matching the site.
-5. Window layout for split shots: two windows, each exactly half of a 1920×1080 region with a small gap, so the
-   composite looks deliberate.
+1. DEMO.md "Before recording" steps 1–6 (Codex CLI for Jason with `CODEX_HOME=~/.codex-jason`, Jason's AnyDock in
+   `~/.anydock-jason`, Jason's phone + display name, cleanup, one full dry run).
+2. Focus on, Dock hidden, quit unrelated apps. Save Nolan's wallpaper as `video/wallpaper.png` (screen resolution,
+   nothing on it).
+3. Edge profiles: **Nolan** (qizi297@gmail.com) and **Jason** (qizi297@outlook.com). Bookmarks bar off, zoom 110–125%.
+4. Terminals: left = Nolan's Claude Code (`~/Documents/ychackathon/sponsor-research`), right = Jason's Codex
+   (`CODEX_HOME=~/.codex-jason codex`). 16–18 pt font, light theme, short prompt.
+5. Fixed layout: each recorded window exactly 960×1080 (split shots) or 1920×1080 (full shots), always the same
+   positions, so clips line up.
 
-## 2. Seed the real data (before recording)
+## 2. Seed the real session
 
-1. In `~/Documents/ychackathon/sponsor-research` start a **new** Claude Code session and run a real, short research task:
-   "Research the 8 sponsors of YC's Make Something Agents Want hackathon (Primitive, Stripe, Manufact, Inkbox, InsForge,
-   Armature, Blaxel, Supabase); decide which tracks fit a tool that lets teams share and hand over agent work; recommend
-   one with reasons and sources." Rename it **"YC hackathon sponsor research"**. This is the session shots 4–8 use.
-2. Make sure the "Primitive" decision and its reason are in that session (shot 6 asks why).
-3. Delete leftovers from testing in Nolan's account (the "Container smoke test" artifact, any test works) so lists look real.
-4. Do one full dry run of shots 4–9 without recording; then reset what you can (e.g. use a fresh doc title per take).
+In Nolan's terminal start a **new** Claude Code session and run a real, short research task (it really browses):
+"Research the 8 sponsors of YC's Make Something Agents Want hackathon (Primitive, Stripe, Manufact, Inkbox, InsForge,
+Armature, Blaxel, Supabase); decide which tracks fit a tool that lets teams share and hand over agent work; recommend
+one with reasons and sources." Make sure the Primitive decision and its reason are in it. Rename it **"YC hackathon
+sponsor research"**. Don't record this; it's the history the story builds on.
 
-## 3. Record
+## 3. Record (raw clips)
 
-Tools: macOS `screencapture -v -R x,y,w,h -V <seconds> clip.mov` records a screen region (the window's frame) with no
-other UI; or QuickTime for long takes. 30 fps is fine. Name clips `video/raw/NN-short-name.mov`.
+`screencapture -v -R x,y,w,h -V <seconds> video/raw/NN-name.mov` records one window's frame; or QuickTime for long takes.
+For every clip, note in `video/shots.md`: file, shot #, start/end of the useful part, anything odd.
 
-- **Shot 2 (ANIM):** record `https://anydock.ai/` scrolled to the "human as glue" cards (hover/scroll so each card is
-  lit in turn), and `https://anydock.ai/?scene=5` and `?scene=8` (each holds one hero scene and plays its animation;
-  record ~9 s from load).
-- **Shot 3:** in a throwaway HOME so it doesn't touch the real install:
-  `HOME=$(mktemp -d) sh -c 'curl -fsSL https://anydock.ai/install.sh | ANYDOCK_NO_SETUP=1 sh'` then show
-  `anydock login` approving in the browser. Speed up 4× in the edit. (Or record Nolan's real `anydock setup` output
-  if he prefers — no secrets are printed either way.)
-- **Shots 4–9:** exactly the prompts in DEMO.md, typed at a readable pace. Keep each take short; record left and right
-  windows as separate clips when both matter, and composite them side by side.
-- **Shot 7:** the agent opens the doc in the built-in browser / AnyDock window; while it fills, Jason (in his profile)
-  clicks Edit on one section so his colour and "Jason is editing" show. Then 2-s captures of a deck (Present), a sheet
-  with a total, and a running app (from Nolan's artifacts).
-- **Shot 9:** Nolan presses **This session** + Touch ID. Then record the second action running without asking, and the
-  sent email in Gmail (Jason's/Outlook inbox shows it arriving is fine).
+| Shot | Clips |
+|---|---|
+| 2 | `anydock.ai` scrolled to the "human as glue" cards; each card hovered/lit in turn, ~2 s each (copy-paste, an hour to show a colleague, you log off, "where did this come from?", tokens pasted) |
+| 4 | Install in a throwaway HOME: `HOME=$(mktemp -d) sh -c 'curl -fsSL https://anydock.ai/install.sh \| sh'` → approve in the browser → "Done." |
+| 5 | Left terminal + left browser (the doc filling in); right browser (Jason's Inbox → opens the doc → edits one section while the agent writes) — record left and right separately, same time |
+| 6 | Left terminal (catch-up, Slack post, email) + the Mac approval panel (top-right; record that region) + Slack `#launch` + the email in the Outlook inbox |
+| 7 | Left terminal (handover) + phone (iPhone Mirroring window) + right terminal (Jason's Codex picking up, writing the doc) + the doc updating live (either browser) + right terminal asking "why did we pick Primitive?" + dashboard jumping to the cited step |
+| 8 | Left terminal (build the app) + the app page (its Permissions panel) + approval panel + clicking "Post status" + Slack `#launch` |
+
+Use the exact prompts in DEMO.md. Type at a readable pace. Retake rather than trim around mistakes.
 
 ## 4. Voice
 
-Preferred: Nolan reads the DEMO.md narration (QuickTime audio, one take per shot). Otherwise make 2–3 TTS samples for
-him to pick from: macOS `say -v Samantha` (built in; better "Enhanced/Premium" voices can be downloaded free in System
-Settings → Accessibility → Spoken Content), or a local open model such as Kokoro (no API key, runs on the Mac).
-No paid TTS without asking.
+Preferred: Nolan reads DEMO.md's narration (one take per shot, QuickTime audio, quiet room). Otherwise give him 2–3
+samples: macOS `say` (free "Enhanced/Premium" voices in System Settings → Accessibility → Spoken Content) or a local
+open model such as Kokoro (no API key). No paid TTS without asking. Save as `video/voice/NN.m4a`.
 
-## 5. Edit
+## 5. Hand off to Claude
 
-- ffmpeg isn't installed system-wide: use a self-contained binary in `video/tools/` (e.g. `npm i ffmpeg-static` there),
-  don't install with Homebrew without asking.
-- Composite each window clip centred on `wallpaper.png` with a soft shadow; 1920×1080 output, H.264, yuv420p.
-- Title cards (shots 1 and 10): white, the site's fonts (Geist + Instrument Serif italic for "10x"), text from DEMO.md.
-- Burn in captions from the narration (one line at a time, bottom, white on translucent dark). Light music under the
-  voice only if it doesn't fight it.
-- Final: `~/Movies/AnyDock-demo.mp4`, **≤ 2:00** (check with ffprobe), plus a 10-s preview GIF/MP4 for the README if time allows.
+Tell Claude (in this repo's AGENTS.md Status or directly) where `video/raw/`, `video/voice/`, `video/wallpaper.png` and
+`video/shots.md` are. Claude does the cut: composite on the wallpaper, split screen with labels, pain tags, title cards,
+captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 
 ## Done when
 
-- [ ] Stage set, wallpaper captured, two browser profiles signed in.
-- [ ] Seed session recorded and renamed; test leftovers removed.
-- [ ] All shots recorded (list any retakes needed).
-- [ ] Voice chosen and recorded/generated.
-- [ ] `~/Movies/AnyDock-demo.mp4` exported, ≤ 2:00, reviewed by Nolan.
+- [ ] Stage set (two accounts, two agents, two Edge profiles), cleanup done, one dry run passed.
+- [ ] Real seed session recorded and renamed.
+- [ ] Raw clips for shots 2, 4–8 in `video/raw/`, logged in `video/shots.md`.
+- [ ] Voice recorded or chosen.
+- [ ] Handed to Claude for the cut.

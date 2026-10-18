@@ -85,6 +85,9 @@ export async function readArtifact(id: string, section?: string): Promise<string
   locked.forEach((s: any) => head.push(`Note: ${s.lockedName} is editing "${s.heading}" right now — leave that section alone.`));
   if (a.kind === "doc" || a.kind === "slides") {
     head.push("Sections: " + full.sections.map((s: any, i: number) => `${i + 1}. ${s.heading || "(intro)"}${s.status !== "done" ? ` [${s.status}]` : ""}`).join(" · "));
+    // Who touched what (people and agents), so an agent can catch up on a teammate's changes without asking them.
+    const recent = (full.events ?? []).filter((e: any) => /section\.|content\.|renamed|handed_over|shared/.test(e.kind)).slice(0, 8);
+    if (recent.length) head.push("Recent changes: " + recent.map((e: any) => `${e.actorName}${e.via === "agent" ? " (agent)" : ""} ${e.kind.replace("section.updated", "edited").replace("section.added", "added").replace("content.replaced", "rewrote it").replace("handed_over", "handed it over to").replace("shared", "shared it with")}${e.detail ? ` "${e.detail}"` : ""} · ${String(e.at).slice(11, 16)}`).join("; "));
   }
   const text = await call("GET", `/api/artifacts/${id}/text${section ? `?section=${encodeURIComponent(section)}` : ""}`, { text: true });
   return head.join("\n") + "\n\n" + text;
