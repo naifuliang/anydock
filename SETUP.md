@@ -15,7 +15,7 @@ Production URL: `https://anydock.ai` · Local dev URL: `http://localhost:8787`
 - [ ] Create a second OAuth App for local dev (GitHub allows one callback per app)
   - Name `AnyDock (dev)`, homepage `http://localhost:8787`, callback `http://localhost:8787/api/auth/callback/github`
 - [x] Production: `GITHUB_CLIENT_ID` saved in Cloudflare (Oct 17).
-- [ ] Production: `GITHUB_CLIENT_SECRET` still required; existing GitHub secret is masked. User must generate/enter the credential directly.
+- [x] Production: user generated a new GitHub client secret; saved directly to Cloudflare as `GITHUB_CLIENT_SECRET` (Oct 17). Full GitHub sign-in verified: signed-in landing page and authenticated `/api/me` returned `qizi297@outlook.com`. Existing older secret retained.
 - [ ] Dev: add `GITHUB_CLIENT_ID=…` and `GITHUB_CLIENT_SECRET=…` (from the dev app) to `server/.dev.vars`
 
 ## 2. Google sign-in
@@ -46,6 +46,6 @@ Without these, sign-in codes are only printed in the server log (fine for local 
 
 - [x] Deployed to `https://anydock.ai` (Oct 17). Redeploy any time with `cd server && npm run deploy`.
 
-## Until 1–3 are done
+## Email-code fallback (until step 3 is done)
 
-Sign-in codes are only written to the Worker log. To sign in anyway: run `cd server && npx wrangler tail` in one terminal, request a code on https://anydock.ai/login, and read it from the log line `[email:dev] … sign-in code is NNNNNN`.
+GitHub and Google production OAuth sign-in are verified. Email sign-in codes are still only written to the Worker log. To use email codes: run `cd server && npx wrangler tail` in one terminal, request a code on https://anydock.ai/login, and read it from the log line `[email:dev] … sign-in code is NNNNNN`.

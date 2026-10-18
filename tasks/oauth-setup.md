@@ -46,3 +46,7 @@ None are set yet, so only email codes exist — and email has no sender yet eith
 For `wrangler dev` sign-in with GitHub, create a second GitHub OAuth app (`AnyDock (dev)`, homepage `http://localhost:8787`,
 callback `http://localhost:8787/api/auth/callback/github`) and put its id/secret in `server/.dev.vars` (gitignored).
 The Google client above already allows localhost; put its id/secret in `server/.dev.vars` too.
+
+## Completion — Oct 17, 2026
+
+Production GitHub and Google credentials saved in Cloudflare. Both browser sign-in flows completed successfully and authenticated `/api/me` confirmed the expected identities. GitHub reused app 3892579; Google uses project `western-pivot-512023-a8` and `AnyDock web`. Google remains in Testing with `qizi297@gmail.com` as a test user. Optional local setup was not performed. See SETUP.md for remaining email/local work.
