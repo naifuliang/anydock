@@ -36,10 +36,10 @@ allows it (default for calls/texts: **ask me**).
 
 ## Done when
 
-- [ ] `INKBOX_API_KEY`, `INKBOX_IDENTITY` and `INKBOX_IDENTITY_ID` secrets set (`INKBOX_PHONE_NUMBER_ID` too if there is a number).
+- [x] `INKBOX_API_KEY` and `INKBOX_IDENTITY_ID` set. Current connector uses the UUID directly; `INKBOX_IDENTITY` is not read by the code. No paid phone number provisioned.
 - [x] Identity `anydock` exists; test message to Nolan arrived (or the paid-plan blocker is written down).
 - [x] REST endpoint + header for sending a text recorded in `AGENTS.md`.
-- [ ] Your commit pushed.
+- [x] Your commit pushed.
 
 ## Oct 17 verification
 
