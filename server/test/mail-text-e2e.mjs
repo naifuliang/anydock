@@ -39,11 +39,11 @@ const mock = createServer(async (req, res) => {
   }
   if (u.pathname === "/v1.0/me") return send(200, { mail: "alice@contoso.com", userPrincipalName: "alice@contoso.com" });
   if (u.pathname === "/v1.0/me/sendMail") return req.headers.authorization === "Bearer m-access-2" ? (res.writeHead(202), res.end()) : send(401, { error: "bad token" });
-  if (u.pathname === "/inkbox/messages") {
+  if (u.pathname === "/inkbox/imessage/messages") {
     if (req.headers["x-api-key"] !== "test-inkbox") return send(401, {});
     return json?.to === "+14155550999" ? send(409, { detail: "no conversation" }) : send(201, { message: { id: "im1", status: "pending" } });
   }
-  if (u.pathname === "/inkbox/numbers/num-1/texts") return req.headers["x-api-key"] === "test-inkbox" ? send(201, { id: "sms1", delivery_status: "queued" }) : send(401, {});
+  if (u.pathname === "/inkbox/phone/numbers/num-1/texts") return req.headers["x-api-key"] === "test-inkbox" ? send(201, { id: "sms1", delivery_status: "queued" }) : send(401, {});
   send(404, { error: "not mocked", path: u.pathname });
 });
 await new Promise((r) => mock.listen(8797, r));
@@ -109,30 +109,30 @@ check("outside email still asks first, even from your own mailbox", ext.status =
 const t1 = await ask(alice, "text", { to: "+14155550123", text: "Handover is in your inbox" });
 check("texting asks first by default", t1.status === 202 && t1.data.action.action === "phone.text");
 const t1d = (await call(alice, "POST", `/api/actions/${t1.data.action.id}/decide`, { approve: true })).data.action;
-const im = last("/inkbox/messages");
+const im = last("/inkbox/imessage/messages");
 check("approved text goes out as iMessage from AnyDock's identity", t1d.status === "executed" && im.query.agent_identity_id === "ident-1" && im.json.to === "+14155550123" && im.json.text.includes("(via AnyDock)") && Boolean(im.headers["idempotency-key"]), t1d.result?.detail);
 
 await call(alice, "PUT", "/api/delegate/policy", { action: "phone.text", decision: "allow" });
 const t2 = (await ask(alice, "text", { to: "+14155550999", text: "fallback please" })).data.action;
-check("iMessage refused → falls back to SMS from the number", t2.status === "executed" && t2.result.channel === "sms" && last("/inkbox/numbers/num-1/texts")?.json.to === "+14155550999", t2.result?.detail);
+check("iMessage refused → falls back to SMS from the number", t2.status === "executed" && t2.result.channel === "sms" && last("/inkbox/phone/numbers/num-1/texts")?.json.to === "+14155550999", t2.result?.detail);
 const t3 = (await ask(alice, "text", { to: bobEmail, text: "ping" })).data.action;
 check("texting a teammate without a saved phone explains why", t3.status === "failed" && t3.result.detail.includes("No phone number"));
 check("bad phone format rejected on profile", (await call(bob, "PUT", "/api/me/profile", { phone: "555-1234", textOnHandover: true })).status === 400);
 await call(bob, "PUT", "/api/me/profile", { phone: "+14155550777", textOnHandover: true });
 check("profile saved", (await call(bob, "GET", "/api/me/profile")).data.phone === "+14155550777");
 const t4 = (await ask(alice, "text", { to: bobEmail, text: "ping again" })).data.action;
-check("texting a teammate by email uses their saved phone", t4.status === "executed" && last("/inkbox/messages").json.to === "+14155550777");
+check("texting a teammate by email uses their saved phone", t4.status === "executed" && last("/inkbox/imessage/messages").json.to === "+14155550777");
 
 const work = (await call(alice, "PUT", "/api/works", { source: "claude-code", sessionId: `t-${run}`, title: "Launch checklist" })).data.work;
-const before = calls.filter((c) => c.path === "/inkbox/messages").length;
+const before = calls.filter((c) => c.path === "/inkbox/imessage/messages").length;
 await call(alice, "POST", `/api/works/${work.id}/handover`, { to: bobEmail });
 await sleep(700);
-const alert = calls.filter((c) => c.path === "/inkbox/messages").slice(before)[0];
+const alert = calls.filter((c) => c.path === "/inkbox/imessage/messages").slice(before)[0];
 check("handover texts the recipient who opted in", alert?.json.to === "+14155550777" && alert.json.text.includes("handed you “Launch checklist”") && alert.json.text.includes(`/app#/w/${work.id}`));
-const before2 = calls.filter((c) => c.path === "/inkbox/messages").length;
+const before2 = calls.filter((c) => c.path === "/inkbox/imessage/messages").length;
 await call(alice, "POST", `/api/works/${work.id}/share`, { to: bobEmail });
 await sleep(500);
-check("a plain share doesn't text", calls.filter((c) => c.path === "/inkbox/messages").length === before2);
+check("a plain share doesn't text", calls.filter((c) => c.path === "/inkbox/imessage/messages").length === before2);
 
 mock.close();
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");

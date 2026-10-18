@@ -10,18 +10,21 @@ const api = (env: Env) => env.INKBOX_API ?? "https://inkbox.ai/api/v1";
 export const textingReady = (env: Env) => Boolean(env.INKBOX_API_KEY && (env.INKBOX_IDENTITY_ID || env.INKBOX_PHONE_NUMBER_ID));
 export const E164 = /^\+[1-9]\d{7,14}$/;
 
-export async function sendText(env: Env, to: string, text: string): Promise<{ ok: boolean; detail: string; channel?: string }> {
+export async function sendText(env: Env, to: string, text: string): Promise<{ ok: boolean; detail: string; channel?: string; messageId?: string }> {
   if (!textingReady(env)) return { ok: false, detail: "Texting isn't set up on AnyDock yet." };
   if (!E164.test(to)) return { ok: false, detail: `"${to}" isn't a phone number in international format (+1…).` };
   const headers = { "X-API-Key": env.INKBOX_API_KEY!, "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID(), Prefer: "idempotency-replay" };
   let lastErr = "";
   if (env.INKBOX_IDENTITY_ID) {
-    const r = await fetch(`${api(env)}/messages?agent_identity_id=${encodeURIComponent(env.INKBOX_IDENTITY_ID)}`, { method: "POST", headers, body: JSON.stringify({ to, text }) });
-    if (r.ok) return { ok: true, detail: `Sent an iMessage to ${to}.`, channel: "imessage" };
+    const r = await fetch(`${api(env)}/imessage/messages?agent_identity_id=${encodeURIComponent(env.INKBOX_IDENTITY_ID)}`, { method: "POST", headers, body: JSON.stringify({ to, text }) });
+    if (r.ok) {
+      const data = await r.json().catch(() => null) as { message?: { id?: string } } | null;
+      return { ok: true, detail: `Submitted an iMessage to ${to}; delivery is not yet confirmed.`, channel: "imessage", ...(typeof data?.message?.id === "string" ? { messageId: data.message.id } : {}) };
+    }
     lastErr = `iMessage ${r.status}`;
   }
   if (env.INKBOX_PHONE_NUMBER_ID) {
-    const r = await fetch(`${api(env)}/numbers/${encodeURIComponent(env.INKBOX_PHONE_NUMBER_ID)}/texts`, { method: "POST", headers: { ...headers, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ to, text }) });
+    const r = await fetch(`${api(env)}/phone/numbers/${encodeURIComponent(env.INKBOX_PHONE_NUMBER_ID)}/texts`, { method: "POST", headers: { ...headers, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ to, text }) });
     if (r.ok) return { ok: true, detail: `Sent a text to ${to}.`, channel: "sms" };
     lastErr = `${lastErr ? lastErr + ", " : ""}SMS ${r.status}`;
   }

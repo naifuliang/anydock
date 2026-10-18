@@ -43,4 +43,4 @@ allows it (default for calls/texts: **ask me**).
 
 ## Oct 17 verification
 
-Identity-scoped production key and UUID saved. Extra Quickstart key revoked. No paid number purchased. Nolan completed recipient opt-in; Messages sent START/Hello, received by Inkbox. Console reply “AnyDock test: received your hello.” arrived in Messages. Provider bilateral iMessage verified; SMS, voice and AnyDock delegate path unverified. REST: POST https://inkbox.ai/api/v1/messages?agent_identity_id=<uuid>, X-API-Key; shared service requires recipient-first contact.
+Identity-scoped production key and UUID saved. Extra Quickstart key revoked. No paid number purchased. Nolan completed recipient opt-in; Messages sent START/Hello, received by Inkbox. Console reply “AnyDock test: received your hello.” arrived in Messages. Provider bilateral iMessage verified; SMS, voice and AnyDock delegate path unverified. REST: POST https://inkbox.ai/api/v1/imessage/messages?agent_identity_id=<uuid>, X-API-Key; shared service requires recipient-first contact.

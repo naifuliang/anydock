@@ -30,7 +30,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ✅ | Account configuration complete; Nolan connects from dashboard |
 | 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ✅ | Configuration complete; Nolan connects a server from dashboard |
 | 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ⏸ delivery verified | Nolan to complete final email-code login; Google test users deferred |
-| 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail API/scopes/callbacks configured; Outlook tenant access still blocked |
+| 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail connected and actual Outlook receipt verified; Outlook sender registration still blocked |
 | 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ✅ provider setup | Identity/key configured; real bidirectional iMessage verified; AnyDock delegate test remains |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ✅ account setup | Workspace/key prepared; SDK instrumentation is separate |
 | 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ✅ account/connector | Free test server live; real read/deny/ask/approve/revoke verified; provider CLI unnecessary |
@@ -81,3 +81,5 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 - Oct 17: organization connector deployed with migrations 0007/0008; live Manufact connection encrypted and audited. No hosted servers, so live server operations remain unverified; 48 local checks cover permissions/approvals/retries. Outlook tenant, editor QA, Primitive final code-login and per-channel AnyDock flow tests remain open.
 
 - Manufact live flow complete: free fixture running; member read succeeds, default redeploy denied, ask waits, other owner approves and provider reaches Running. Temporary member/grants removed; direct access denied after removal. 53 local checks pass. See tasks/manufact-setup.md.
+
+- Gmail real send complete: Google test identity → approved AnyDock action → Gmail → actual Outlook receipt verified. Inkbox AnyDock send found missing /imessage prefix; fixed official path and added regression test. Correct endpoint then returned 401 for stored credential; identity-scoped repair key prepared, awaiting approval.
