@@ -45,6 +45,23 @@ Post a short summary at the bottom of this file:
 - what's waiting on Nolan,
 - anything that behaved differently from the task (so the code can be adjusted).
 
+## Sponsor offers verified in YC chat (Oct 17)
+
+Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267340. Offers are recorded below; Primitive redemption is verified in the summary.
+
+- **Primitive** — Ethan Byrd, 2:07 PM: **$100 credits**, code `AGENTS-WANT-IT-ALL`; https://www.primitive.dev/redeem#AGENTS-WANT-IT-ALL. Sponsor offered more if needed.
+- **Inkbox** — Ray Liao, 11:26 AM: **100 agent identities per team**; visit the Inkbox booth to have the quota updated. No online redemption code posted in the message.
+- **Manufact** — Luigi Pederzani posted track resources at 11:06 AM; another participant at 1:26 PM described emailing **founders@manufact.com** for a hackathon top-up. This is a participant-reported channel, not a guaranteed amount. Do not send a request without Nolan's authorization. Discord help: https://discord.com/invite/XkNkSkMz3V.
+- **InsForge / Instabox** — Tony Chang, 3:42 PM: https://instabox.sh/, redemption code `556677`; amount not specified.
+- **Supabase** — Nemil Dalal, 5:09 PM: ask him near the main-room entrance for codes; no code or amount posted.
+- **Stripe** — Peter Masone, 4:13 PM: https://shipbysundown.dev/ and an Atlas incorporation discount. No Stripe API credit amount was posted; incorporation is outside this runbook.
+
 ## Summary
 
-(none yet)
+- Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (names only).
+- Google test users deferred by Nolan; demo will be recorded by the team, without judge accounts or judge interaction.
+- Slack: old app `A0C508BD6ET` exists in New Workspace, with old scopes and no redirects. Nolan requested a fresh app; preserve the old one.
+- Discord developer portal is signed out; requires Nolan's sign-in.
+- Primitive GitHub read-only profile/email authorization and terms accepted with Nolan's explicit approval; AnyDock organization created under the existing account. The $100 hackathon credit was redeemed; dashboard confirms no expiry. Sender/API setup is in progress.
+- MCP client QA: `/Users/nolanliang/.anydock/bin/anydock` is absent; Cursor, Windsurf and VS Code were not found in `/Applications`. No live client compatibility claim verified.
+
