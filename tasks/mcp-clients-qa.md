@@ -36,10 +36,10 @@ Fill in, commit this file, push:
 
 | Client | Tools listed | inbox works | list_works works | share from it | Notes |
 |---|---|---|---|---|---|
-| Cursor | | | | | |
-| Windsurf | | | | | |
-| VS Code | | | | | |
+| Cursor | Not tested | Not tested | Not tested | Not tested | Not found in /Applications or ~/Applications Oct 17 |
+| Windsurf | Not tested | Not tested | Not tested | Not tested | Not found in /Applications or ~/Applications Oct 17 |
+| VS Code | Not tested | Not tested | Not tested | Not tested | Not found in /Applications or ~/Applications Oct 17 |
 
 ## Findings
 
-(none yet)
+Oct 17: prerequisite AnyDock executable `~/.anydock/bin/anydock` is absent. No MCP config changed and no editor installed. Live compatibility is unverified; treat these clients as MCP-compatible in principle, not tested live. Nolan must install/sign in to AnyDock and provide an editor before end-to-end QA.

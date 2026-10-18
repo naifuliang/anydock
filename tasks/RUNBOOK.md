@@ -27,14 +27,14 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 
 | # | Task | Unlocks | Status | Waiting on Nolan |
 |---|---|---|---|---|
-| 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ☐ | |
-| 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ☐ | |
+| 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ⏸ app created/configured | Nolan to regenerate client secret after diagnostic exposure; remaining secrets/icon pending |
+| 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ⏸ | Discord developer portal needs Nolan sign-in |
 | 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ⏸ delivery verified | Nolan to complete final email-code login; Google test users deferred |
-| 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ☐ | |
-| 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ☐ | |
+| 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail pending |
+| 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ⏸ identity created | Scoped key creation confirmation pending; recipient opt-in and test pending |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ☐ | |
-| 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ☐ | |
-| 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ☐ | |
+| 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ⏸ docs recorded | Manufact login requires TOS confirmation; account/CLI login pending |
+| 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ⚠️ prerequisite missing | AnyDock CLI and editors absent from standard app locations; see QA report |
 
 Mark Status `✅` (done), `⏸` (waiting on Nolan) or `⚠️` (blocked — say why). Commit this file after each task.
 
@@ -60,8 +60,10 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 
 - Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; added `PRIMITIVE_API_KEY` and `EMAIL_FROM` (names only).
 - Google test users deferred by Nolan; demo will be recorded by the team, without judge accounts or judge interaction.
-- Slack: old app `A0C508BD6ET` exists in New Workspace, with old scopes and no redirects. Nolan requested a fresh app, then explicitly confirmed permanent deletion of the old one. Deleted `A0C508BD6ET` Oct 17; Slack displayed "Your application has been deleted" and an empty app list. New app creation remains pending.
+- Slack: old app `A0C508BD6ET` exists in New Workspace, with old scopes and no redirects. Nolan requested a fresh app, then explicitly confirmed permanent deletion of the old one. Deleted `A0C508BD6ET` Oct 17; Slack displayed "Your application has been deleted" and an empty app list. New app `A0CA7H6T2PN` created Oct 17; saved exact requested scopes, both redirects, HTTP interactivity URL and read-only Messages tab through manifest. `SLACK_CLIENT_ID` stored. Client secret requires Nolan regeneration after diagnostic output included selected page text; do not use it. Signing secret and icon pending. Removed the invalid `SLACK_CLIENT_SECRET` Cloudflare value; integration remains disabled until valid credentials are set.
 - Discord developer portal is signed out; requires Nolan's sign-in.
 - Primitive GitHub read-only profile/email authorization and terms accepted with Nolan's explicit approval; AnyDock organization created under the existing account. The $100 hackathon credit was redeemed; dashboard confirms no expiry. `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved via Wrangler; production code email delivered to the real Outlook inbox at 8:53 PM PDT. Final code-login session remains unverified because the connector withholds OTP.
+- Inkbox: Google OAuth `qizi297@gmail.com`, Waffle's Org. Created free `anydock` identity (`anydock@inkboxmail.com`), Basic iMessage/shared line; no paid number. Scoped key form prepared for this identity only, pending confirmation.
+- Outlook app registration: Entra portal returned AADSTS16000 for personal `qizi297@outlook.com` in Microsoft Services tenant. No registration or paid subscription created.
 - MCP client QA: `/Users/nolanliang/.anydock/bin/anydock` is absent; Cursor, Windsurf and VS Code were not found in `/Applications`. No live client compatibility claim verified.
 

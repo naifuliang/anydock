@@ -29,3 +29,12 @@ next; this task just prepares the account and records how deployment works.
 - [ ] Manufact account exists and the CLI is logged in on this Mac.
 - [ ] Deploy command, env/secret handling and URL format recorded in `AGENTS.md`.
 - [ ] Your commit pushed.
+
+## Verified documentation notes (Oct 17)
+
+- Current official deployment guide: https://docs.mcp-use.com/typescript/server/deployment/mcp-use.md.
+- Current CLI is `mcp-use` (guide installs the `mcp-use` package); authenticate with `mcp-use login`, deploy from the project root with `mcp-use deploy`. The old `@mcp-use/cli` instruction above should be rechecked before use.
+- Build/start use the project's package.json scripts, overridable per server; monorepos can choose a root directory. Framework examples export the server from the entry module. See https://docs.manufact.com/dashboard/build-runtimes.
+- Production/preview environment variables and secrets are configured in the dashboard; changes take effect on the next deployment, not immediately. See https://docs.manufact.com/dashboard/environment-variables.
+- Docs show canonical `https://<slug>.deploy.mcp-use.com/mcp` and also examples under `<slug>.run.mcp-use.com/mcp`; use the actual URL printed by a successful deployment rather than guessing. No deployment performed.
+- Login page is ready; continuing accepts TOS and Privacy, so Nolan's confirmation is pending. Google OAuth is preferred per Nolan.
