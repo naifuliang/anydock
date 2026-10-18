@@ -26,6 +26,7 @@ globalThis.fetch=async(url,options={})=>{
   if(fail)return Response.json({secret:key,error:"provider error"},{status:403});
   const p=new URL(url).pathname;
   if(p.endsWith("/organizations"))return Response.json({organizations:[{id:external}]});
+  if(p.endsWith("/servers"))return Response.json({items:[{id:server,organizationId:external,name:"Test server",config:{secret:key}},{id:otherServer,organizationId:otherExternal,config:{secret:key}}]});
   if(p.includes("/servers/")){const id=p.split("/").at(-1);return Response.json({id,organizationId:id===server?external:otherExternal,name:"Test server",status:"running",slug:"fixture",config:{secret:key},dashboardConnectionUrls:{token:key}});}
   if(p.endsWith("/deployments"))return Response.json({id:"55555555-5555-4555-8555-555555555555",secret:key},{status:201});
   throw new Error("Unexpected upstream request");
@@ -52,6 +53,12 @@ check((await connect("member")).status===403,"only owner can store shared creden
 check((await connect("owner",otherExternal)).status===403,"key must access the selected provider organization");
 check((await connect("owner",external,[otherServer])).status===502,"server must belong to provider organization");
 check((await connect()).status===200,"valid connection saved");
+check((await call("admin","GET",at(org,"/manufact/resources"))).status===403,"only owner discovers provider resources");
+const discovered=await call("owner","GET",at(org,"/manufact/resources"));
+check(discovered.data.servers.length===1&&!JSON.stringify(discovered).includes(key),"discovery filters organizations and provider secrets");
+check((await call("member","PUT",at(org,"/manufact/resources"),{serverIds:[server]})).status===403,"members cannot update resource allowlist");
+check((await call("owner","PUT",at(org,"/manufact/resources"),{serverIds:[otherServer]})).status===502,"resource updates reject foreign server");
+check((await call("owner","PUT",at(org,"/manufact/resources"),{serverIds:[server]})).status===200,"owner reuses encrypted connection to select resources");
 check(!sql.prepare("select token from organizationManufact").get().token.includes(key),"token encrypted at rest");
 check(calls.every(c=>c.redirect==="manual"),"provider redirects are not followed with credentials");
 const detail=await call("owner","GET",at(org));

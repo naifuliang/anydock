@@ -123,6 +123,39 @@ organizations.put("/organizations/:org/manufact",async c => {
     return c.json({error:"manufact_connection_failed", stage, message:status ? `Manufact returned HTTP ${status}` : `Manufact connection failed during ${stage}`, ...(status ? {providerStatus:Number(status)} : {})},502);
   }
 });
+// Resource changes reuse the encrypted connection; owners never need to retrieve/retype a key.
+organizations.get("/organizations/:org/manufact/resources",async c=>{
+  const org=c.req.param("org"),user=c.get("user").id;
+  if((await member(c.env.DB,org,user))?.role!=="owner")return c.json({error:"forbidden"},403);
+  const conn=await connection(c.env,org);if(!conn)return c.json({error:"not_connected"},409);
+  try {
+    const data=await upstream(c.env,await keyFor(c.env,org,conn),`/servers?organizationId=${encodeURIComponent(conn.externalId)}&limit=100`);
+    const servers=(data.items??[]).filter((r:any)=>r.organizationId===conn.externalId).map((r:any)=>({id:r.id,name:r.name,slug:r.slug,status:r.status}));
+    return c.json({servers});
+  }catch{return c.json({error:"manufact_read_failed"},502);}
+});
+organizations.put("/organizations/:org/manufact/resources",async c=>{
+  const org=c.req.param("org"),user=c.get("user").id;
+  if((await member(c.env.DB,org,user))?.role!=="owner")return c.json({error:"forbidden"},403);
+  const p=z.object({serverIds:z.array(id).max(100)}).safeParse(await c.req.json().catch(()=>null));
+  if(!p.success)return c.json({error:"invalid_body"},400);
+  const conn=await connection(c.env,org);if(!conn)return c.json({error:"not_connected"},409);
+  try {
+    const key=await keyFor(c.env,org,conn),resources=[];
+    for(const server of [...new Set(p.data.serverIds)])resources.push(await serverFor(c.env,key,conn,server));
+    // A new version invalidates any in-flight pending requests and concurrent old connections.
+    const version=crypto.randomUUID();
+    const applied=await c.env.DB.batch([
+      c.env.DB.prepare("update organizationManufact set version=?2 where organizationId=?1 and version=?3").bind(org,version,conn.version),
+      c.env.DB.prepare("update organizationRequest set status='cancelled' where organizationId=?1 and status='pending' and exists(select 1 from organizationManufact where organizationId=?1 and version=?2)").bind(org,version),
+      c.env.DB.prepare("delete from organizationGrant where organizationId=?1 and exists(select 1 from organizationManufact where organizationId=?1 and version=?2)").bind(org,version),
+      c.env.DB.prepare("delete from organizationResource where organizationId=?1 and exists(select 1 from organizationManufact where organizationId=?1 and version=?2)").bind(org,version),
+      ...resources.map(r=>c.env.DB.prepare("insert into organizationResource select ?1,?2,?3 where exists(select 1 from organizationManufact where organizationId=?1 and version=?4)").bind(org,r.id,r.name??r.slug??r.id,version)),
+    ]);
+    if(!applied[0].meta.changes)return c.json({error:"connection_changed_retry"},409);
+    await audit(c.env.DB,org,user,"resources.updated");return c.json({ok:true});
+  }catch{return c.json({error:"manufact_resources_failed"},502);}
+});
 organizations.delete("/organizations/:org/manufact",async c=>{
   const org=c.req.param("org"), user=c.get("user").id;
   if((await member(c.env.DB,org,user))?.role!=="owner")return c.json({error:"forbidden"},403);
