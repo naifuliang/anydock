@@ -162,9 +162,21 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | Discord | Code done (project channels, cards, `/anydock`); no bot yet | Codex: `tasks/discord-setup.md` |
 | Slack (delegate: post as you + approval DMs) | Code done + tested with a mock Slack; needs the Slack app + secrets | Codex: `tasks/slack-app-setup.md` |
 | Email on your behalf | Code done; needs Primitive key (prod refuses to "send" without a sender) | Codex: `tasks/google-access-and-email.md` |
+| Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | Not built | Codex: `tasks/email-accounts-setup.md`; Claude: connector code |
+| Armature (MCP analytics), Manufact (hosted MCP) | Not built | Codex: `tasks/armature-setup.md`, `tasks/manufact-setup.md` |
 | Phone / SMS / iMessage (Inkbox) | Not built | Codex: `tasks/inkbox-setup.md` (optional); Claude: connector code |
 | Delegate core (permission rules, approvals, audit) | **Live**: rules panel, activity log, approvals in dashboard (live toast), in-agent (MCP elicitation) and Slack DM buttons | — |
 | GitHub repo access, Notion, Linear, Drive, Stripe, Okta, sandboxes | Roadmap ("Coming soon" on landing) | — |
+
+**Codex works from `tasks/RUNBOOK.md`** — the ordered list of every account-setup task, shared rules, and a progress table.
+
+Approval design (agreed, Oct 17): who asks and who approves decide how we interrupt.
+- Your own agent, on your machine, while you're there → **native macOS approval panel** (SwiftUI, animated) shown by the
+  local `anydock watch` service, approved with **Touch ID, biometrics only** (no password fallback) so an agent doing
+  computer use can't click "approve" for you. Falls back to the in-agent prompt / dashboard where Touch ID isn't available.
+- Your own agent in the background (you may be away) → system notification + Inbox + Slack DM; no modal.
+- Someone else's agent asking you (e.g. over their budget) → **no pop-up**: it waits in your Inbox and Slack.
+- Inbox becomes "everything waiting for you": handovers, shares and approvals in one place.
 
 Delegate design (agreed direction): agents never see third-party tokens. A person connects a tool once in the dashboard;
 AnyDock stores the token server-side, and MCP tools like `anydock_slack_post` are executed by the server after checking
