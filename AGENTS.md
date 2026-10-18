@@ -151,6 +151,8 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 
 ## Status
 
+- [x] Hero carousel avatars generated and deployed (Oct 17): six fictional teammate portraits in `server/public/img/avatars/`, 512×512 WebP, 12–20 KB each. Checked at 28px, verified live hero rendering and all six production files against local bytes.
+
 - [x] All 16 landing images generated and deployed (Oct 17): 14 use-case WebP illustrations at 1600×1000 (21–78 KB each), 1200×630 social preview and 512×512 icon. Live carousel visually verified; all 16 production assets match local files. Brief: `tasks/image-generation.md`.
 
 - [x] Repo created, dependencies installed
