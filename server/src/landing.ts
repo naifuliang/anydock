@@ -42,7 +42,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
 <meta property="og:description" content="Share and hand over your agent's work — context, trajectory, every decision — to teammates and their agents.">
 <meta property="og:image" content="${opts.origin}/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/img/icon.svg" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" href="/img/icon.svg?v=2" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png?v=2" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>

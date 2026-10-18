@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <!-- AnyDock mark (B2 "handoff"): the blue piece of work, passed on top of the next one. The gap is a real cutout,
-       so it works on any tab color; the dark piece turns light in dark mode. -->
-  <style>.d{fill:#0a0a0b}@media (prefers-color-scheme:dark){.d{fill:#f4f4f5}}</style>
+       so it works on any tab color. The dark piece stays dark: the OS dark mode says nothing about the tab bar's color. -->
+  <style>.d{fill:#0a0a0b}</style>
   <defs><mask id="m"><rect width="64" height="64" fill="#fff"/><rect x="0" y="0" width="45" height="45" rx="12" fill="#000"/></mask></defs>
   <rect class="d" x="24" y="24" width="36" height="36" rx="9" mask="url(#m)"/>
   <rect x="4" y="4" width="36" height="36" rx="9" fill="#2b59ff"/>

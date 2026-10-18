@@ -12,7 +12,7 @@ function layout(title: string, body: string, script = ""): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
-<link rel="icon" href="/img/icon.svg" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" href="/img/icon.svg?v=2" type="image/svg+xml"><link rel="icon" href="/img/icon-32.png?v=2" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <style>
   :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --card:#fff; --line:#e7e5e4; --accent:#1c1917; --accent-fg:#fff; --err:#b91c1c; }
   @media (prefers-color-scheme: dark) {
