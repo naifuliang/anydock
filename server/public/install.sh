@@ -12,11 +12,41 @@ BIN="$ANYDOCK_DIR/bin"
 say() { printf '%s\n' "$*"; }
 fail() { printf 'AnyDock install failed: %s\n' "$*" >&2; exit 1; }
 
-# Node.js 22+ (Claude Code and Codex users almost always have it already).
+# Node.js 22+. Use the system's if it's new enough; otherwise download the official LTS build from nodejs.org into
+# ~/.anydock/node (checksum-verified, no sudo, the system Node is left alone). Only if that fails do we ask the user.
+NODE_DIR="$ANYDOCK_DIR/node"
+node_ok() { [ -x "$1" ] && [ "$("$1" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -ge 22 ]; }
+
+install_node() {
+  case "$(uname -s)" in Darwin) os=darwin ;; Linux) os=linux ;; *) return 1 ;; esac
+  case "$(uname -m)" in arm64|aarch64) arch=arm64 ;; x86_64|amd64) arch=x64 ;; *) return 1 ;; esac
+  # Newest LTS release (index.json lists newest first, one release per line; LTS entries carry a codename).
+  index="$(curl -fsSL https://nodejs.org/dist/index.json)" || return 1
+  version="$(printf '%s\n' "$index" | grep '"lts":"' | head -n 1 | sed 's/^.*"version":"\(v[0-9.]*\)".*$/\1/')"
+  case "$version" in v[0-9]*) ;; *) return 1 ;; esac
+  file="node-$version-$os-$arch.tar.gz"
+  say "Node.js 22+ not found; installing Node.js $version for AnyDock into $NODE_DIR …"
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://nodejs.org/dist/$version/$file" -o "$tmp/$file" || { rm -rf "$tmp"; return 1; }
+  want="$(curl -fsSL "https://nodejs.org/dist/$version/SHASUMS256.txt" | grep " $file\$" | cut -d' ' -f1)"
+  if command -v shasum >/dev/null 2>&1; then got="$(shasum -a 256 "$tmp/$file" | cut -d' ' -f1)"; else got="$(sha256sum "$tmp/$file" | cut -d' ' -f1)"; fi
+  [ -n "$want" ] && [ "$want" = "$got" ] || { rm -rf "$tmp"; say "Node.js download failed its checksum."; return 1; }
+  tar -xzf "$tmp/$file" -C "$tmp" || { rm -rf "$tmp"; return 1; }
+  rm -rf "$NODE_DIR" && mkdir -p "$ANYDOCK_DIR" && mv "$tmp/node-$version-$os-$arch" "$NODE_DIR"
+  rm -rf "$tmp"
+  node_ok "$NODE_DIR/bin/node"
+}
+
 NODE="$(command -v node || true)"
-[ -n "$NODE" ] || fail "Node.js 22 or newer is required. Install it from https://nodejs.org (or: brew install node) and re-run."
-MAJOR="$("$NODE" -p 'process.versions.node.split(".")[0]')"
-[ "$MAJOR" -ge 22 ] || fail "Node.js 22 or newer is required (found $("$NODE" -v)). Upgrade Node and re-run."
+if [ -n "${ANYDOCK_FORCE_NODE_DOWNLOAD:-}" ] || ! node_ok "${NODE:-/nonexistent}"; then
+  if node_ok "$NODE_DIR/bin/node"; then
+    NODE="$NODE_DIR/bin/node"
+  elif install_node; then
+    NODE="$NODE_DIR/bin/node"
+  else
+    fail "AnyDock needs Node.js 22 or newer and couldn't install it automatically. Install it from https://nodejs.org (or: brew install node) and re-run."
+  fi
+fi
 
 say "Installing AnyDock from $SERVER …"
 mkdir -p "$BIN"
@@ -48,8 +78,10 @@ else
     *) PROFILE="$HOME/.profile" ;;
   esac
   LINE="export PATH=\"$BIN:\$PATH\""
-  grep -qsF "$LINE" "$PROFILE" || printf '\n# AnyDock\n%s\n' "$LINE" >> "$PROFILE"
-  say "Added $BIN to PATH in $PROFILE (open a new terminal, or run: $LINE)"
+  if ! grep -qsF "$LINE" "$PROFILE"; then
+    printf '\n# AnyDock\n%s\n' "$LINE" >> "$PROFILE"
+    say "Added $BIN to PATH in $PROFILE (open a new terminal, or run: $LINE)"
+  fi
 fi
 
 say "AnyDock $("$BIN/anydock" version) installed at $BIN/anydock"

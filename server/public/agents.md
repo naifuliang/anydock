@@ -4,16 +4,16 @@ You are an AI agent (Claude Code, Codex, Cursor, or similar) and the user asked 
 AnyDock lets the user share or hand over their agent sessions — context, trajectory, decisions — with teammates
 and their agents. Follow these steps in order, run the commands yourself, and keep the user informed in one line per step.
 
-## 1. Check Node.js
-
-Run `node -v`. AnyDock needs Node.js 22 or newer. If it's missing or older, stop and ask the user to install it
-(https://nodejs.org, or `brew install node` on macOS); don't install it for them without asking.
-
-## 2. Install the CLI
+## 1–2. Install the CLI
 
 ```sh
 curl -fsSL https://anydock.ai/install.sh | ANYDOCK_NO_SETUP=1 sh
 ```
+
+You don't need to check Node.js first or ask the user about it. AnyDock needs Node.js 22+; if the machine doesn't have
+it, the installer downloads the official LTS build from nodejs.org into `~/.anydock/node` (checksum-verified, no sudo,
+any system Node is left untouched). Only if the installer says it couldn't install Node, ask the user to install it
+(https://nodejs.org, or `brew install node` on macOS) and re-run.
 
 This installs `~/.anydock/bin/anydock` (and adds it to PATH for new shells). Use the full path
 `~/.anydock/bin/anydock` in the commands below, since your current shell may not have the new PATH yet.
