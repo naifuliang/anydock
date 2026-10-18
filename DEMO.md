@@ -8,21 +8,22 @@ Deliverables: a 2-minute video, the repo link, a two-sentence description. The t
 
 | Who | Account | Agent | Screen |
 |---|---|---|---|
-| Nolan | qizi297@outlook.com (GitHub sign-in) | Claude Code | left half |
-| Jason (a teammate account we control) | qizi297@gmail.com (Google sign-in) | Codex, `ANYDOCK_HOME=~/.anydock-jason` | right half |
+| Nolan | qizi297@gmail.com — the Mac's AnyDock CLI is signed in as this; Slack + Gmail are connected here | Claude Code | left half |
+| Jason (a teammate account we control) | qizi297@outlook.com (GitHub sign-in) in a separate browser profile | Codex, `ANYDOCK_HOME=~/.anydock-jason` | right half |
 
-Nolan's phone gets the Inkbox iMessage (Jason's profile uses Nolan's number).
+Nolan's phone gets the Inkbox iMessage (Jason's profile uses Nolan's number, which already opted in to the shared line).
 
 ## Before recording (one time)
 
-1. Nolan: install on the Mac: `curl -fsSL https://anydock.ai/install.sh | sh` (signs in, registers the MCP in Claude Code and Codex, builds the approval panel).
-2. Jason in Codex: sign in a second identity, `ANYDOCK_HOME=~/.anydock-jason anydock login` (with qizi297@gmail.com), and add
-   `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason" }` under `[mcp_servers.anydock]` in `~/.codex/config.toml`.
-3. Jason's dashboard → Permissions → "Your phone": Nolan's number, check "Text me when work is handed to me".
-4. Nolan's dashboard → Permissions: Slack connected; Gmail connected (send-as-you). Rule "Email people outside the team" = Ask me.
-5. Dry-run the Touch ID / password panel once (scene 5) so the first-time compile and the macOS prompt are out of the way.
+1. Nolan's AnyDock: installed, signed in, MCP + skill in Claude Code and Codex, background sync running (`anydock service status`). Done Oct 18.
+2. Jason in Codex: sign in a second identity, `ANYDOCK_HOME=~/.anydock-jason ~/.anydock/bin/anydock login` (approve as
+   qizi297@outlook.com in the second browser profile), and add `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason" }`
+   under `[mcp_servers.anydock]` in `~/.codex/config.toml`. Restart Codex. (Without this, Codex acts as Nolan.)
+3. Jason's dashboard (outlook account) → Permissions → "Your phone": Nolan's number, check "Text me when work is handed to me".
+4. Nolan's rules: "Email people outside the team" = Ask me (already). Delete the "Container smoke test" artifact.
+5. Dry-run the Touch ID / password panel once (scene 5) — first run after an update may compile it (~20 s).
 6. Make the repo public (or share it with the judges) before submitting.
-7. Recording: Cmd-Shift-5, 1080p+, hide notifications (Focus), large font in both terminals, iPhone Mirroring for the phone.
+7. Recording: Cmd-Shift-5, 1080p+, Focus on (no notifications), large font in both terminals, iPhone Mirroring for the phone.
 
 ## Script (≈2:00)
 

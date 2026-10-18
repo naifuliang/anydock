@@ -76,6 +76,7 @@ export async function watchAndSync(): Promise<never> {
         const r = await syncSession(session, cfg);
         if (r.sent > 0) console.log(`[${stamp()}] ↑ ${session.source} ${short(session.sessionId)} "${session.title}" +${r.sent} steps (${r.stepCount} total)`);
       } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === "ENOENT") return; // the agent deleted that session file; nothing to sync
         console.error(`[${stamp()}] sync failed for ${path}: ${(e as Error).message}`);
       }
     })().finally(() => {

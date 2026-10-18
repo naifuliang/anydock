@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { join } from "node:path";
@@ -7,11 +8,15 @@ import { COMMAND } from "./version.ts";
 
 // Runs `anydock watch` in the background at login, so shared sessions keep syncing without a terminal open.
 // macOS: a launchd agent. Linux: a systemd user unit.
-const LABEL = "ai.anydock.watch";
+// Service names are global per OS user, so any AnyDock home other than the account's real ~/.anydock (tests,
+// throwaway HOMEs) gets its own name and can never replace or remove the real background service.
+const REAL_HOME = join(userInfo().homedir, ".anydock");
+const SUFFIX = ANYDOCK_HOME === REAL_HOME ? "" : `.${createHash("sha256").update(ANYDOCK_HOME).digest("hex").slice(0, 8)}`;
+const LABEL = `ai.anydock.watch${SUFFIX}`;
 const LOG = join(ANYDOCK_HOME, "watch.log");
 const PLIST = join(homedir(), "Library", "LaunchAgents", `${LABEL}.plist`);
 const UNIT_DIR = join(homedir(), ".config", "systemd", "user");
-const UNIT = join(UNIT_DIR, "anydock-watch.service");
+const UNIT = join(UNIT_DIR, `anydock-watch${SUFFIX}.service`);
 
 const run = (cmd: string, args: string[]) => spawnSync(cmd, args, { encoding: "utf8" });
 const pause = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -77,7 +82,7 @@ export function installService(): string {
       `[Unit]\nDescription=AnyDock live sync\n\n[Service]\nExecStart=${quoted}\nRestart=always\nRestartSec=30\n${env}StandardOutput=append:${LOG}\nStandardError=append:${LOG}\n\n[Install]\nWantedBy=default.target\n`,
     );
     const r1 = run("systemctl", ["--user", "daemon-reload"]);
-    const r2 = run("systemctl", ["--user", "enable", "--now", "anydock-watch.service"]);
+    const r2 = run("systemctl", ["--user", "enable", "--now", `anydock-watch${SUFFIX}.service`]);
     if (r1.error || r2.status !== 0) return `Background sync: unit written to ${UNIT}, but systemd --user isn't available; run \`anydock watch\` yourself.`;
     return `Background sync: running (systemd user unit anydock-watch; log ${LOG.replace(homedir(), "~")}).`;
   }
@@ -92,7 +97,7 @@ export function uninstallService(): string {
     return "Background sync: stopped and removed.";
   }
   if (process.platform === "linux") {
-    run("systemctl", ["--user", "disable", "--now", "anydock-watch.service"]);
+    run("systemctl", ["--user", "disable", "--now", `anydock-watch${SUFFIX}.service`]);
     if (existsSync(UNIT)) rmSync(UNIT);
     run("systemctl", ["--user", "daemon-reload"]);
     return "Background sync: stopped and removed.";
@@ -109,7 +114,7 @@ export function serviceStatus(): string {
     return `Background sync: ${state}${pid ? ` (pid ${pid})` : ""}; log ${LOG.replace(homedir(), "~")}`;
   }
   if (process.platform === "linux") {
-    const r = run("systemctl", ["--user", "is-active", "anydock-watch.service"]);
+    const r = run("systemctl", ["--user", "is-active", `anydock-watch${SUFFIX}.service`]);
     return `Background sync: ${r.stdout.trim() || "not installed"}`;
   }
   return "Background sync: not supported on this OS yet.";
