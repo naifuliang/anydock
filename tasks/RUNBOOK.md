@@ -28,7 +28,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | # | Task | Unlocks | Status | Waiting on Nolan |
 |---|---|---|---|---|
 | 1 | `tasks/slack-app-setup.md` | Slack posting and approval DMs | ✅ live verified | None; authorized workspace connection and self-DM received |
-| 2 | `tasks/discord-setup.md` | Project channels and slash commands | ⏸ configuration done | Logged-in Discord account has no manageable server for installation/test |
+| 2 | `tasks/discord-setup.md` | Project channels and slash commands | ⏸ configuration done | Private AnyDock demo server created; final bot authorization pending |
 | 3 | `tasks/google-access-and-email.md` | Cloudflare own-domain email login; Primitive resource account | ✅ | Google extra test users deferred; Primitive organization connector is separate implementation |
 | 4 | `tasks/email-accounts-setup.md` | Gmail / Outlook delegated mail | ⏸ Outlook blocked | Gmail delivered; personal Microsoft account lacks Entra tenant (AADSTS16000) |
 | 5 | `tasks/inkbox-setup.md` | iMessage | ✅ live verified | Approved AnyDock message received; SMS/voice require separate availability |

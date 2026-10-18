@@ -182,7 +182,7 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | Cursor, Windsurf, VS Code | MCP config documented in `/agents.md`; **not yet tested** | Codex: `tasks/mcp-clients-qa.md` |
 | GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
 | Email sign-in codes (Cloudflare) | Live: existing Workers Paid plan, restricted login@anydock.ai binding; domain mail delivered | Production auth OTP inbox receipt verified |
-| Discord | Application and secrets configured; no manageable server on logged-in account | Bot install and live channel test pending |
+| Discord | Application/secrets configured; private AnyDock demo server created | Final bot authorization and live channel test pending |
 | Slack (delegate: post as you + approval DMs) | New app installed with explicit approval; self-DM delivery verified | Human Slack approval-button check remains optional |
 | Organization communication resources (Primitive) | Account and credit ready; not a platform mail fallback | Organization-scoped Primitive connector remains to implement |
 | Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | **Code done** + tested with mocks (`src/mailbox.ts`); Gmail reuses the Google OAuth client (needs `gmail.send` scope on the consent screen), Outlook needs `MS_CLIENT_ID/SECRET` | Codex: `tasks/email-accounts-setup.md` |

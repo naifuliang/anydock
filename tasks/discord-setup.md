@@ -51,3 +51,9 @@ The server registers the slash commands itself on the first connect, so you don'
 ## Oct 17 result
 
 App `1561232574444081184` created with Nolan-approved terms and human verification. Nolan reset token; all three Discord secret names saved via Wrangler. Public Bot on, all privileged intents off. Both OAuth redirects saved; Discord confirmed “All your edits have been carefully recorded.” Interaction endpoint saved with the same confirmation after live `/api/discord/status` returned configured true. No server installation performed; channel notification/slash-command test awaits Nolan's dashboard connection.
+
+## Oct 18 private server setup
+
+Nolan authorized a private demo server and accepted Discord Community Guidelines. Created **AnyDock demo**, guild `1561273593331982466`, default #general `1561273594372423784`. No people invited. AnyDock verification project `5cc6e01a-e9dd-421f-9451-fd0444bc3c42` has only the owner qizi297@gmail.com.
+
+Installation prepared from the AnyDock project. Final Discord consent lists View Channels, Send Messages, Embed Links (permission bitfield 19456), plus bot/applications.commands scopes. Page says it cannot read messages or send as the user. Paused at Authorize for action-time confirmation; no bot installation or channel test claimed yet.
