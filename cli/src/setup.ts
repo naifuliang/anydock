@@ -2,7 +2,8 @@ import { api, ApiError } from "./api.ts";
 import { loadConfig } from "./config.ts";
 import { installMcp } from "./install.ts";
 import { login } from "./login.ts";
-import { ensureApprovalHelper, nativeApprovalPossible } from "./native/approve.ts";
+import { existsSync } from "node:fs";
+import { APPROVAL_KEY, ensureApprovalHelper, nativeApprovalPossible } from "./native/approve.ts";
 import { installService } from "./service.ts";
 
 // Everything after install, in one go: sign in, connect Claude Code + Codex, start background sync.
@@ -11,24 +12,30 @@ export async function setup(opts: { openBrowser: boolean; service: boolean }): P
   console.log("1/3 Sign in");
   const cfg = loadConfig();
   let signedIn = false;
+  // On a Mac, build the approval panel first: signing in enrolls this Mac's Touch ID / password approval key.
+  const mac = nativeApprovalPossible();
+  if (mac) {
+    console.log("    Building the Mac approval panel (one time, ~20s)…");
+    if (!ensureApprovalHelper()) console.log("    Couldn't build it; approve your agents' requests in the dashboard or Slack instead.");
+  }
   if (cfg.token) {
     try {
-      const { user } = await api<{ user: { email: string } }>("GET", "/api/me", undefined, cfg);
-      console.log(`    Already signed in as ${user.email}.`);
-      signedIn = true;
+      const me = await api<{ user: { email: string }; approvalKey: { name: string } | null }>("GET", "/api/me", undefined, cfg);
+      if (mac && !me.approvalKey) {
+        console.log(`    Signed in as ${me.user.email}, but this Mac can't approve yet. Sign in once more to enroll Touch ID / password.`);
+      } else {
+        console.log(`    Already signed in as ${me.user.email}.`);
+        signedIn = true;
+      }
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401)) throw e;
     }
   }
   if (!signedIn) await login({ openBrowser: opts.openBrowser });
+  if (mac && existsSync(APPROVAL_KEY)) console.log("    Your agents' requests will ask for Touch ID or your Mac password — never the agent.");
 
   console.log("\n2/3 Connect your agents");
   installMcp();
-
-  if (nativeApprovalPossible()) {
-    console.log("    Building the Mac approval panel (one time, ~20s)…");
-    console.log(ensureApprovalHelper() ? "    Approvals will ask for Touch ID or your Mac password." : "    Couldn't build it; approvals will use your agent's prompt or the dashboard.");
-  }
 
   console.log("\n3/3 Background sync");
   if (!opts.service) console.log("    Skipped (--no-service). Run `anydock watch` to sync live.");

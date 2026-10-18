@@ -350,6 +350,7 @@ const tools: Tool[] = [
 
 interface Act {
   id: string;
+  userId: string;
   status: "pending" | "approved" | "denied" | "blocked" | "executed" | "failed";
   summary: string;
   decidedVia?: string | null;
@@ -368,7 +369,7 @@ function describeAction(a: Act): string {
     case "denied":
       return `The user denied it${a.decidedVia ? ` (in ${a.decidedVia})` : ""}. Don't retry unless they ask.`;
     case "pending":
-      return `Waiting for the user's approval: "${a.summary}". They can approve in the AnyDock dashboard or the Slack DM. Check again with anydock_action_status id=${a.id}.`;
+      return `Waiting for the user's approval: "${a.summary}". Only they can approve it: Touch ID / password on their Mac, the AnyDock dashboard (Inbox), or the Slack DM. Check again with anydock_action_status id=${a.id}.`;
     default:
       return `Status: ${a.status}.`;
   }
@@ -396,32 +397,23 @@ async function delegateAction(action: "slack.post" | "email" | "text", payload: 
       }
       return null;
     })();
-    const verdict = await askOnThisMac({ summary: act.summary, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
+    // The panel signs exactly what the server will check (server/src/trust.ts), so the signature can't be reused.
+    const message = `anydock-approve:v1\n${act.id}\n${act.userId}\n${act.summary}`;
+    const local = await askOnThisMac({ summary: act.summary, message, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
     const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
     ctrl.abort();
     if (decidedElsewhere) return describeAction(decidedElsewhere);
-    if (verdict === "approve" || verdict === "deny") {
-      const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, { approve: verdict === "approve", via: "mac" });
+    if (local.verdict === "approve" || local.verdict === "deny") {
+      const body = local.verdict === "approve" ? { approve: true, signature: local.signature } : { approve: false, via: "mac" };
+      const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, body);
       return describeAction(decided);
     }
-    if (verdict === "timeout") return describeAction(act);
-    // "unavailable": fall through to the in-agent prompt / waiting.
+    if (local.verdict === "timeout") return describeAction(act);
+    // "unavailable": fall through to waiting for the dashboard or Slack.
   }
 
-  // Ask right here if the client can show the user a prompt (MCP elicitation); the model can't answer it for them.
-  if (clientCaps.elicitation) {
-    const answer = await elicit(`AnyDock: your agent wants to ${act.summary}. Allow it?`, {
-      type: "object",
-      properties: { approve: { type: "boolean", title: "Approve", description: act.summary } },
-      required: ["approve"],
-    }).catch(() => null);
-    if (answer && (answer.action === "accept" || answer.action === "decline")) {
-      const approve = answer.action === "accept" && answer.content?.approve === true;
-      const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, { approve, via: "agent" });
-      return describeAction(decided);
-    }
-  }
-  // Otherwise wait a little for an approval in the dashboard or Slack, then hand back the id.
+  // This token can't approve anything itself (agents never can), so wait a little for the person to decide in the
+  // dashboard or Slack, then hand back the id.
   const deadline = Date.now() + 50_000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -447,21 +439,6 @@ async function shareOrHandover(kind: "share" | "handover", a: { to: string; note
 
 type Msg = { jsonrpc: "2.0"; id?: number | string | null; method?: string; params?: any; result?: any; error?: any };
 
-// What the connected client said it supports in initialize.
-const clientCaps: { elicitation?: boolean } = {};
-const outgoing = new Map<string, (m: Msg) => void>();
-let outSeq = 0;
-
-// Server → client request (MCP elicitation): the client shows the user a small form and returns their answer.
-function elicit(message: string, requestedSchema: object): Promise<{ action: string; content?: any }> {
-  const id = `anydock-elicit-${++outSeq}`;
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { outgoing.delete(id); reject(new Error("no answer")); }, 120_000);
-    outgoing.set(id, (m) => { clearTimeout(timer); m.error ? reject(new Error(m.error.message)) : resolve(m.result); });
-    send({ id, method: "elicitation/create", params: { message, requestedSchema } });
-  });
-}
-
 const send = (m: object) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 
 async function handle(msg: Msg): Promise<void> {
@@ -471,7 +448,6 @@ async function handle(msg: Msg): Promise<void> {
 
   switch (method) {
     case "initialize":
-      clientCaps.elicitation = Boolean(params?.capabilities?.elicitation);
       return void reply({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: {} },
@@ -515,12 +491,6 @@ export function serveMcp(): Promise<void> {
       msg = JSON.parse(line);
     } catch {
       return void send({ id: null, error: { code: -32700, message: "Parse error" } });
-    }
-    // A response to one of our own requests (e.g. elicitation)?
-    if (!msg.method && msg.id != null && outgoing.has(String(msg.id))) {
-      const done = outgoing.get(String(msg.id))!;
-      outgoing.delete(String(msg.id));
-      return void done(msg);
     }
     handle(msg).catch((e) => send({ id: msg.id ?? null, error: { code: -32603, message: String(e) } }));
   });

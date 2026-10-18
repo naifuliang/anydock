@@ -11,6 +11,7 @@ import type { AppEnv, Env } from "./types.ts";
 import { projects } from "./projects.ts";
 import { works } from "./works.ts";
 import { organizations } from "./organizations.ts";
+import { agentForbidden, isAgentSession, recordDeviceLogin } from "./trust.ts";
 
 export { UserHub } from "./hub.ts";
 
@@ -20,19 +21,40 @@ const app = new Hono<AppEnv>();
 app.use("*", async (c, next) => {
   const auth = createAuth(c.env, c.env.DB);
   c.set("auth", auth);
-  c.set("session", await auth.api.getSession({ headers: sessionHeaders(c.req.raw) }));
+  const session = await auth.api.getSession({ headers: sessionHeaders(c.req.raw) });
+  c.set("session", session);
+  // Agent (CLI) sessions are limited to agent powers; see trust.ts.
+  const agent = session ? await isAgentSession(c.env.DB, session.session.id) : false;
+  c.set("agent", agent);
+  if (agent && agentForbidden(c.req.method, c.req.path)) {
+    return c.json({ error: "human_required", message: "Only the person can do this, in the AnyDock dashboard — not an agent's token." }, 403);
+  }
   await next();
 });
 
-app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
+app.on(["GET", "POST"], "/api/auth/*", async (c) => {
+  if (c.req.method === "POST" && c.req.path === "/api/auth/device/token") {
+    const body = (await c.req.raw.clone().json().catch(() => ({}))) as Record<string, unknown>;
+    const res = await c.get("auth").handler(c.req.raw);
+    if (res.ok) {
+      const data = (await res.clone().json().catch(() => ({}))) as { access_token?: string };
+      if (data.access_token) await recordDeviceLogin(c.env, data.access_token, body);
+    }
+    return res;
+  }
+  return c.get("auth").handler(c.req.raw);
+});
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.get("/api/me", (c) => {
+app.get("/api/me", async (c) => {
   const session = c.get("session");
   if (!session) return c.json({ error: "unauthorized" }, 401);
   const { id, name, email, image } = session.user;
-  return c.json({ user: { id, name, email, image } });
+  const key = c.get("agent")
+    ? await c.env.DB.prepare(`select "name" from "approvalKey" where "sessionId" = ?1`).bind(session.session.id).first<{ name: string }>()
+    : null;
+  return c.json({ user: { id, name, email, image }, agent: c.get("agent"), approvalKey: key ? { name: key.name } : null });
 });
 
 // Before projects/works: their middleware requires a session, but Discord calls /api/discord/* itself.

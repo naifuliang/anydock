@@ -92,7 +92,11 @@ check("nothing is authorized by default", !/^● (claude-code|codex)/m.test(list
 
 const synced = cli("sync", claudeId.slice(0, 8));
 check("sync one session uploads it", /4 steps on server \(\+4\)/.test(synced), synced.trim().split("\n").pop());
-const token = JSON.parse(readFileSync(join(env.ANYDOCK_HOME, "config.json"), "utf8")).token;
+// The CLI's token never sits in plain text: config.json has none, and the stored copy is encrypted.
+const cfgJson = readFileSync(join(env.ANYDOCK_HOME, "config.json"), "utf8");
+const tokenFile = readFileSync(join(env.ANYDOCK_HOME, "token.enc"), "utf8");
+check("token is not stored in plain text", !JSON.parse(cfgJson).token && JSON.parse(cfgJson).tokenStore === "file" && !/"body":"[^"]*"/.test(cfgJson) && JSON.parse(tokenFile).v === 1);
+const token = nolanBrowser; // same person, read through the web session
 const mine = (await call(token, "GET", "/api/works")).data.works;
 const work = mine.find((w) => w.sessionId === claudeId);
 check("work exists with metadata", work?.title === "Sponsor research" && work.gitBranch === "main" && work.cwd === projectDir);

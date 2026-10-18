@@ -33,9 +33,10 @@ function launchdReplace(plist: string): void {
 const domain = () => `gui/${userInfo().uid}`;
 const xml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-// Carry test/dev overrides into the service so it talks to the same server and home as this command.
+// Carry this command's home and any test/dev overrides into the service, so it reads the same sign-in, server and
+// agent sessions (launchd/systemd would otherwise start it with the account's default home).
 function serviceEnv(): Record<string, string> {
-  const env: Record<string, string> = {};
+  const env: Record<string, string> = { HOME: homedir(), ANYDOCK_HOME };
   for (const k of ["ANYDOCK_SERVER", "ANYDOCK_HOME", "ANYDOCK_CLAUDE_ROOT", "ANYDOCK_CODEX_HOME"]) {
     if (process.env[k]) env[k] = process.env[k]!;
   }

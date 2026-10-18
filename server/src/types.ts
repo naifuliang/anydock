@@ -36,7 +36,7 @@ export type User = Session["user"];
 
 export type AppEnv = {
   Bindings: Env;
-  Variables: { auth: Auth; session: Session | null; user: User };
+  Variables: { auth: Auth; session: Session | null; user: User; agent: boolean };
 };
 
 export interface WorkRow {

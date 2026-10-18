@@ -4,6 +4,7 @@ import { E164, phoneForEmail, sendText, textingReady } from "./inkbox.ts";
 import { mailboxStatus, sendAsUser } from "./mailbox.ts";
 import { publish } from "./hub.ts";
 import { decryptToken, encryptToken, hmacHex, readState, sameString, signState } from "./secure.ts";
+import { isAgent, verifyDeviceApproval } from "./trust.ts";
 import type { AppEnv, Env, User } from "./types.ts";
 
 // Delegate: an agent asks AnyDock to do something as its person (post in Slack, send an email). AnyDock checks that
@@ -366,9 +367,27 @@ delegate.get("/actions/:id", async (c) => {
 delegate.post("/actions/:id/decide", async (c) => {
   const user = signedIn(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).default("dashboard") }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).optional(), signature: z.string().max(200).optional() })
+    .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
-  const row = await decide(c.env, user.id, c.req.param("id"), parsed.data.approve, parsed.data.via);
+  const { approve, signature } = parsed.data;
+  let via: string;
+  if (!isAgent(c)) {
+    via = "dashboard"; // a person signed in to the web app
+  } else if (!approve) {
+    via = parsed.data.via === "mac" ? "mac" : "agent"; // anyone may say no
+  } else {
+    // An agent's token can only approve with this device's signature, which needs Touch ID or the Mac password.
+    const row = await load(c.env.DB, c.req.param("id"), user.id);
+    if (!row) return c.json({ error: "not_found" }, 404);
+    const sessionId = c.get("session")!.session.id;
+    const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature) : { ok: false };
+    if (!check.ok) {
+      return c.json({ error: "human_required", message: "Approving needs the person: Touch ID or password on their Mac, the AnyDock dashboard, or Slack." }, 403);
+    }
+    via = "mac";
+  }
+  const row = await decide(c.env, user.id, c.req.param("id"), approve, via);
   return row ? c.json({ action: actionJson(row) }) : c.json({ error: "not_found" }, 404);
 });
 

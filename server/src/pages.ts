@@ -114,6 +114,7 @@ export function devicePage(opts: { userCode: string; email: string }): string {
      </form>
      <div id="confirm" hidden>
        <div class="code" id="shown"></div>
+       <p style="font-size:13px;color:#6b6b72;margin:0 0 14px">Your agents on that computer will act within your rules. On a Mac, approving their requests will need your Touch ID or Mac password — never the agent.</p>
        <button class="primary" id="approve">Approve</button>
        <button id="deny">Deny</button>
      </div>

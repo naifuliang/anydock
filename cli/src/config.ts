@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSyn
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Source } from "./sources/types.ts";
+import { bestStore, deleteToken, readToken, type Store, writeToken } from "./secret.ts";
 
 // Everything lives in ~/.anydock (override with ANYDOCK_HOME for tests).
 export const HOME = process.env.ANYDOCK_HOME ?? join(homedir(), ".anydock");
@@ -12,7 +13,8 @@ export const DEFAULT_SERVER = "https://anydock.ai";
 
 export interface Config {
   server: string;
-  token?: string;
+  token?: string; // in memory only; stored in the OS keychain / keyring / an encrypted file (secret.ts)
+  tokenStore?: Store;
   user?: { id: string; email: string; name: string };
 }
 
@@ -43,13 +45,31 @@ function writeJson(path: string, value: unknown): void {
   chmodSync(path, 0o600);
 }
 
+const tokenCache = new Map<string, string | undefined>();
+
 export function loadConfig(): Config {
   const cfg = readJson<Partial<Config>>(CONFIG, {});
-  return { ...cfg, server: process.env.ANYDOCK_SERVER ?? cfg.server ?? DEFAULT_SERVER };
+  const server = process.env.ANYDOCK_SERVER ?? cfg.server ?? DEFAULT_SERVER;
+  // An older config kept the token in plain JSON; it moves to the secure store on the next save.
+  if (!cfg.token && cfg.tokenStore) {
+    const k = `${cfg.tokenStore}|${server}`;
+    if (!tokenCache.has(k)) tokenCache.set(k, readToken(cfg.tokenStore, server));
+    cfg.token = tokenCache.get(k);
+  }
+  return { ...cfg, server };
 }
 
 export function saveConfig(cfg: Config): void {
-  writeJson(CONFIG, cfg);
+  const { token, ...rest } = cfg;
+  if (token) {
+    rest.tokenStore = writeToken(cfg.tokenStore ?? bestStore(), cfg.server, token);
+    tokenCache.set(`${rest.tokenStore}|${cfg.server}`, token);
+  } else if (cfg.tokenStore) {
+    deleteToken(cfg.tokenStore, cfg.server);
+    tokenCache.clear();
+    delete rest.tokenStore;
+  }
+  writeJson(CONFIG, rest);
 }
 
 export function loadState(): State {

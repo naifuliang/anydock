@@ -66,8 +66,9 @@ function mcp({ elicitation, answer }) {
 const run = Date.now();
 const browser = await cliLogin(`dave+${run}@acme.dev`);
 
-let reply = { action: "accept", content: { approve: true } };
-const a = mcp({ elicitation: true, answer: () => reply });
+// Even a client that supports elicitation is never asked: an in-agent "Allow?" can't approve (the CLI's token is an
+// agent token), so the tool waits for the person — dashboard here; Touch ID on a Mac; or Slack.
+const a = mcp({ elicitation: true, answer: () => ({ action: "accept", content: { approve: true } }) });
 await a.init();
 const names = await a.list();
 check("delegate tools are listed", ["anydock_slack_post", "anydock_email", "anydock_action_status"].every((n) => names.includes(n)));
@@ -75,15 +76,21 @@ check("delegate tools are listed", ["anydock_slack_post", "anydock_email", "anyd
 const internal = await a.tool("anydock_email", { to: `erin+${run}@acme.dev`, subject: "Notes", body: "Here you go" });
 check("same-domain email runs without asking", ran(internal) && a.asked.length === 0, internal);
 
-const ext = await a.tool("anydock_email", { to: "partner@gmail.com", subject: "Intro", body: "Hi" });
-check("outside email asks the user in-session (elicitation)", a.asked.length === 1 && a.asked[0].message.includes("partner@gmail.com"));
-check("user approves in the prompt → done", ran(ext), ext);
+const pendingId = async () => { for (let i = 0; i < 30; i++) { await sleep(300); const x = (await call(browser, "GET", "/api/actions?status=pending")).data.actions[0]; if (x) return x.id; } };
+const ext = a.tool("anydock_email", { to: "partner@gmail.com", subject: "Intro", body: "Hi" });
+const extId = await pendingId();
+await call(browser, "POST", `/api/actions/${extId}/decide`, { approve: true });
+const extText = await ext;
+check("outside email waits for the person, not an in-agent prompt", a.asked.length === 0);
+check("person approves in the dashboard → done", ran(extText), extText);
 const acts = (await call(browser, "GET", "/api/actions")).data.actions;
-check("decision recorded as made in the agent", acts.find((x) => x.summary.includes("partner@gmail.com"))?.decidedVia === "agent");
+check("decision recorded as made in the dashboard", acts.find((x) => x.summary.includes("partner@gmail.com"))?.decidedVia === "dashboard");
 
-reply = { action: "decline" };
-const declined = await a.tool("anydock_email", { to: "other@gmail.com", subject: "Nope", body: "x" });
-check("user declines in the prompt → denied", declined.includes("denied"), declined);
+const decl = a.tool("anydock_email", { to: "other@gmail.com", subject: "Nope", body: "x" });
+const declId = await pendingId();
+await call(browser, "POST", `/api/actions/${declId}/decide`, { approve: false });
+const declined = await decl;
+check("person declines → denied", declined.includes("denied"), declined);
 
 const slackOff = await a.tool("anydock_slack_post", { to: "#launch", text: "hello" });
 check("Slack not connected is explained", slackOff.includes("isn't connected"), slackOff);

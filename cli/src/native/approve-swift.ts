@@ -1,11 +1,31 @@
 // Source of the native macOS approval panel. The CLI compiles it with swiftc on first use (see approve.ts).
 // Approving requires the Mac's owner (Touch ID, Apple Watch, or the login password) via LocalAuthentication, so an agent
 // driving the screen (computer use) can click the button but can't complete the approval.
-// Prints exactly one of: approve | deny | timeout | unavailable
+// Prints exactly one of: approve <signature> | deny | timeout | unavailable
+// "approve" carries a P-256 signature over --message (base64) made with this Mac's Secure Enclave key (--key), which
+// only signs after Touch ID or the password. The server accepts an agent's approval only with that signature.
+// Also: anydock-approve keygen <path>  → creates the Secure Enclave key at <path>, prints its public key (base64 X9.63).
 export const APPROVE_SWIFT = String.raw`
 import AppKit
 import SwiftUI
 import LocalAuthentication
+import CryptoKit
+import Security
+
+if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "keygen" {
+  guard SecureEnclave.isAvailable,
+        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, [.privateKeyUsage, .userPresence], nil),
+        let key = try? SecureEnclave.P256.Signing.PrivateKey(accessControl: access) else {
+    print("unavailable"); exit(2)
+  }
+  let path = CommandLine.arguments[2]
+  // The blob is only usable by this Mac's Secure Enclave, and only after Touch ID or the password.
+  guard FileManager.default.createFile(atPath: path, contents: key.dataRepresentation, attributes: [.posixPermissions: 0o600]) else {
+    print("unavailable"); exit(2)
+  }
+  print(key.publicKey.x963Representation.base64EncodedString())
+  exit(0)
+}
 
 func arg(_ name: String, _ fallback: String = "") -> String {
   let a = CommandLine.arguments
@@ -16,6 +36,16 @@ let summary = arg("summary", "Your agent wants to do something")
 let agent = arg("agent", "agent")
 let rule = arg("rule", "ask me")
 let timeoutSeconds = Double(arg("timeout", "120")) ?? 120
+let keyPath = arg("key")
+let message = Data(base64Encoded: arg("message")) ?? Data()
+
+// Sign with the Secure Enclave key, reusing the context the person just authenticated (no second prompt).
+func sign(_ ctx: LAContext) -> String? {
+  guard let blob = FileManager.default.contents(atPath: keyPath),
+        let key = try? SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: blob, authenticationContext: ctx),
+        let sig = try? key.signature(for: message) else { return nil }
+  return sig.rawRepresentation.base64EncodedString()
+}
 
 let accent = Color(red: 0.17, green: 0.35, blue: 1.0)
 var finished = false
@@ -73,9 +103,12 @@ struct ApprovalView: View {
     }
     ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "approve your agent's request: " + summary) { ok, _ in
       DispatchQueue.main.async {
-        if ok {
+        if ok, let signature = sign(ctx) {
           withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { model.phase = .approved }
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose("approve") }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose("approve " + signature) }
+        } else if ok {
+          model.phase = .idle
+          model.message = "This Mac's approval key is missing. Run: anydock setup"
         } else {
           model.phase = .idle
           model.message = "Not verified — nothing was approved."

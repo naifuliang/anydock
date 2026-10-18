@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { api, ApiError } from "./api.ts";
 import { loadConfig, saveConfig } from "./config.ts";
+import { ensureApprovalKey } from "./native/approve.ts";
+import { hostname } from "node:os";
 
 const CLIENT_ID = "anydock-cli";
 const GRANT = "urn:ietf:params:oauth:grant-type:device_code";
@@ -24,6 +26,11 @@ export async function login(opts: { server?: string; openBrowser: boolean }): Pr
   console.log(`\nOpen ${code.verification_uri} and confirm this code:\n\n    ${code.user_code}\n`);
   if (opts.openBrowser && !process.env.ANYDOCK_NO_BROWSER) openUrl(code.verification_uri_complete);
 
+  // On a Mac, enroll this Mac's approval key with this sign-in: approving the code in the browser is what makes
+  // the key trusted. A fresh key per sign-in, so an old key can't be reused with a new session.
+  const approvalKey = ensureApprovalKey({ fresh: true });
+  const enroll = approvalKey ? { approval_key: approvalKey, approval_key_name: hostname().replace(/\.local$/, "") } : {};
+
   let interval = code.interval * 1000;
   const deadline = Date.now() + code.expires_in * 1000;
   while (Date.now() < deadline) {
@@ -32,7 +39,7 @@ export async function login(opts: { server?: string; openBrowser: boolean }): Pr
       const token = await api<{ access_token: string }>(
         "POST",
         "/api/auth/device/token",
-        { grant_type: GRANT, device_code: code.device_code, client_id: CLIENT_ID },
+        { grant_type: GRANT, device_code: code.device_code, client_id: CLIENT_ID, ...enroll },
         cfg,
       );
       cfg.token = token.access_token;

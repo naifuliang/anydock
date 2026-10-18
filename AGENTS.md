@@ -113,6 +113,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - Test: `test/delegate-e2e.mjs` (mock Slack on :8798; `.dev.vars` needs the test values in its header). CLI: `cli/test/mcp-delegate-e2e.mjs` (elicitation approve/decline, dashboard approval while the tool waits, blocked).
   - `src/mailbox.ts` "email as you": Gmail / Outlook OAuth (`/api/connectors/{gmail,outlook}/start|callback`, DELETE), encrypted refresh token in `connection`, `sendAsUser()` (Gmail raw RFC822 / Graph sendMail). Delegate email tries the person's mailbox first, then Primitive. `GOOGLE_OAUTH_URL`, `GOOGLE_TOKEN_URL`, `GMAIL_API`, `MS_LOGIN_URL`, `MS_GRAPH_API` override endpoints for tests.
   - `src/inkbox.ts` texts via Inkbox (iMessage from the identity, SMS fallback from the number), `GET/PUT /api/me/profile` (`phone` E.164, `textOnHandover`; migration 0006 `profile`), handover texts. `INKBOX_API` overrides the base for tests.
+  - `src/trust.ts` agent vs person (see "Agent tokens" below); test `test/agent-trust-e2e.mjs`.
   - Tests: `test/mail-text-e2e.mjs` (mock Google/Microsoft/Inkbox on :8797; test values in its header) and `test/client-syntax.mjs` (syntax-checks the dashboard/landing inline scripts — run after editing `app.ts`/`landing.ts`; a quoting slip there blanks the page).
   - `src/works.ts` Works API · `src/hub.ts` `UserHub` Durable Object (live push) · `src/types.ts` shared types.
   - `migrations/0001_auth.sql` is **generated** (`npm run gen:auth-schema`) — regenerate after changing auth plugins, never hand-edit. `0002_anydock.sql` holds our tables: `project`, `projectMember`, `work`, `share`, `inboxItem`; `0003_assignee.sql` adds `work.assigneeId/assigneeEmail`.
@@ -179,11 +180,32 @@ Approval design (agreed, Oct 17): who asks and who approves decide how we interr
 - Your own agent, on your machine, while you're there → **native macOS approval panel** (SwiftUI, animated) shown by the
   MCP process (`cli/src/native/`), approved with **Touch ID or the Mac login password** (LocalAuthentication
   `.deviceOwnerAuthentication` — Nolan's call: biometrics or password, anything the agent doesn't have) so an agent doing
-  computer use can't click "approve" for you. Falls back to the in-agent prompt / dashboard where the panel isn't available.
+  computer use can't click "approve" for you; the approval is a Secure Enclave signature the server verifies. Falls back to the dashboard / Slack where the panel isn't available.
 - Your own agent in the background (you may be away) → system notification + Inbox + Slack DM; no modal.
 - Someone else's agent asking you (e.g. over their budget) → **no pop-up**: it waits in your Inbox and Slack.
 - Inbox is "everything waiting for you": "Needs your decision" (approvals) first, then "From teammates"; one badge.
 - Not built yet: approver ≠ requester (subordinate asks a superior) and passkey-gated dashboard approvals.
+
+Agent tokens (Oct 18, Nolan: "the agent must not be able to decode or one-line the token"):
+- **The token is an agent token, by design.** Any program running as the same OS user can ask AnyDock to act, so the
+  boundary is what the token *can do*, enforced on the server (`server/src/trust.ts`): every session created by the CLI
+  device flow is recorded in `agentSession`; such sessions can request and deny actions but get `403 human_required` for
+  approving, rules (`PUT /delegate/policy`), connecting tools, profile, project members / Discord links, organization
+  admin and decisions, and all Better Auth endpoints except `get-session` / `sign-out` (so an agent can't approve a new
+  device login and mint itself a key).
+- **Approving from an agent token needs a device signature.** At sign-in the CLI creates a Secure Enclave P-256 key
+  (`.privateKeyUsage + .userPresence`; the file `~/.anydock/approval-key` is an opaque blob only that Mac's Secure
+  Enclave can use) and sends the public key with `/device/token`; it is enrolled for that session only, because the person
+  approved that login in the browser (`approvalKey`, migration 0009). The panel signs
+  `anydock-approve:v1\n{id}\n{userId}\n{summary}` after Touch ID / password; the server verifies it against its own
+  record (WebCrypto ECDSA, raw r||s). Browser sessions approve as `dashboard`; Slack buttons stay signing-secret verified.
+- **Token at rest is never plain text** (`cli/src/secret.ts`): macOS Keychain via the `anydock-keychain-<hash>` helper
+  (items trust only that binary; `security find-generic-password` prompts the person), Linux Secret Service via
+  `secret-tool`, otherwise an AES-256-GCM file (`token.enc`, key from a separate salt + uid + machine-id). `config.json`
+  holds only `tokenStore`. Tests use the file store (`ANYDOCK_NO_NATIVE_APPROVAL` / `ANYDOCK_TOKEN_STORE=file`).
+- MCP elicitation approvals were removed (an agent token can't approve); off-Mac the tool waits for the dashboard / Slack.
+- Residual risks (not solved yet): an agent with computer use clicking Approve in a signed-in dashboard (→ passkey-gated
+  dashboard approvals), or approving a device login in the browser.
 
 Delegate design (agreed direction): agents never see third-party tokens. A person connects a tool once in the dashboard;
 AnyDock stores the token server-side, and MCP tools like `anydock_slack_post` are executed by the server after checking
@@ -208,6 +230,7 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 - [x] Local GitHub and Google OAuth configured in gitignored `server/.dev.vars` (0600), using localhost:8787. Both browser logins and authenticated `/api/me` verified Oct 17. GitHub app supports both production and localhost callbacks; Google Data Access explicitly saved with only openid/email/profile.
 - [x] Primitive configured Oct 17: AnyDock organization via GitHub `naifuliang` (`qizi297@outlook.com`), $100 hackathon credits redeemed with no expiry; `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved through Wrangler. Production sign-in email from `login@lush-fig.primitive.email` arrived in the real Outlook inbox. Final email-code sign-in session remains unverified (connector withholds OTP).
 - [x] Oct 17 (deployed): native Mac approval panel (Touch ID / password), approvals merged into Inbox, Gmail/Outlook "email as you", Inkbox texts + phone settings; remote migration 0006 applied. Native panel not yet tried by a human.
+- [x] Oct 18: agent tokens can't approve (server-enforced), Mac approvals are Secure Enclave signatures, token stored in Keychain / Secret Service / encrypted file; installer auto-installs Node. Tests: `server/test/agent-trust-e2e.mjs` (22 checks) + all suites green. Real Touch ID signing not yet tried by a human.
 - [ ] Not yet installed into Nolan's real Claude Code / Codex config (`anydock mcp install`).
 - [ ] Next candidates: localhost UI, distill (summary + method), delegate actions (Slack / email / call) + permission panel.
 
