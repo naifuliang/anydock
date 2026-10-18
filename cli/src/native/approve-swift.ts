@@ -131,11 +131,13 @@ struct ApprovalView: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(spacing: 10) {
         ZStack {
-          RoundedRectangle(cornerRadius: 9).fill(model.phase == .approved ? Color.green.opacity(0.15) : accent.opacity(0.12)).frame(width: 34, height: 34)
-          Image(systemName: model.phase == .approved ? "checkmark" : "key.fill")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundColor(model.phase == .approved ? .green : accent)
-            .scaleEffect(model.phase == .approved ? 1.15 : 1)
+          if model.phase == .approved {
+            RoundedRectangle(cornerRadius: 9).fill(Color.green.opacity(0.15)).frame(width: 34, height: 34)
+            Image(systemName: "checkmark").font(.system(size: 15, weight: .semibold)).foregroundColor(.green).scaleEffect(1.15)
+          } else {
+            // The AnyDock icon from the app bundle, so it's clear who is asking.
+            Image(nsImage: NSApp.applicationIconImage).resizable().interpolation(.high).frame(width: 34, height: 34)
+          }
         }
         VStack(alignment: .leading, spacing: 1) {
           Text(model.phase == .approved ? "Approved" : "Your agent is asking")

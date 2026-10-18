@@ -1,27 +1,19 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { HOME, loadConfig } from "../config.ts";
+import { existsSync } from "node:fs";
+import { loadConfig } from "../config.ts";
+import { appExecutable, buildApp } from "./bundle.ts";
 import { VIEWER_SWIFT } from "./viewer-swift.ts";
 
 // `anydock open`: on a Mac, the artifact in its own native window, already signed in; elsewhere, the default browser.
 const HASH = createHash("sha256").update(VIEWER_SWIFT).digest("hex").slice(0, 10);
-const BIN = join(HOME, "bin", `anydock-viewer-${HASH}`);
 
+// An "AnyDock" app with the AnyDock icon in the Dock and menu bar (see bundle.ts).
 function viewerHelper(): string | null {
   if (process.platform !== "darwin" || process.env.ANYDOCK_NO_NATIVE_APPROVAL) return null;
-  if (existsSync(BIN)) return BIN;
+  if (existsSync(appExecutable("viewer", HASH))) return appExecutable("viewer", HASH);
   if (spawnSync("xcrun", ["--find", "swiftc"], { stdio: "ignore" }).status !== 0) return null;
-  mkdirSync(join(HOME, "bin"), { recursive: true });
-  const src = `${BIN}.swift`;
-  writeFileSync(src, VIEWER_SWIFT);
-  const r = spawnSync("xcrun", ["swiftc", "-O", "-o", BIN, src], { encoding: "utf8" });
-  if (r.status !== 0) {
-    console.error(`AnyDock: couldn't build the viewer window: ${r.stderr.split("\n").slice(0, 3).join(" ")}`);
-    return null;
-  }
-  return BIN;
+  return buildApp({ kind: "viewer", hash: HASH, source: VIEWER_SWIFT, bundleId: "ai.anydock.viewer", background: false });
 }
 
 export function ensureViewer(): boolean {

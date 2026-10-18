@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import { HOME } from "../config.ts";
 import { APPROVE_SWIFT } from "./approve-swift.ts";
+import { appExecutable, buildApp } from "./bundle.ts";
 
 // The native approval panel (macOS). Built from source with swiftc into ~/.anydock/bin on first use and cached by hash,
 // so updating the CLI rebuilds it automatically. Anything else (Linux, no Xcode tools) reports "unavailable" and callers
@@ -12,7 +13,8 @@ export type LocalVerdict = "approve" | "approve-session" | "deny" | "timeout" | 
 export type LocalResult = { verdict: LocalVerdict; signature?: string };
 
 const HASH = createHash("sha256").update(APPROVE_SWIFT).digest("hex").slice(0, 10);
-const BIN = join(HOME, "bin", `anydock-approve-${HASH}`);
+// Built as an "AnyDock" app (no Dock icon — it's a panel), so the Touch ID dialog and the panel show AnyDock's name and icon.
+const BIN = appExecutable("approve", HASH);
 
 export function nativeApprovalPossible(): boolean {
   if (process.platform !== "darwin" || process.env.ANYDOCK_NO_NATIVE_APPROVAL) return false;
@@ -23,15 +25,7 @@ export function nativeApprovalPossible(): boolean {
 export function ensureApprovalHelper(): string | null {
   if (process.platform !== "darwin") return null;
   if (existsSync(BIN)) return BIN;
-  mkdirSync(join(HOME, "bin"), { recursive: true });
-  const src = join(HOME, "bin", `anydock-approve-${HASH}.swift`);
-  writeFileSync(src, APPROVE_SWIFT);
-  const r = spawnSync("xcrun", ["swiftc", "-O", "-o", BIN, src], { encoding: "utf8" });
-  if (r.status !== 0) {
-    console.error(`AnyDock: couldn't build the approval panel: ${r.stderr.split("\n").slice(0, 3).join(" ")}`);
-    return null;
-  }
-  return BIN;
+  return buildApp({ kind: "approve", hash: HASH, source: APPROVE_SWIFT, bundleId: "ai.anydock.approve", background: true });
 }
 
 // This Mac's approval key: a Secure Enclave P-256 key that only signs after Touch ID or the password. The private part
