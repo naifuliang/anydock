@@ -9,8 +9,8 @@ export interface AuthEnv {
   GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
-  PRIMITIVE_API_KEY?: string;
-  EMAIL_FROM?: string;
+  EMAIL?: SendEmail;
+  SYSTEM_EMAIL_FROM?: string;
 }
 
 // The CLI identifies itself with this client id during the device flow.

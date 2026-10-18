@@ -78,7 +78,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
   - Syncs only what the user authorized (project link or explicit share); redacts secrets before upload.
   - **Live sync**: watches session files; new steps appear in the local UI immediately and, for authorized sessions, upload incrementally so recipients see progress live (pushed via a per-user Durable Object WebSocket).
   - **Self-update**: the CLI is bundled into one JS file served from `anydock.ai`. On start (and daily while running) it checks the latest version; if newer, it downloads it, replaces itself and restarts the background service. Install via `curl -fsSL https://anydock.ai/install.sh | sh`.
-- **Dock MCP** — installed into Claude Code and Codex. Context tools (share, handover, attach session to project, ask, get method) and action tools (Slack message, email via Primitive, call / iMessage via Inkbox), all gated by the permission panel (allow / ask me / deny).
+- **Dock MCP** — installed into Claude Code and Codex. Context tools (share, handover, attach session to project, ask, get method) and action tools (Slack message, email via a connected Gmail/Outlook mailbox, call / iMessage via Inkbox), all gated by the permission panel (allow / ask me / deny).
 - **Cloud** — Cloudflare Workers on `anydock.ai`: D1 for Works, users, permissions; R2 for raw trajectories; Slack app; web views.
 - Stack: Node 26 + TypeScript, Hono, mcp-use v2, zod, @slack/bolt.
 
@@ -99,7 +99,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 ## Repo layout
 
 - `server/` — Cloudflare Worker (`anydock`): Hono + Better Auth on D1.
-  - `src/index.ts` routes · `src/auth.ts` Better Auth config (shared with the schema generator) · `src/pages.ts` sign-in and device-approval pages · `src/email.ts` Primitive sender (logs the email when unconfigured).
+  - `src/index.ts` routes · `src/auth.ts` Better Auth config (shared with the schema generator) · `src/pages.ts` sign-in and device-approval pages · `src/email.ts` Cloudflare own-domain system sender (production fails closed when unconfigured).
   - Design: **white, minimal** (Nolan's call — no dark theme on the landing page). Geist + Geist Mono, Instrument Serif italic for display words, near-black text, one blue accent `#2b59ff`. The dashboard uses the same fonts and accent.
   - Icons: `src/icons.ts` (generated, inline SVG) — brand marks from Simple Icons (`brand(k)`), line icons from Lucide (`line(k)`). Codex (LobeHub icons, MIT), Slack and VS Code (Iconify "logos", CC0) are multi-color SVGs in `RAW`; use `logo(k)` for any mark. Don't hand-draw brand logos.
   - Illustrations: slots render a dotted placeholder until `server/public/img/<file>` exists (no code change to swap in). Brief for an image agent: `tasks/image-generation.md` (14 use-case images + `og.png` + `icon.png`).
@@ -162,10 +162,10 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | Claude Code, Codex | Live: session capture + MCP (auto-registered by `anydock mcp install`) | — |
 | Cursor, Windsurf, VS Code | MCP config documented in `/agents.md`; **not yet tested** | Codex: `tasks/mcp-clients-qa.md` |
 | GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
-| Email sign-in codes (Primitive) | Configured; production code email arrived in real Outlook inbox Oct 17 | Complete email-code login session check |
-| Discord | Code done (project channels, cards, `/anydock`); no bot yet | Codex: `tasks/discord-setup.md` |
-| Slack (delegate: post as you + approval DMs) | New app A0CA7H6T2PN configured; all 3 secrets and icon saved | Nolan connects from dashboard; live delegate test pending |
-| Email on your behalf | Primitive key and sender configured; delegated send flow not yet tested | Verify through permissions flow |
+| Email sign-in codes (Cloudflare) | Live: existing Workers Paid plan, restricted login@anydock.ai binding; domain mail delivered | Production auth OTP inbox receipt verified |
+| Discord | Application and secrets configured; no manageable server on logged-in account | Bot install and live channel test pending |
+| Slack (delegate: post as you + approval DMs) | New app installed with explicit approval; self-DM delivery verified | Human Slack approval-button check remains optional |
+| Organization communication resources (Primitive) | Account and credit ready; not a platform mail fallback | Organization-scoped Primitive connector remains to implement |
 | Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | **Code done** + tested with mocks (`src/mailbox.ts`); Gmail reuses the Google OAuth client (needs `gmail.send` scope on the consent screen), Outlook needs `MS_CLIENT_ID/SECRET` | Codex: `tasks/email-accounts-setup.md` |
 | Armature (MCP analytics), Manufact (hosted MCP) | Not built | Codex: `tasks/armature-setup.md`, `tasks/manufact-setup.md` |
 | Phone / SMS / iMessage (Inkbox) | **Code done** + tested with a mock (`src/inkbox.ts`): `anydock_text` (rule "Text a person", default ask me), opt-in handover texts. Needs `INKBOX_API_KEY` + `INKBOX_IDENTITY_ID` and/or `INKBOX_PHONE_NUMBER_ID` | Codex: `tasks/inkbox-setup.md` |
@@ -218,7 +218,7 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 
 ### Oct 17 sponsor setup update
 
-- Slack app setup complete; never installed by the agent.
+- Slack app setup complete; installed into New Workspace with Nolan’s explicit authorization; own DM delivery verified.
 - Gmail API, gmail.send declaration, production/local Gmail callbacks saved. Outlook app setup blocked by AADSTS16000 for personal Microsoft account.
 - Inkbox: Google OAuth qizi297@gmail.com, free anydock identity and identity-scoped production key; INKBOX_API_KEY and INKBOX_IDENTITY_ID saved. Extra auto-minted Quickstart key revoked. Recipient opt-in and provider-level bidirectional iMessage verified via Messages; AnyDock delegated send remains unverified. REST: POST https://inkbox.ai/api/v1/imessage/messages?agent_identity_id=<uuid>, X-API-Key header; requires recipient-first contact on shared service.
 - Armature US AnyDock MCP workspace created; ARMATURE_INGEST_KEY stored. Ingest POST https://app.armature.tech/api/mcp-analytics/ingest, Authorization Bearer; wire event shape and SDK compatibility notes in tasks/armature-setup.md. SDK instrumentation and live events not done.
@@ -231,3 +231,10 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 - Dock MCP exposes organizations, allowed servers, projected server status, redeploy requests and request history; no approval/credential-management tools. Agents use their human bearer identity; separate agent identities and SSO/project inheritance remain future work.
 - Provider keys stay encrypted server-side; server responses omit provider config/environment. Connection, membership, grant and server actions audited. Deployment acceptance is submitted, not deployed; uncertain outcomes need provider verification before retry.
 - Local validation: 53 security/flow checks, dashboard/landing script parsing, server TypeScript and CLI build. Production migrations/deployment and live Manufact organization connection verified. The 30-day key is encrypted. One harmless free Manufact fixture is allowlisted; real read, denied redeploy, cross-account approval, provider Running and post-removal denial all verified. Temporary member/grants removed. See tasks/manufact-setup.md for evidence.
+
+### Oct 17 final email boundary and live checks
+
+- System authentication/account email uses Cloudflare Email Service from login@anydock.ai. Existing Workers Paid plan confirmed in account UI; no plan purchase. Sending domain enabled, DNS checked, and real Outlook receipt verified. Worker version cb8559bd-9f58-45fd-9d33-2f11cfd11dce deployed with sender-restricted EMAIL binding.
+- Primitive is reserved for organization-controlled communication resources. Its credentials are retained but no system or global agent-email fallback uses them. Organization-level Primitive allocation is not implemented yet. Gmail/Outlook delegated email requires the acting user’s connected mailbox and permission check.
+- Live checks complete: Gmail approved send to own Outlook received; Inkbox repaired identity-only key and approved AnyDock iMessage received in Messages; Slack own DM received; original email-code login completed by Nolan and authenticated session checked.
+- Remaining setup blockers: Discord account has no manageable server; personal Outlook account has no Entra tenant; Cursor/Windsurf/VS Code are absent for editor QA. Armature live instrumentation is separate implementation work.

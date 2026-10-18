@@ -9,8 +9,10 @@
   // Static files (install.sh, the CLI bundle) are served before the Worker runs.
   "assets": { "directory": "./public" },
   "vars": {
-    "BETTER_AUTH_URL": "https://anydock.ai"
+    "BETTER_AUTH_URL": "https://anydock.ai",
+    "SYSTEM_EMAIL_FROM": "login@anydock.ai"
   },
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["login@anydock.ai"] }],
   "d1_databases": [
     { "binding": "DB", "database_name": "anydock-v2", "database_id": "ab0d9d1f-6abc-4109-bc6b-d8ef56ed832c", "migrations_dir": "migrations" }
   ],

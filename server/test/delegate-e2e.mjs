@@ -98,7 +98,7 @@ check("post to a teammate's email becomes a DM", p2?.status === "executed" && ca
 check("unknown channel fails with a clear reason", (await ask(alice, "slack.post", { to: "#nope", text: "x" })).data?.action?.result?.detail.includes("No Slack channel #nope"));
 
 const e1 = (await ask(alice, "email", { to: "carol@acme.dev", subject: "Summary", body: "See work" })).data?.action;
-check("same-domain email follows 'email teammates' (allow)", e1?.action === "email.internal" && e1.status === "executed");
+check("same-domain email follows 'email teammates' (allow)", e1?.action === "email.internal" && e1.status === "failed" && e1.result.detail.includes("Connect Gmail or Outlook"));
 
 const before = calls.length;
 const e2r = await ask(alice, "email", { to: "someone@gmail.com", subject: "Hello", body: "Outside" });
@@ -117,10 +117,10 @@ check("click from someone else's Slack does nothing", ores.data?.text?.includes(
 const ok = slackClick("approve", e2.id);
 check("signed Slack click accepted", (await call(null, "POST", "/api/connectors/slack/interactions", ok.body, ok.headers)).status === 200);
 const e2done = await waitFor(alice, e2.id, (a) => a.status !== "pending" && a.status !== "approved");
-check("approved in Slack → executed", e2done?.status === "executed" && e2done.decidedVia === "slack", e2done?.status);
+check("approved in Slack → fails closed without a connected mailbox", e2done?.status === "failed" && e2done.decidedVia === "slack", e2done?.status);
 await sleep(300);
 check("Slack approval message updated to a receipt", calls.some((c) => c.method === "chat.update" && c.auth === "Bearer xoxb-bot-token"));
-check("second click is a no-op", (await call(null, "POST", "/api/connectors/slack/interactions", ok.body, ok.headers)).status === 200 && (await call(alice, "GET", `/api/actions/${e2.id}`)).data.action.status === "executed");
+check("second click is a no-op", (await call(null, "POST", "/api/connectors/slack/interactions", ok.body, ok.headers)).status === 200 && (await call(alice, "GET", `/api/actions/${e2.id}`)).data.action.status === "failed");
 
 const e3 = (await ask(alice, "email", { to: "x@example.org", subject: "Hi", body: "b" })).data?.action;
 const e3d = (await call(alice, "POST", `/api/actions/${e3.id}/decide`, { approve: false })).data?.action;

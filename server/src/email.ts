@@ -1,24 +1,20 @@
 import type { AuthEnv } from "./auth.ts";
 
-interface Email {
-  to: string;
-  subject: string;
-  text: string;
-}
+interface Email { to: string; subject: string; text: string }
 
-// Sends through Primitive when configured; otherwise logs, so local dev works without keys.
+// Platform account mail belongs to AnyDock infrastructure, never to a tenant's
+// Primitive resource or to a user's connected Gmail/Outlook mailbox.
 export async function sendEmail(env: AuthEnv, email: Email): Promise<void> {
-  if (!env.PRIMITIVE_API_KEY || !env.EMAIL_FROM) {
+  if (env.EMAIL) {
+    await env.EMAIL.send({
+      from: { email: env.SYSTEM_EMAIL_FROM || "login@anydock.ai", name: "AnyDock" },
+      to: email.to, subject: email.subject, text: email.text,
+    });
+    return;
+  }
+  if (env.BETTER_AUTH_URL.startsWith("http://localhost")) {
     console.log(`[email:dev] to=${email.to} subject="${email.subject}"\n${email.text}`);
     return;
   }
-  // EMAIL_FROM is an address on the org's managed subdomain, e.g. login@<org>.primitive.email
-  const res = await fetch("https://api.primitive.dev/v1/send-mail", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.PRIMITIVE_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.EMAIL_FROM, to: email.to, subject: email.subject, body_text: email.text }),
-  });
-  if (!res.ok) {
-    throw new Error(`Primitive send failed: ${res.status} ${await res.text()}`);
-  }
+  throw new Error("AnyDock system email is not configured.");
 }

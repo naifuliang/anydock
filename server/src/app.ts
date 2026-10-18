@@ -719,8 +719,8 @@ async function permissionsView(params = new URLSearchParams()) {
         (sl.connected ? '<button class="btn sm" id="slackOff">Disconnect</button>' : sl.available ? '<a class="btn solid sm" href="/api/connectors/slack/start">Connect</a>' : '<span class="pill">soon</span>') + '</div>' +
       mailTile("gmail", MARKS.gmail, "Gmail", connections.gmail) + mailTile("outlook", MARKS.outlook, "Outlook", connections.outlook) +
       '<div class="ctile"><span class="lg">' + MARKS.proton + '</span><div><b>Proton Mail</b><div class="note">No public send API yet — coming soon.</div></div><span class="pill">soon</span></div>' +
-      '<div class="ctile"><span class="lg">' + ICONS.mail + '</span><div><b>AnyDock sender</b><div class="note">' +
-        (em.available ? 'Used when no mailbox is connected: sends from <b style="color:var(--text)">' + esc(em.from) + '</b>; replies go to you.' : 'Fallback sender — setup pending.') + '</div></div><span class="pill ' + (em.available ? 'ok' : '') + '">' + (em.available ? 'Ready' : 'Pending') + '</span></div>' +
+      '<div class="ctile"><span class="lg">' + ICONS.mail + '</span><div><b>Account emails</b><div class="note">' +
+        (em.available ? 'Sign-in codes and account notifications are sent from <b style="color:var(--text)">' + esc(em.from) + '</b>.' : 'Account email setup pending.') + '</div></div><span class="pill ' + (em.available ? 'ok' : '') + '">' + (em.available ? 'Ready' : 'Pending') + '</span></div>' +
     '</div><div class="card pad" style="margin-top:14px" id="phoneCard"><div class="note">Loading…</div></div>' +
     '<div class="card pad" style="margin-top:14px;background:var(--bg)"><b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.lock + 'How approvals reach you</b><p class="note" style="margin:6px 0 0">In your agent (if it can show a prompt), as a pop-up here, and as a Slack DM with Approve / Deny. The first answer wins.</p></div></div></div>' +
     '<div class="sec"><h2>Activity</h2><span class="note">Every action your agents asked for</span></div><div class="card timeline">' + (log.length ? log.map((a) =>

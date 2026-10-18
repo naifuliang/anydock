@@ -83,3 +83,11 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 - Manufact live flow complete: free fixture running; member read succeeds, default redeploy denied, ask waits, other owner approves and provider reaches Running. Temporary member/grants removed; direct access denied after removal. 53 local checks pass. See tasks/manufact-setup.md.
 
 - Gmail real send complete: Google test identity → approved AnyDock action → Gmail → actual Outlook receipt verified. Inkbox AnyDock send found missing /imessage prefix; fixed official path and added regression test. Correct endpoint then returned 401 for stored credential; identity-scoped repair key prepared, awaiting approval.
+
+## Latest authoritative update — Oct 17, Cloudflare system mail
+
+This update supersedes earlier pending statuses above. System sign-in/account emails now use Cloudflare Email Service and login@anydock.ai, on the already-paid Workers plan. Sending-domain DNS and real Outlook delivery verified; production EMAIL binding restricts the sender. A production authentication OTP was also received from login@anydock.ai at 2026-10-18T05:16:31Z. Primitive is an organization communication resource, never a system sender or unscoped agent fallback; its organization connector is still future work.
+
+Completed live: original OTP login; Gmail send and inbox receipt; authorized Slack workspace connection and self-DM receipt; repaired identity-scoped Inkbox key and AnyDock approved iMessage receipt; Manufact free server, real cross-account approval/redeploy Running, and member/grant removal.
+
+Still open: Discord bot install/channel test (no manageable servers on logged-in account); Outlook app registration (personal account lacks Entra tenant); editor QA (three target editors absent). Armature ingest credential is stored; instrumentation/live events are not implemented. No judge accounts are required.

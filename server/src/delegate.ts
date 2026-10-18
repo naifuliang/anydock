@@ -1,6 +1,5 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { sendEmail } from "./email.ts";
 import { E164, phoneForEmail, sendText, textingReady } from "./inkbox.ts";
 import { mailboxStatus, sendAsUser } from "./mailbox.ts";
 import { publish } from "./hub.ts";
@@ -152,19 +151,7 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
     // Their own Gmail / Outlook when connected; AnyDock's sender otherwise.
     const own = await sendAsUser(env, user, { to: p.to, subject: p.subject, body: p.body });
     if (own) return own;
-    // Without a sender, only local dev may "send" (to the log). In production, say so instead of pretending.
-    const local = env.BETTER_AUTH_URL.startsWith("http://localhost");
-    if (!(env.PRIMITIVE_API_KEY && env.EMAIL_FROM) && !local) return { ok: false, detail: "Email isn't set up on AnyDock yet (no sender configured)." };
-    try {
-      await sendEmail(env, {
-        to: p.to,
-        subject: p.subject,
-        text: `${p.body}\n\n—\nSent by ${user.name || user.email}'s agent via AnyDock. Reply to ${user.email}.`,
-      });
-      return { ok: true, detail: `Emailed ${p.to}.` };
-    } catch (e) {
-      return { ok: false, detail: (e as Error).message };
-    }
+    return { ok: false, detail: "Connect Gmail or Outlook to send email as yourself. AnyDock system mail cannot be used for agent actions." };
   }
   if (row.action === "phone.text") {
     const phone = E164.test(p.to) ? p.to : p.to.includes("@") ? await phoneForEmail(env.DB, p.to) : null;
@@ -275,7 +262,7 @@ delegate.get("/delegate", async (c) => {
     actions: (Object.keys(ACTIONS) as ActionKey[]).map((k) => ({ key: k, ...ACTIONS[k], decision: set.get(k) ?? ACTIONS[k].def })),
     connections: {
       slack: { available: slackReady(c.env), connected: Boolean(conn), label: conn?.label ?? null, since: conn?.createdAt ?? null },
-      email: { available: Boolean(c.env.PRIMITIVE_API_KEY && c.env.EMAIL_FROM), from: c.env.EMAIL_FROM ?? null },
+      email: { available: Boolean(c.env.EMAIL), from: c.env.SYSTEM_EMAIL_FROM ?? (c.env.EMAIL ? "login@anydock.ai" : null) },
       ...(await mailboxStatus(c.env, user.id)),
       texting: { available: textingReady(c.env) },
     },
