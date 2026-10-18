@@ -13,10 +13,10 @@ export function appPage(user: { name: string; email: string; image?: string | nu
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AnyDock</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f7f6f3; --fg:#17150f; --muted:#6b675e; --faint:#9a958a; --card:#fff; --line:#e6e2d9; --soft:#efece5; --hover:#f2f0ea;
-          --accent:#4f46e5; --accent-soft:#eef0ff; --ok:#15803d; --ok-soft:#e8f6ec; --warn:#b45309; --warn-soft:#fdf3e4; --err:#b91c1c;
+  :root { --bg:#fafafa; --fg:#0a0a0b; --muted:#5d5d66; --faint:#a1a1aa; --card:#fff; --line:#e8e8eb; --soft:#f4f4f5; --hover:#f4f4f5;
+          --accent:#2b59ff; --accent-soft:#eef2ff; --ok:#15803d; --ok-soft:#e8f6ec; --warn:#b45309; --warn-soft:#fdf3e4; --err:#b91c1c;
           --code:#1d1b16; --code-fg:#efece4; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0d0c0a; --fg:#f2f0ea; --muted:#a29d92; --faint:#76716a; --card:#16140f; --line:#29261f; --soft:#1f1c17; --hover:#1b1914;
@@ -24,14 +24,14 @@ export function appPage(user: { name: string; email: string; image?: string | nu
             --code:#050505; --code-fg:#efece4; }
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:14.5px/1.55 Inter, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14.5px/1.55 Geist, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
   a { color:inherit; text-decoration:none; }
-  code, .mono { font-family:"JetBrains Mono", ui-monospace, monospace; }
+  code, .mono { font-family:"Geist Mono", ui-monospace, monospace; }
   [hidden] { display:none !important; }
   .shell { display:grid; grid-template-columns:232px 1fr; min-height:100vh; }
   aside { border-right:1px solid var(--line); padding:16px 12px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh; }
   .brand { display:flex; align-items:center; gap:8px; font-weight:700; letter-spacing:-.02em; font-size:16px; padding:4px 8px 16px; }
-  .brand svg { color:var(--accent); }
+  .brand svg { color:var(--fg); }
   .nav a { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-radius:8px; color:var(--muted); font-weight:500; }
   .nav a:hover { background:var(--hover); color:var(--fg); }
   .nav a.on { background:var(--soft); color:var(--fg); }
@@ -42,12 +42,12 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .live i { width:7px; height:7px; border-radius:50%; background:var(--faint); }
   .live.on i { background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft); }
   main { padding:28px 36px 60px; max-width:1100px; width:100%; }
-  h1 { font-size:24px; letter-spacing:-.02em; margin:0 0 4px; }
+  h1 { font-size:26px; font-weight:500; letter-spacing:-.03em; margin:0 0 4px; }
   .lead { color:var(--muted); margin:0 0 22px; }
   .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .spacer { flex:1; }
   .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card);
-         color:var(--fg); font:500 13.5px Inter, sans-serif; cursor:pointer; white-space:nowrap; }
+         color:var(--fg); font:500 13.5px Geist, sans-serif; cursor:pointer; white-space:nowrap; }
   .btn:hover { border-color:var(--faint); }
   .btn.solid { background:var(--fg); color:var(--bg); border-color:var(--fg); }
   .btn.ghost { background:transparent; border-color:transparent; color:var(--muted); }
@@ -55,7 +55,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   input, select, textarea { font:inherit; color:var(--fg); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
   input:focus, textarea:focus, select:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
   .seg { display:inline-flex; background:var(--soft); border-radius:9px; padding:3px; gap:2px; }
-  .seg button { border:0; background:transparent; padding:5px 12px; border-radius:7px; font:500 13px Inter, sans-serif; color:var(--muted); cursor:pointer; }
+  .seg button { border:0; background:transparent; padding:5px 12px; border-radius:7px; font:500 13px Geist, sans-serif; color:var(--muted); cursor:pointer; }
   .seg button.on { background:var(--card); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; }
   .list { margin-top:16px; }
@@ -64,7 +64,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   a.item:hover { background:var(--hover); }
   .item .t { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .item .m { color:var(--muted); font-size:13px; }
-  .src { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font:600 11px "JetBrains Mono", monospace; color:#fff; }
+  .src { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font:600 11px "Geist Mono", monospace; color:#fff; }
   .src.claude-code { background:#c2410c; } .src.codex { background:#0f766e; }
   .pill { display:inline-block; font-size:11.5px; border-radius:99px; padding:1px 8px; border:1px solid var(--line); color:var(--muted); font-weight:500; }
   .pill.owner { color:var(--accent); border-color:transparent; background:var(--accent-soft); }
@@ -87,12 +87,12 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .tools input[type=search] { flex:1; }
   .steps { display:flex; flex-direction:column; gap:10px; }
   .step { display:grid; grid-template-columns:44px minmax(0, 1fr); gap:10px; scroll-margin-top:80px; }
-  .step .i { font:500 11.5px "JetBrains Mono", monospace; color:var(--faint); text-align:right; padding-top:9px; }
+  .step .i { font:500 11.5px "Geist Mono", monospace; color:var(--faint); text-align:right; padding-top:9px; }
   .step .b { border-radius:10px; padding:9px 12px; overflow-wrap:anywhere; white-space:pre-wrap; }
   .step.user .b { background:var(--soft); font-weight:500; }
   .step.assistant .b { background:var(--card); border:1px solid var(--line); }
   .step.tool .b, .step.call .b { background:transparent; padding:2px 0; white-space:normal; }
-  .step details { font:12.5px/1.5 "JetBrains Mono", monospace; }
+  .step details { font:12.5px/1.5 "Geist Mono", monospace; }
   .step summary { cursor:pointer; color:var(--muted); list-style:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .step summary::-webkit-details-marker { display:none; }
   .step summary b { color:var(--fg); font-weight:500; }
@@ -101,7 +101,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .step.flash .b { animation:flash 1.6s ease; }
   @keyframes flash { from { box-shadow:0 0 0 4px var(--accent-soft); } to { box-shadow:none; } }
   .why { margin:0 0 16px; padding:12px 14px; border-radius:10px; background:var(--accent-soft); font-size:13.5px; }
-  .why a { color:var(--accent); font-weight:600; font-family:"JetBrains Mono", monospace; cursor:pointer; margin-right:6px; }
+  .why a { color:var(--accent); font-weight:600; font-family:"Geist Mono", monospace; cursor:pointer; margin-right:6px; }
   .grid2 { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; margin-top:16px; }
   .proj { padding:16px; display:block; }
   .proj:hover { border-color:var(--faint); }
