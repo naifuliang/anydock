@@ -15,12 +15,12 @@ We are vendor-neutral, so project knowledge lives here — not in a vendor-speci
 
 - Event: YC "Make Something Agents Want" hackathon, YC SF, Oct 17–18, 2026. Submission due **Oct 18, 10:00 AM**: a 2-minute video, GitHub/code repository link, and a two-sentence description. Organizers will share the submission link in the morning and select a subset of teams for 2-minute live demos (YC chat, Oct 17).
 - Sponsors / tracks: Primitive (agent communication), Stripe (agent economy), Manufact (best MCP server), Inkbox (agent identity), InsForge (agent-native cloud), Armature (agent experience / evals), Blaxel ("something a human would never want"), Supabase.
-- **Recording plan, cast, pre-flight and script: `DEMO.md`.** Repo is private — make it public or share it before submitting.
+- **Submission (Oct 18):** two sentences — "Agents made you 10x. AnyDock — GitHub for your agents' work — makes your team 10x." Video script, cast, continuity: `DEMO.md`; production (Codex): `tasks/video-production.md`. Repo goes public at submission.
 - Hackathon reality: **aha moment and narrative matter most.** Optimize the demo story, not completeness.
 
 ## Thesis
 
-**One-liner: "Agents made individuals 10x. AnyDock makes teams 10x."**
+**One-liner: "Agents made you 10x. AnyDock — GitHub for your agents' work — makes your team 10x."**
 
 Positioning line: **"Git for work, not just code."** We are the system of record for work: every piece of work — done by a human or an agent — keeps its context, trajectory, permissions and environment, so anyone (or any agent) can pick it up.
 

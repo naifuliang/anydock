@@ -36,6 +36,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | 7 | `tasks/manufact-setup.md` | Hosted MCP and organization connector | ✅ live verified | Free fixture Running; read/deny/ask/approve/revoke verified |
 | 8 | `tasks/mcp-clients-qa.md` | Cursor / Windsurf / VS Code QA | ⚠️ prerequisite missing | CLI now installed and authenticated; target editors still absent |
 | 9 | `tasks/blaxel-setup.md` | Artifact backend sandboxes | ✅ live provider test | 15 free credits awarded; scoped secrets saved; sandbox smoke passed and deleted |
+| 10 | `tasks/video-production.md` | The 2-minute demo video (script: `DEMO.md`) | ⬜ | Nolan: Touch ID + phone moments, voice |
 
 Mark Status `✅` (done), `⏸` (waiting on Nolan) or `⚠️` (blocked — say why). Commit this file after each task.
 

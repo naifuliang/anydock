@@ -505,7 +505,10 @@ export const HERO_JS = `
   root.addEventListener("mouseenter", () => paused = true); root.addEventListener("mouseleave", () => paused = false);
   // Start when the carousel scrolls into view, so visitors see each story from its first beat.
   let started = false;
+  // ?scene=N (1-based) opens on one scene and stays there — for recording each story on its own.
+  const only = Number(new URLSearchParams(location.search).get("scene")) || 0;
   const start = () => { if (started) return; started = true;
+    if (only) return show(only - 1);
     if (!reduce) timer = setInterval(() => { if (!paused) show(i + 1); }, DUR);
     show(0); };
   new IntersectionObserver((es) => es[0].isIntersecting && start(), { threshold: 0.05 }).observe(root);
