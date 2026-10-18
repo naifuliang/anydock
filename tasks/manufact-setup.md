@@ -42,9 +42,17 @@ next; this task just prepares the account and records how deployment works.
 ## Organization connector implemented Oct 17
 
 - Account onboarding completed; dashboard organization `Anydock`, ID `fc043283-16cd-4a38-af3d-6894b14662f5`, slug `org-85c9a288-4oqpu`. Zero hosted servers. CLI remains unapproved and is not required for this REST connector.
-- New key form prepared as `AnyDock organization connector`, 30-day expiry; creation pending Nolan approval. No granular scopes offered by the form.
-- `server/src/organizations.ts`, migration `0007_organizations.sql`, Organizations dashboard and five Dock MCP tools are implemented. Local validation: 47 authorization/flow checks, script parsing, TypeScript check and CLI build. Not deployed or live-connected.
+- New key form prepared as `AnyDock organization connector`, 30-day expiry; created after Nolan approval. No granular scopes offered by the form.
+- `server/src/organizations.ts`, migration `0007_organizations.sql`, Organizations dashboard and five Dock MCP tools are implemented. Local validation: 48 authorization/flow checks, script parsing, TypeScript check and CLI build. Deployed and live-connected.
 - REST base: `https://cloud.manufact.com/api/v1`, Bearer auth. Connection validates `GET /organizations` and each allowed `GET /servers/:id`; only id/name/slug/status returned to clients. Redeploy uses `POST /deployments` with `{serverId,trigger:"redeploy",branch?}`; accepted deployment ID means submitted, not deployed. Sources: https://cloud.manufact.com/docs and https://docs.manufact.com/dashboard/api-keys.
 - Owner controls membership, encrypted connection and server grants; admin may approve another member's redeployment; members default deny. Ask expires after 15 minutes; policy, connection and membership edits cancel pending requests. Execution atomically checks current access and claims request once. Reusing a request UUID prevents duplicated submissions. Already-running upstream actions cannot be recalled.
 - MCP: `anydock_organizations`, `anydock_manufact_servers`, `anydock_manufact_server`, `anydock_manufact_redeploy`, `anydock_organization_requests`. No approval/key-management MCP tool. Agents use their human bearer identity; agent-specific tokens and SSO/project inheritance are not implemented.
 - Production verification still needs approved deployment/migration, an approved key connection and a selected real Manufact server. Do not redeploy a user's server solely to test without their authorization.
+
+## Production verification Oct 17
+
+Nolan approved creation and deployment. The 30-day key was saved through AnyDock, encrypted at rest; browser password-save prompts declined. AnyDock organization `9f454c53-716c-4b45-8c2d-84d70a941947` connects to Manufact `fc043283-16cd-4a38-af3d-6894b14662f5`; dashboard shows Connected and manufact.connected audit. No resources selected.
+
+Worker version `4be0d4ea-b7c1-4d39-af4b-e5b1f74912aa` deployed. Migration 0008 adds retry keys to already-applied 0007. Unauthenticated organization API returns 401. Initial fetch failed because Cloudflare rejects redirect:error; manual mode now rejects redirects without forwarding credentials. Connection errors report only safe stage/status.
+
+48 local checks pass. Provider has zero servers; live server reads/redeploy and multi-person approval remain unverified. No Manufact server deployment or GitHub access. CLI still deferred.

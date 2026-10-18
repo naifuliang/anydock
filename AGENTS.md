@@ -226,8 +226,8 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 
 ### Organization-controlled Manufact connector (Oct 17)
 
-- Implemented locally, not deployed: migration 0007, Organizations dashboard, owner-managed membership (owner/admin/member), encrypted per-organization connection, explicit server allowlist and per-member read/redeploy grants. Members default deny; administrators default read/ask. Only owners change membership, connections or grants.
+- Deployed Oct 17: migrations 0007/0008, Organizations dashboard, owner-managed membership (owner/admin/member), encrypted per-organization connection, explicit server allowlist and per-member read/redeploy grants. Members default deny; administrators default read/ask. Only owners change membership, connections or grants.
 - Ask requires a different owner/admin, expires after 15 minutes, and is cancelled by membership/connection/grant changes. Atomic execution claim rechecks version, permissions and approver role. Request UUID prevents duplicate upstream requests. Running operations cannot be recalled.
 - Dock MCP exposes organizations, allowed servers, projected server status, redeploy requests and request history; no approval/credential-management tools. Agents use their human bearer identity; separate agent identities and SSO/project inheritance remain future work.
 - Provider keys stay encrypted server-side; server responses omit provider config/environment. Connection, membership, grant and server actions audited. Deployment acceptance is submitted, not deployed; uncertain outcomes need provider verification before retry.
-- Local validation: 47 security/flow checks, dashboard/landing script parsing, server TypeScript and CLI build. Production migration/deployment and live Manufact connection remain pending.
+- Local validation: 48 security/flow checks, dashboard/landing script parsing, server TypeScript and CLI build. Production migrations/deployment and live Manufact organization connection verified. The 30-day key is encrypted; zero resources granted. Live server operations remain unverified because Manufact has zero servers.

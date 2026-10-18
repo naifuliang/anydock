@@ -9,6 +9,7 @@ const sql=new DatabaseSync(":memory:");
 sql.exec('pragma foreign_keys=on; create table "user"(id text primary key,email text,name text);');
 for(const user of ["owner","admin","member","outsider"])sql.prepare('insert into "user" values (?,?,?)').run(user,user+"@example.com",user);
 sql.exec(readFileSync(new URL("../migrations/0007_organizations.sql",import.meta.url),"utf8"));
+sql.exec(readFileSync(new URL("../migrations/0008_organization_request_keys.sql",import.meta.url),"utf8"));
 const DB={prepare(query){const s=sql.prepare(query);let args=[];return {bind(...values){args=values;return this;},async first(){return s.get(...args)??null;},async all(){return {results:s.all(...args)};},async run(){return {meta:s.run(...args)};}};},async batch(statements){sql.exec("begin");try{const rows=[];for(const s of statements)rows.push(await s.run());sql.exec("commit");return rows;}catch(e){sql.exec("rollback");throw e;}}};
 const env={DB,BETTER_AUTH_SECRET:"fixture-encryption-secret-only",MANUFACT_API:"https://manufact.fixture/api/v1"};
 const app=new Hono();
@@ -52,6 +53,7 @@ check((await connect("owner",otherExternal)).status===403,"key must access the s
 check((await connect("owner",external,[otherServer])).status===502,"server must belong to provider organization");
 check((await connect()).status===200,"valid connection saved");
 check(!sql.prepare("select token from organizationManufact").get().token.includes(key),"token encrypted at rest");
+check(calls.every(c=>c.redirect==="manual"),"provider redirects are not followed with credentials");
 const detail=await call("owner","GET",at(org));
 check(!JSON.stringify(detail).includes(key),"API never returns provider credentials");
 check((await call("member","GET",at(org))).data.resources.length===0,"members initially see no resources");

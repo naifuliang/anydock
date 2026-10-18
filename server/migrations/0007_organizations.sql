@@ -27,10 +27,9 @@ create table organizationGrant (
 );
 create table organizationRequest (
  id text primary key, organizationId text not null references organization(id) on delete cascade,
- userId text not null, serverId text not null, branch text, requestKey text not null,
+ userId text not null, serverId text not null, branch text,
  version text not null, status text not null, result text, decidedBy text,
- createdAt text not null, expiresAt text not null,
- unique(organizationId,userId,requestKey)
+ createdAt text not null, expiresAt text not null
 );
 create index organizationRequest_org on organizationRequest(organizationId,createdAt);
 create table organizationAudit (

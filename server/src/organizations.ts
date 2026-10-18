@@ -24,7 +24,7 @@ async function policy(env: Env, org: string, user: string, server: string, actio
 
 async function upstream(env: Env, key: string, path: string, body?: unknown) {
   const r = await fetch(`${env.MANUFACT_API ?? "https://cloud.manufact.com/api/v1"}${path}`, {
-    method: body ? "POST" : "GET", redirect: "error", signal: AbortSignal.timeout(15_000),
+    method: body ? "POST" : "GET", redirect: "manual", signal: AbortSignal.timeout(15_000),
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     ...(body ? {body:JSON.stringify(body)} : {}),
   });
@@ -100,21 +100,28 @@ organizations.put("/organizations/:org/manufact",async c => {
   if((await member(c.env.DB,org,user))?.role!=="owner")return c.json({error:"forbidden"},403);
   const p=z.object({externalId:id,apiKey:z.string().min(20).max(4096),serverIds:z.array(id).max(100)}).safeParse(await c.req.json().catch(()=>null));
   if(!p.success)return c.json({error:"invalid_body"},400);
+  let stage = "provider_validation";
   try {
     const {apiKey,externalId,serverIds}=p.data;
     const remote=await upstream(c.env,apiKey,"/organizations");
     if(!remote.organizations?.some((o:any)=>o.id===externalId))return c.json({error:"manufact_organization_not_accessible"},403);
     const conn={externalId,token:"",version:crypto.randomUUID()}, resources=[];
     for(const server of [...new Set(serverIds)])resources.push(await serverFor(c.env,apiKey,conn,server));
+    stage="encryption";
     const token=await encryptToken(c.env.BETTER_AUTH_SECRET,JSON.stringify({organizationId:org,key:apiKey}));
+    stage="storage";
     await c.env.DB.batch([cancel(c.env.DB,org),
       c.env.DB.prepare("delete from organizationGrant where organizationId=?1").bind(org),
       c.env.DB.prepare("delete from organizationResource where organizationId=?1").bind(org),
       c.env.DB.prepare("insert into organizationManufact values (?1,?2,?3,?4) on conflict(organizationId) do update set externalId=excluded.externalId,token=excluded.token,version=excluded.version").bind(org,externalId,token,conn.version),
       ...resources.map(s=>c.env.DB.prepare("insert into organizationResource values (?1,?2,?3)").bind(org,s.id,s.name??s.slug??s.id)),
     ]);
+    stage="audit";
     await audit(c.env.DB,org,user,"manufact.connected");return c.json({ok:true});
-  } catch {return c.json({error:"manufact_connection_failed"},502);}
+  } catch (error) {
+    const status = error instanceof Error ? /^Manufact request failed \((\d{3})\)$/.exec(error.message)?.[1] : undefined;
+    return c.json({error:"manufact_connection_failed", stage, message:status ? `Manufact returned HTTP ${status}` : `Manufact connection failed during ${stage}`, ...(status ? {providerStatus:Number(status)} : {})},502);
+  }
 });
 organizations.delete("/organizations/:org/manufact",async c=>{
   const org=c.req.param("org"), user=c.get("user").id;
