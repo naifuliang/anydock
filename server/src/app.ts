@@ -1,4 +1,5 @@
 // anydock.ai/app — the signed-in dashboard. One server-rendered shell; views are plain JS over the JSON API.
+import { logo } from "./icons.ts";
 import { LOGO } from "./landing.ts";
 
 const esc = (s: string) =>
@@ -64,8 +65,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   a.item:hover { background:var(--hover); }
   .item .t { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .item .m { color:var(--muted); font-size:13px; }
-  .src { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font:600 11px "Geist Mono", monospace; color:#fff; }
-  .src.claude-code { background:#c2410c; } .src.codex { background:#0f766e; }
+  .src { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; background:var(--card); border:1px solid var(--line); }
   .pill { display:inline-block; font-size:11.5px; border-radius:99px; padding:1px 8px; border:1px solid var(--line); color:var(--muted); font-weight:500; }
   .pill.owner { color:var(--accent); border-color:transparent; background:var(--accent-soft); }
   .pill.shared, .pill.project { color:var(--ok); border-color:transparent; background:var(--ok-soft); }
@@ -140,6 +140,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
 <div class="toast" id="toast"></div>
 <script>
 const BOOT = ${boot};
+const MARKS = ${JSON.stringify({ "claude-code": logo("claude", 16), codex: logo("codex", 16) })};
 ${CLIENT}
 </script>
 </body></html>`;
@@ -166,7 +167,7 @@ async function api(method, path, body) {
   return data;
 }
 function toast(text) { const t = $("#toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 3200); }
-const srcBadge = (s) => '<span class="src ' + esc(s) + '">' + (s === "codex" ? "CX" : "CC") + '</span>';
+const srcBadge = (s) => '<span class="src" title="' + srcName(s) + '">' + (MARKS[s] || MARKS["claude-code"]) + '</span>';
 const srcName = (s) => s === "codex" ? "Codex" : "Claude Code";
 const roleLabel = { owner: "yours", shared: "shared with you", assignee: "handed to you", project: "project" };
 

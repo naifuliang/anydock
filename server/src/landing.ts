@@ -1,20 +1,20 @@
 // anydock.ai/ — the landing page. Server-rendered, no bundle. White, minimal: near-black type, one blue accent,
 // a serif italic for display words, real brand marks (Simple Icons) and line icons (Lucide), and an animated relay hero.
 // Illustration slots (<figure class="art">) show a patterned fallback until /img/... exists — see tasks/image-generation.md.
-import { brand, line } from "./icons.ts";
+import { brand, line, logo } from "./icons.ts";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
 export const LOGO = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2" y="13" width="20" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="5" y="4" width="6" height="7" rx="1.5" fill="currentColor" opacity=".55"/><rect x="13" y="6" width="6" height="5" rx="1.5" fill="currentColor" opacity=".75"/></svg>`;
 
-// Codex and Slack have no openly licensed marks; use a neutral monogram tile instead of their logos.
+// Monogram tile for anything without a mark.
 const mono = (text: string, bg: string, size = 20) =>
   `<span class="mono-mark" style="width:${size}px;height:${size}px;background:${bg};font-size:${Math.round(size * 0.42)}px">${esc(text)}</span>`;
 
 type Mark = { kind: "brand"; k: string; color?: string } | { kind: "line"; k: string } | { kind: "mono"; text: string; bg: string };
 const markHtml = (m: Mark, size = 20) =>
-  m.kind === "brand" ? brand(m.k, size, m.color) : m.kind === "line" ? line(m.k, size) : mono(m.text, m.bg, size);
+  m.kind === "brand" ? logo(m.k, size, m.color) : m.kind === "line" ? line(m.k, size) : mono(m.text, m.bg, size);
 
 // An illustration slot. Shows a dotted pattern + icon until the generated image exists at /img/<file>.
 const art = (file: string, icon: string, alt: string) =>
@@ -346,7 +346,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
       <div class="chip">${LOGO}<b>AnyDock</b>context<br>trajectory<br>access</div>
     </div>
     <div class="win">
-      <div class="bar"><i></i><i></i><i></i><span class="who">jason <span class="tag">${mono("CX", "var(--cx)", 13)}Codex</span></span></div>
+      <div class="bar"><i></i><i></i><i></i><span class="who">jason <span class="tag">${logo("codex", 13)}Codex</span></span></div>
       <div class="body">
         <div class="ln u" style="animation-delay:2.4s">why did Nolan pick Primitive over Blaxel?</div>
         <div class="ln t" style="animation-delay:3s">● <b>anydock_ask_why</b> → 6 moments in Nolan's session</div>
@@ -358,9 +358,10 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
 
 <div class="strip"><div class="wrap"><span class="lab">Works with</span>
   <span class="logo">${brand("claude", 20)}Claude Code</span>
-  <span class="logo">${mono("CX", "#10a37f", 20)}Codex</span>
+  <span class="logo">${logo("codex", 20)}Codex</span>
   <span class="logo">${brand("cursor", 20)}Cursor</span>
   <span class="logo">${brand("windsurf", 20)}Windsurf</span>
+  <span class="logo">${logo("vscode", 20)}VS Code</span>
   <span class="logo">${brand("mcp", 20)}Any MCP client</span>
 </div></div>
 
@@ -461,7 +462,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
     </ul>
   </div>
   <div class="panel reveal" aria-label="Preview of the permission panel">
-    <div class="hd">${mono("CX", "var(--cx)", 32)}<div><div class="t">Jason's Codex</div><div class="s2">acts for jason@team.dev · project YC hackathon</div></div></div>
+    <div class="hd">${logo("codex", 32)}<div><div class="t">Jason's Codex</div><div class="s2">acts for jason@team.dev · project YC hackathon</div></div></div>
     ${PERMISSIONS.map(([m, a, sub, v]) => `<div class="prow"><span class="pi">${markHtml(m, 15)}</span><div class="a">${a}<span>${sub}</span></div><div class="tri">${["allow", "ask", "deny"].map((x) => `<i class="${x}${x === v ? " on" : ""}">${x === "ask" ? "Ask me" : x[0]!.toUpperCase() + x.slice(1)}</i>`).join("")}</div></div>`).join("")}
   </div>
 </div></section>
@@ -646,8 +647,8 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
     title: "Agents",
     items: [
       { name: "Claude Code", mark: { kind: "brand", k: "claude" }, what: "Captures sessions; share, hand over and ask why from inside the agent.", live: true },
-      { name: "Codex", mark: { kind: "mono", text: "CX", bg: "#10a37f" }, what: "Same tools, different vendor — pick up a Claude Code handover in Codex.", live: true },
-      { name: "Cursor & Windsurf", mark: { kind: "brand", k: "cursor", color: "#0a0a0b" }, what: "Any MCP-capable editor connects to the same AnyDock MCP server.", live: true },
+      { name: "Codex", mark: { kind: "brand", k: "codex" }, what: "Same tools, different vendor — pick up a Claude Code handover in Codex.", live: true },
+      { name: "Cursor, Windsurf, VS Code", mark: { kind: "brand", k: "cursor", color: "#0a0a0b" }, what: "Any MCP-capable editor connects to the same AnyDock MCP server.", live: true },
       { name: "Cloud sandboxes", mark: { kind: "line", k: "cloud" }, what: "Keep a handed-over agent running in a sandbox after you close your laptop.", live: false },
     ],
   },
@@ -655,7 +656,7 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
     title: "Reach people",
     items: [
       { name: "Discord", mark: { kind: "brand", k: "discord" }, what: "Post shares and handovers to a channel and ask why right from Discord.", live: false },
-      { name: "Slack", mark: { kind: "mono", text: "#", bg: "#611f69" }, what: "Notify teammates on share and handover; agents read channels you can read.", live: false },
+      { name: "Slack", mark: { kind: "brand", k: "slack" }, what: "Notify teammates on share and handover; agents read channels you can read.", live: false },
       { name: "Email", mark: { kind: "brand", k: "gmail" }, what: "Agents email people, wait for the reply and pick up attachments.", live: false },
       { name: "Phone & iMessage", mark: { kind: "brand", k: "apple", color: "#0a0a0b" }, what: "Text or call the person you handed work to when it needs them.", live: false },
     ],
@@ -681,7 +682,7 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
 ];
 
 const PERMISSIONS: [Mark, string, string, "allow" | "ask" | "deny"][] = [
-  [{ kind: "mono", text: "#", bg: "#611f69" }, "Read #growth and #eng", "Slack · same channels Jason can read", "allow"],
+  [{ kind: "brand", k: "slack" }, "Read #growth and #eng", "Slack · same channels Jason can read", "allow"],
   [{ kind: "brand", k: "discord" }, "Message teammates", "Slack · Discord", "allow"],
   [{ kind: "brand", k: "gmail" }, "Email someone outside the team", "Email", "ask"],
   [{ kind: "line", k: "phone" }, "Call or text a person", "Phone & iMessage", "ask"],
@@ -704,5 +705,5 @@ function installBox(prompt: string, cmd: string): string {
     <div class="cmd" data-pane="agent"><span class="pr">›</span><code>${esc(prompt)}</code><button class="btn copy" type="button">Copy</button></div>
     <div class="cmd" data-pane="term" hidden><span class="pr">$</span><code>${esc(cmd)}</code><button class="btn copy" type="button">Copy</button></div>
   </div>
-  <p class="fine"><span>${brand("claude", 13)}Claude Code</span><span>${mono("CX", "#10a37f", 13)}Codex</span><span>${brand("cursor", 13, "#0a0a0b")}Cursor</span><span>· private until you share</span></p>`;
+  <p class="fine"><span>${brand("claude", 13)}Claude Code</span><span>${logo("codex", 13)}Codex</span><span>${brand("cursor", 13, "#0a0a0b")}Cursor</span><span>· private until you share</span></p>`;
 }
