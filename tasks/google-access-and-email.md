@@ -6,7 +6,7 @@ files you changed**, and push. Another agent works in this repo at the same time
 
 ## Why
 
-GitHub sign-in works for everyone. Two gaps remain before teammates and judges can try AnyDock:
+GitHub sign-in works for everyone. Email delivery remains needed for the demo. Additional Google test users are deferred by Nolan (Oct 17); the recorded demo uses accounts we control. No judge accounts or judge onboarding.
 
 1. **Google sign-in only works for listed test users.** The OAuth app (project `western-pivot-512023-a8`, client
    `AnyDock web`, under `qizi297@gmail.com`) is in *Testing*, with only `qizi297@gmail.com` allowed.
@@ -19,13 +19,10 @@ GitHub sign-in works for everyone. Two gaps remain before teammates and judges c
 - Don't change other Google Cloud or account settings, and don't add scopes beyond `openid`, `email`, `profile`.
 - No redeploy is needed: `wrangler secret put` updates the live Worker.
 
-## Part 1 — Google: add test users (do this; it's quick)
+## Part 1 — Google: additional test users (deferred)
 
-1. https://console.cloud.google.com → project `western-pivot-512023-a8` → Google Auth Platform → **Audience**.
-2. Under **Test users**, add these emails (Testing mode allows up to 100):
-   - _Ask Nolan for the list of teammates' and judges' Google emails before adding; don't guess._
-3. Verify: one of the added accounts can complete **Continue with Google** at https://anydock.ai/login and lands
-   signed in on https://anydock.ai/.
+Nolan explicitly deferred adding test users on Oct 17. Keep the existing test user and scopes unchanged.
+Do not request judge email addresses or create judge accounts. Revisit only if Nolan later requests teammate access.
 
 **Don't publish the app to Production yet.** Publishing needs a privacy policy and terms URL on anydock.ai, which don't
 exist. If Nolan wants it public, stop and tell him; the other agent will add `/privacy` and `/terms` pages first.
@@ -50,6 +47,6 @@ The server already sends through Primitive when two secrets exist (`server/src/e
 
 ## Done when
 
-- [ ] At least one Google account other than `qizi297@gmail.com` can sign in with Google.
+- [ ] Additional Google test-user verification — deferred by Nolan; not required for the recorded demo.
 - [ ] An email code sent from https://anydock.ai/login arrives in a real inbox and signs in.
 - [ ] `SETUP.md` step 3 ticked and `AGENTS.md` Status updated; your commit pushed.

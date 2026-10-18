@@ -29,7 +29,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 |---|---|---|---|---|
 | 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ☐ | |
 | 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ☐ | |
-| 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, then Part 1 (Google test users; ask Nolan for the email list) | Email sign-in codes; AnyDock-sent email | ☐ | |
+| 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ☐ | |
 | 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ☐ | |
 | 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ☐ | |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ☐ | |

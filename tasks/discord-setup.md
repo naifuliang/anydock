@@ -28,7 +28,7 @@ The server registers the slash commands itself on the first connect, so you don'
    - Copy **Public Key** → `npx wrangler secret put DISCORD_PUBLIC_KEY`
 3. **Bot**
    - Click **Reset Token**, copy it → `npx wrangler secret put DISCORD_BOT_TOKEN`
-   - Leave **Public Bot** on (so other teams and judges can add it).
+   - Leave **Public Bot** on (so other teams can connect it later; judge onboarding is outside the demo scope).
    - Leave all **Privileged Gateway Intents** off.
 4. **OAuth2 → Redirects**: add both
    - `https://anydock.ai/api/discord/callback`

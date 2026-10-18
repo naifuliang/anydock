@@ -13,7 +13,7 @@ We are vendor-neutral, so project knowledge lives here — not in a vendor-speci
 
 ## Context
 
-- Event: YC "Make Something Agents Want" hackathon, YC SF, Oct 17–18, 2026. Submissions + live demos due **Oct 18, 10:00 AM**.
+- Event: YC "Make Something Agents Want" hackathon, YC SF, Oct 17–18, 2026. Submission due **Oct 18, 10:00 AM**: a 2-minute video, GitHub/code repository link, and a two-sentence description. Organizers will share the submission link in the morning and select a subset of teams for 2-minute live demos (YC chat, Oct 17).
 - Sponsors / tracks: Primitive (agent communication), Stripe (agent economy), Manufact (best MCP server), Inkbox (agent identity), InsForge (agent-native cloud), Armature (agent experience / evals), Blaxel ("something a human would never want"), Supabase.
 - Hackathon reality: **aha moment and narrative matter most.** Optimize the demo story, not completeness.
 
@@ -59,14 +59,14 @@ Vision only: **hire** an agent = a seat with no human in it.
 
 ## Demo story
 
-Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claude Code and chose what to build. Real trajectory, and the judges are the sponsors.
+Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claude Code and chose what to build. Use the real trajectory in a team-operated demo recorded as a 2-minute video. No judge accounts, judge onboarding, or judge participation are needed.
 
 1. Hook: "At my internship I spent all day copy-pasting between Slack and Claude. Am I the agent, or is it?"
 2. Open Dock App: this morning's sponsor-research session is listed.
 3. **share**: in Claude Code, "share this research with Jason" → Jason gets a Slack notification.
 4. Jason, in **Codex** (different vendor): "use Nolan's method to research next month's YC hackathon sponsors" → his agent replays the method.
-5. Main aha: a judge (e.g. from Primitive) asks "why did you pick our track?" — answered from today's real trajectory.
-6. **handover** to a judge: their phone gets an iMessage (Inkbox): "Nolan handed this to you, reply with any question." They reply; the agent answers.
+5. Main aha: we ask "why did we pick the Primitive track?" — answered from today's real trajectory, with source citations.
+6. **handover** to a teammate/demo account we control: show context and progress moving together. If Inkbox is ready, demonstrate a message on Nolan's own phone; otherwise keep this step in AnyDock. No judge interaction.
 7. **delegate**: the agent tries to call someone; the permission panel says "ask me" → approval pops up → call goes out.
 8. Close: "Agents made individuals 10x. AnyDock makes teams 10x." / "The person leaves. The work doesn't."
 
@@ -94,7 +94,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 - Product name: **AnyDock** everywhere — domain `anydock.ai`, GitHub repo `naifuliang/anydock`, npm package and CLI command `anydock` (e.g. `anydock login`, `anydock app`, `anydock mcp`). The local folder is still `relay/`.
 - Cloud: Cloudflare (existing account and domain). Old AnyDock worker deleted Oct 17; old D1/R2/KV kept; old code archived at `naifuliang/anydock-legacy`.
 - Local client ships as a local web UI first.
-- Demo scenario: the sponsor-research session from this hackathon.
+- Demo scenario: the sponsor-research session from this hackathon. Oct 17 update: prioritize our own recorded 2-minute demo; no judge accounts or judge participation. Additional Google test users are deferred at Nolan's request.
 
 ## Repo layout
 
