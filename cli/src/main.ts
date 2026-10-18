@@ -39,6 +39,7 @@ Usage:
   anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
   anydock artifact grant <app-id> slack.post,email.external [--days N] [--to a,b]   Give an app some of your permissions (you approve)
   anydock artifact delete <id>                       Delete one you own, for everyone (you approve)
+  anydock link [/path]                         A one-time sign-in link for a browser you drive (default /app)
   anydock open <artifact-id> [--link]           Open it (a native window on Mac, else the browser); --link prints a
                                                 one-time sign-in link for a built-in browser instead
   anydock mcp install | uninstall               Add AnyDock tools + skill to Claude Code and Codex
@@ -180,6 +181,11 @@ async function main(): Promise<void> {
     case "artifact":
     case "artifacts":
       return console.log(await artifactCommand(arg ?? "list", positionals.slice(2), values));
+
+    case "link":
+      // A one-time sign-in link for a browser the agent drives (default: the dashboard). Signs it in as this agent.
+      requireLogin();
+      return console.log(await signInLink(arg && arg.startsWith("/") ? arg : "/app"));
 
     case "open": {
       if (!arg) throw new Error("Usage: anydock open <artifact-id>");

@@ -394,7 +394,7 @@ function docView() {
     const el = $("#s-" + id); if (!el) return;
     const body = el.querySelector(".prose, .todo"); if (body) body.classList.add("arrive");
     el.style.setProperty("--fc", by ? colorOf(by.id) : "var(--accent)"); el.classList.add("flash");
-    if (by && by.via === "agent") el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (by && by.via === "agent" && !editing) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   VIEW = {
     event(ev) {

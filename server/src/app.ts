@@ -289,7 +289,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
 
   @media (max-width: 1100px) { .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); } .igrid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 900px) {
-    .shell { grid-template-columns:minmax(0, 1fr); }
+    .shell { grid-template-columns:minmax(0, 1fr); grid-template-rows:auto 1fr; align-items:start; }
     aside { position:sticky; top:0; z-index:20; height:auto; flex-direction:row; align-items:center; gap:4px; border-right:0; border-bottom:1px solid var(--line); padding:8px 10px; overflow-x:auto; }
     .brand { padding:4px 8px; } .brand span.name, .who, .navsec, .quick, .foot { display:none; }
     .nav { display:flex; gap:2px; } .nav a { padding:7px 10px; white-space:nowrap; } .nav a span.label { display:none; }
@@ -383,8 +383,10 @@ function connectLive(attempt = 0) {
     let ev; try { ev = JSON.parse(m.data); } catch { return; }
     if (ev.type === "inbox.new") {
       const i = ev.item;
-      toast((i.fromName || short(i.fromEmail)) + (i.kind === "handover" ? " handed over " : " shared ") + "“" + i.workTitle + "”");
+      toast((i.fromName || short(i.fromEmail)) + (/handover/.test(i.kind) ? " handed over " : " shared ") + "“" + (i.artifactTitle || i.workTitle || "something") + "”");
       refreshUnread();
+      // The Inbox and Overview list it right away.
+      if (["", "#", "#/", "#/inbox", "#/artifacts"].includes(location.hash.split("?")[0])) route();
     }
     if (ev.type === "action.new" && ev.action.status === "pending") showApproval(ev.action);
     if (ev.type === "action.updated") { document.getElementById("ap-" + ev.action.id)?.remove(); refreshPending(); }

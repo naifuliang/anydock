@@ -188,7 +188,10 @@ const tools: Tool[] = [
       if (items.length === 0) return "Inbox is empty.";
       return items
         .map((i) =>
-          `- ${i.readAt ? "" : "[new] "}${i.kind === "handover" ? "Handover" : "Shared"} from ${i.fromName || i.fromEmail}: "${i.workTitle}" (work ${i.workId}, ${i.createdAt.slice(0, 16).replace("T", " ")})` +
+          `- ${i.readAt ? "" : "[new] "}${/handover/.test(i.kind) ? "Handover" : "Shared"} from ${i.fromName || i.fromEmail}: ` +
+          (i.artifactId
+            ? `${i.artifactKind ?? "artifact"} "${i.artifactTitle}" (artifact ${i.artifactId}${i.workId ? `, work ${i.workId}` : ""}, ${i.createdAt.slice(0, 16).replace("T", " ")})`
+            : `"${i.workTitle}" (work ${i.workId}, ${i.createdAt.slice(0, 16).replace("T", " ")})`) +
           (i.body ? `\n  note: ${i.body}` : ""),
         )
         .join("\n");

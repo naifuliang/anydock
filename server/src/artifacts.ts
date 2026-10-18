@@ -324,7 +324,10 @@ artifacts.delete("/artifacts/:id", async (c) => {
 export async function deleteArtifact(env: Env, id: string) {
   const files = await env.DB.prepare(`select "r2Key" from "artifactFile" where "artifactId" = ?1`).bind(id).all<{ r2Key: string }>();
   if (files.results.length) await env.TRAJECTORIES.delete(files.results.map((f) => f.r2Key));
-  await env.DB.prepare(`delete from "artifact" where "id" = ?1`).bind(id).run();
+  await env.DB.batch([
+    env.DB.prepare(`delete from "inboxItem" where "artifactId" = ?1`).bind(id), // an added column: its cascade isn't relied on
+    env.DB.prepare(`delete from "artifact" where "id" = ?1`).bind(id),
+  ]);
 }
 
 // ---------- sections (doc, slides, latex, html) ----------
