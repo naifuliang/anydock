@@ -115,3 +115,11 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 
 - Nolan completed qizi297@outlook.com web sign-in. Changed its AnyDock display name from Naifu Liang to Jason; verified after reload. Renamed Edge Profile 2 to Jason through browser settings and closed the temporary settings window. Main Gmail account was also observed displaying Nolan.
 - Started isolated AnyDock CLI login with `ANYDOCK_HOME=~/.anydock-jason`. Opened a separate single-page authorization window in Edge Jason and entered its device code. Stopped before Continue/Approve for Nolan; CLI authorization remains pending.
+
+### Recording blocker — CLI account isolation
+
+- Nolan completed Jason's device authorization. Isolated login succeeded as qizi297@outlook.com.
+- Before seeding or recording, explicit `ANYDOCK_HOME=/Users/nolanliang/.anydock` and `ANYDOCK_HOME=/Users/nolanliang/.anydock-jason` calls to `anydock whoami` BOTH returned qizi297@outlook.com. Local config user emails remain Gmail and Outlook respectively; both use `tokenStore: keychain`.
+- Read-only diagnosis: `cli/src/config.ts` passes only the server URL to `readToken`/`writeToken`; `cli/src/secret.ts` uses fixed service `ai.anydock.cli` and that server URL as the Keychain account. The two homes therefore share a credential entry despite separate config folders. Jason login overwrote the shared credential used by Nolan.
+- Stopped production under the product-misbehavior rule; no credential workaround or product-code change performed. Fix and verify home-scoped Keychain isolation before resuming; Nolan may need to reauthorize his CLI afterward. No raw clips or seed session created.
+- Every recording page must continue to use its own separate single-page window, per Nolan's reiterated requirement.
