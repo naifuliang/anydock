@@ -158,10 +158,10 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | Claude Code, Codex | Live: session capture + MCP (auto-registered by `anydock mcp install`) | — |
 | Cursor, Windsurf, VS Code | MCP config documented in `/agents.md`; **not yet tested** | Codex: `tasks/mcp-clients-qa.md` |
 | GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
-| Email sign-in codes (Primitive) | Code done; no key yet | Codex: `tasks/google-access-and-email.md` |
+| Email sign-in codes (Primitive) | Configured; production code email arrived in real Outlook inbox Oct 17 | Complete email-code login session check |
 | Discord | Code done (project channels, cards, `/anydock`); no bot yet | Codex: `tasks/discord-setup.md` |
 | Slack (delegate: post as you + approval DMs) | Code done + tested with a mock Slack; needs the Slack app + secrets | Codex: `tasks/slack-app-setup.md` |
-| Email on your behalf | Code done; needs Primitive key (prod refuses to "send" without a sender) | Codex: `tasks/google-access-and-email.md` |
+| Email on your behalf | Primitive key and sender configured; delegated send flow not yet tested | Verify through permissions flow |
 | Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | Not built | Codex: `tasks/email-accounts-setup.md`; Claude: connector code |
 | Armature (MCP analytics), Manufact (hosted MCP) | Not built | Codex: `tasks/armature-setup.md`, `tasks/manufact-setup.md` |
 | Phone / SMS / iMessage (Inkbox) | Not built | Codex: `tasks/inkbox-setup.md` (optional); Claude: connector code |
@@ -199,7 +199,7 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 - [x] **Live at https://anydock.ai** (deployed Oct 17): home page with install command, login + device pages, API, `curl -fsSL https://anydock.ai/install.sh | sh`, self-updating CLI. Remote D1 migrated, `BETTER_AUTH_SECRET` set.
 - [x] Production GitHub and Google OAuth sign-in verified end to end (Oct 17). Reused GitHub app 3892579, corrected callback to `/api/auth/callback/github`, and saved both credentials in Cloudflare; authenticated `/api/me` returned `qizi297@outlook.com`. Google project `western-pivot-512023-a8` under `qizi297@gmail.com`, client `AnyDock web`; both credentials in Cloudflare, callback and authenticated `/api/me` verified for `qizi297@gmail.com`. Google remains in Testing with that test user.
 - [x] Local GitHub and Google OAuth configured in gitignored `server/.dev.vars` (0600), using localhost:8787. Both browser logins and authenticated `/api/me` verified Oct 17. GitHub app supports both production and localhost callbacks; Google Data Access explicitly saved with only openid/email/profile.
-- [ ] Email sender remains missing; email sign-in codes only appear in `cd server && npx wrangler tail`. Primitive setup is explicitly retained as an open to-do in SETUP.md at the user's request.
+- [x] Primitive configured Oct 17: AnyDock organization via GitHub `naifuliang` (`qizi297@outlook.com`), $100 hackathon credits redeemed with no expiry; `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved through Wrangler. Production sign-in email from `login@lush-fig.primitive.email` arrived in the real Outlook inbox. Final email-code sign-in session remains unverified (connector withholds OTP).
 - [ ] Not yet installed into Nolan's real Claude Code / Codex config (`anydock mcp install`).
 - [ ] Next candidates: localhost UI, distill (summary + method), delegate actions (Slack / email / call) + permission panel.
 

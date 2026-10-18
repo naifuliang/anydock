@@ -29,16 +29,15 @@ Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@g
 - [x] Dev: Google credentials saved in gitignored `server/.dev.vars` (mode 0600); `BETTER_AUTH_URL=http://localhost:8787`. Local login and authenticated `/api/me` verified for `qizi297@gmail.com`.
 - [x] Google Data Access saved with exactly `openid`, `userinfo.email`, and `userinfo.profile`; no sensitive or restricted scopes.
 
-## 3. Email codes via Primitive (sponsor) — OPEN TODO
+## 3. Email codes via Primitive — configured, delivery verified
 
-Explicitly retained on the to-do list at the user's request (Oct 17). This is separate from completed OAuth setup.
+Oct 17: signed in via existing GitHub `naifuliang` (`qizi297@outlook.com`), created the **AnyDock** organization, and accepted terms with Nolan's explicit approval. Redeemed `AGENTS-WANT-IT-ALL`: dashboard confirmed **$100 credits, no expiry** (in addition to the Developer allowance).
 
-Without these, sign-in codes are only printed in the server log (fine for local dev).
-
-- [ ] Sign up at https://primitive.dev and create an API key
-- [ ] Note your managed subdomain (e.g. `brave-otter.primitive.email`); the sender will be `login@<subdomain>`
-- [ ] Production: `npx wrangler secret put PRIMITIVE_API_KEY` and `npx wrangler secret put EMAIL_FROM` (value `login@<subdomain>`)
-- [ ] Send yourself one test email first. New accounts can get `403 recipient_not_allowed` on the first send to an outside address; the error response explains how to unlock it.
+- [x] Primitive account and API key `AnyDock production email` created with Nolan's approval.
+- [x] Managed domain: `lush-fig.primitive.email`; sender `login@lush-fig.primitive.email`.
+- [x] Production secrets `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved through Wrangler. Key never written to a file or printed in logs.
+- [x] Production sign-in-code request returned success; Outlook connector verified the real email arrived at `qizi297@outlook.com` from the configured sender (Oct 17, 8:53 PM PDT).
+- [ ] Completing sign-in with the delivered code remains unverified. The mailbox connector withholds one-time authentication codes; Nolan can complete this check directly.
 
 ## 4. Server secret
 
@@ -48,6 +47,6 @@ Without these, sign-in codes are only printed in the server log (fine for local 
 
 - [x] Deployed to `https://anydock.ai` (Oct 17). Redeploy any time with `cd server && npm run deploy`.
 
-## Email-code fallback (until step 3 is done)
+## Email login verification
 
-GitHub and Google production OAuth sign-in are verified. Email sign-in codes are still only written to the Worker log. To use email codes: run `cd server && npx wrangler tail` in one terminal, request a code on https://anydock.ai/login, and read it from the log line `[email:dev] … sign-in code is NNNNNN`.
+GitHub and Google OAuth remain verified. Primitive email delivery is now verified; complete a fresh email-code login at https://anydock.ai/login to verify the final session. Never publish codes or credentials.

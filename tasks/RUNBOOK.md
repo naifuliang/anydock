@@ -29,7 +29,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 |---|---|---|---|---|
 | 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ☐ | |
 | 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ☐ | |
-| 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ☐ | |
+| 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ⏸ delivery verified | Nolan to complete final email-code login; Google test users deferred |
 | 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ☐ | |
 | 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ☐ | |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ☐ | |
@@ -58,10 +58,10 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 
 ## Summary
 
-- Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (names only).
+- Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; added `PRIMITIVE_API_KEY` and `EMAIL_FROM` (names only).
 - Google test users deferred by Nolan; demo will be recorded by the team, without judge accounts or judge interaction.
 - Slack: old app `A0C508BD6ET` exists in New Workspace, with old scopes and no redirects. Nolan requested a fresh app; preserve the old one.
 - Discord developer portal is signed out; requires Nolan's sign-in.
-- Primitive GitHub read-only profile/email authorization and terms accepted with Nolan's explicit approval; AnyDock organization created under the existing account. The $100 hackathon credit was redeemed; dashboard confirms no expiry. Sender/API setup is in progress.
+- Primitive GitHub read-only profile/email authorization and terms accepted with Nolan's explicit approval; AnyDock organization created under the existing account. The $100 hackathon credit was redeemed; dashboard confirms no expiry. `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved via Wrangler; production code email delivered to the real Outlook inbox at 8:53 PM PDT. Final code-login session remains unverified because the connector withholds OTP.
 - MCP client QA: `/Users/nolanliang/.anydock/bin/anydock` is absent; Cursor, Windsurf and VS Code were not found in `/Applications`. No live client compatibility claim verified.
 
