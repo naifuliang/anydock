@@ -15,6 +15,7 @@ We are vendor-neutral, so project knowledge lives here — not in a vendor-speci
 
 - Event: YC "Make Something Agents Want" hackathon, YC SF, Oct 17–18, 2026. Submission due **Oct 18, 10:00 AM**: a 2-minute video, GitHub/code repository link, and a two-sentence description. Organizers will share the submission link in the morning and select a subset of teams for 2-minute live demos (YC chat, Oct 17).
 - Sponsors / tracks: Primitive (agent communication), Stripe (agent economy), Manufact (best MCP server), Inkbox (agent identity), InsForge (agent-native cloud), Armature (agent experience / evals), Blaxel ("something a human would never want"), Supabase.
+- **Recording plan, cast, pre-flight and script: `DEMO.md`.** Repo is private — make it public or share it before submitting.
 - Hackathon reality: **aha moment and narrative matter most.** Optimize the demo story, not completeness.
 
 ## Thesis
