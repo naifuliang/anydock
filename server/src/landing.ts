@@ -636,10 +636,10 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
   {
     title: "Reach people",
     items: [
-      { name: "Discord", mark: { kind: "brand", k: "discord" }, what: "Post shares and handovers to a channel and ask why right from Discord.", live: false },
-      { name: "Slack", mark: { kind: "brand", k: "slack" }, what: "Notify teammates on share and handover; agents read channels you can read.", live: false },
-      { name: "Email", mark: { kind: "brand", k: "gmail" }, what: "Agents email people, wait for the reply and pick up attachments.", live: false },
-      { name: "Phone & iMessage", mark: { kind: "brand", k: "apple", color: "#0a0a0b" }, what: "Text or call the person you handed work to when it needs them.", live: false },
+      { name: "Discord", mark: { kind: "brand", k: "discord" }, what: "Post shares and handovers to a channel and ask why right from Discord.", live: true },
+      { name: "Slack", mark: { kind: "brand", k: "slack" }, what: "Agents post as you; approvals arrive as DMs with Approve / Deny buttons.", live: true },
+      { name: "Email", mark: { kind: "brand", k: "gmail" }, what: "Agents email from your own Gmail — outside the team waits for your OK.", live: true },
+      { name: "Phone & iMessage", mark: { kind: "brand", k: "apple", color: "#0a0a0b" }, what: "iMessage the person you handed work to, through Inkbox. Calls next.", live: true },
     ],
   },
   {
