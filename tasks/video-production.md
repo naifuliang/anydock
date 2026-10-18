@@ -146,3 +146,14 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Read-only diagnosis: `cli/src/config.ts` passes only the server URL to `readToken`/`writeToken`; `cli/src/secret.ts` uses fixed service `ai.anydock.cli` and that server URL as the Keychain account. The two homes therefore share a credential entry despite separate config folders. Jason login overwrote the shared credential used by Nolan.
 - Stopped production under the product-misbehavior rule; no credential workaround or product-code change performed. Fix and verify home-scoped Keychain isolation before resuming; Nolan may need to reauthorize his CLI afterward. No raw clips or seed session created.
 - Every recording page must continue to use its own separate single-page window, per Nolan's reiterated requirement.
+
+### Preparation resumed after identity fix
+
+- Verified explicit default and Jason homes return qizi297@gmail.com and qizi297@outlook.com respectively. Previous Keychain isolation blocker is resolved.
+- Prepared isolated ~/.codex-jason auth copy, AnyDock skill and config with both ANYDOCK_HOME and CODEX_HOME on the MCP. `codex mcp list` shows AnyDock enabled; interactive /mcp still pending.
+- Created YC hackathon project (adc2dc7c-a3f7-43f6-aee4-65e7fd3d78ea), added Jason, and verified the project appears in Jason's browser with 2 members.
+- Set Jason's handover phone to Nolan's existing saved profile number and enabled handover texts; UI confirmed Saved. Phone is intentionally not copied into this log.
+- Nolan's permission page visually confirms Slack Allow, external email Ask me, Slack connected to New Workspace and Gmail connected to the demo Gmail account. Jason demo window is single-tab Inbox at 110% zoom.
+- Seed attempt via a new named Claude Code session stopped with `Failed to authenticate: OAuth session expired and could not be refreshed`. No research completed, no false seed completion claimed. Nolan must reauthenticate Claude Code before retrying.
+- Computer-use tool explicitly rejected Terminal with `Computer Use is not allowed to use the app 'com.apple.Terminal' for safety reasons.` No alternate UI automation used to bypass it. Asked Nolan to prepare two independent terminal windows.
+- Remaining: Claude sign-in, interactive agent checks, Slack #launch, test-artifact cleanup, Focus/layout/wallpaper, full dry run with Nolan, all raw clips and narration. No recordings yet.
