@@ -87,3 +87,10 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Created an isolated Edge profile (currently “Profile 2”) without importing personal data; light appearance, AnyDock login page open. Nolan must sign in as qizi297@outlook.com; profile rename to Jason and CLI device approval remain pending. No login or approval performed by the agent.
 - Free macOS English voice samples generated: `../video/voice/sample-Samantha.wav` (19.5 s), `sample-Daniel.wav` (21.1 s), `sample-Karen.wav` (20.9 s). Same excerpt at 165 words/min; Nolan's selection pending. Source text: `../video/voice/sample-script.txt`.
 - No raw footage, seed session, dry run, or completed stage claimed yet.
+
+### Qwen3-TTS voice audition
+
+- Nolan rejected the macOS system voices for unnatural pauses; Kokoro audition delivered, then Nolan requested Qwen3-TTS with natural rhythm and emotion. No final voice chosen.
+- Local Qwen3-TTS 1.7B CustomVoice 6-bit ran successfully through MLX on this M2 / 16 GB Mac; both weight files matched the publisher's SHA-256 after the interrupted download was retried. No paid service used.
+- New auditions: `../video/voice/qwen-warm.wav` (Ryan, 26.32 s, warm conversational storytelling) and `../video/voice/qwen-confident.wav` (Aiden, 16.72 s, brighter product-demo delivery). Same excerpt, continuous model generation with style instructions. Peak amplitudes 0.723 / 0.555, below clipping. Nolan's listening judgment is pending.
+- Full narration, Jason sign-in, staging, seed session and raw footage are still pending.
