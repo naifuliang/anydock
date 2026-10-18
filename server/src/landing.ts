@@ -656,8 +656,17 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
     items: [
       { name: "Permission panel", mark: { kind: "line", k: "shield-check" }, what: "Allow, ask me, or deny — per action, with approvals and an activity log.", live: true },
       { name: "Stripe", mark: { kind: "brand", k: "stripe" }, what: "Budgets for agents: spend up to a limit, ask above it, revoke anytime.", live: false },
-      { name: "Okta / SSO", mark: { kind: "brand", k: "okta", color: "#0a0a0b" }, what: "Org-wide identity, so agent permissions follow your directory.", live: false },
+      { name: "Mac approvals", mark: { kind: "line", k: "lock" }, what: "Your own agent asks; you approve with Touch ID or your Mac password — never the agent.", live: true },
       { name: "Audit log", mark: { kind: "line", k: "scroll" }, what: "Every agent action, who approved it and where — in your activity log.", live: true },
+    ],
+  },
+  {
+    title: "Plugs into your SSO",
+    items: [
+      { name: "Okta", mark: { kind: "brand", k: "okta", color: "#0a0a0b" }, what: "Sign in with Okta; its groups become teams, so agent rules follow your org chart.", live: false },
+      { name: "Microsoft Entra ID", mark: { kind: "brand", k: "microsoft" }, what: "Admin-consent Outlook and Teams once for a group — nobody clicks OAuth.", live: false },
+      { name: "Google Workspace", mark: { kind: "brand", k: "google" }, what: "Domain-wide access for Gmail and Drive, scoped to the people AnyDock acts for.", live: false },
+      { name: "SCIM directory sync", mark: { kind: "line", k: "users" }, what: "People, teams and managers sync in; someone leaves and their agents lose access.", live: false },
     ],
   },
 ];
