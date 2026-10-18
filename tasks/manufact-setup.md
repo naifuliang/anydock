@@ -37,4 +37,4 @@ next; this task just prepares the account and records how deployment works.
 - Build/start use the project's package.json scripts, overridable per server; monorepos can choose a root directory. Framework examples export the server from the entry module. See https://docs.manufact.com/dashboard/build-runtimes.
 - Production/preview environment variables and secrets are configured in the dashboard; changes take effect on the next deployment, not immediately. See https://docs.manufact.com/dashboard/environment-variables.
 - Docs show canonical `https://<slug>.deploy.mcp-use.com/mcp` and also examples under `<slug>.run.mcp-use.com/mcp`; use the actual URL printed by a successful deployment rather than guessing. No deployment performed.
-- Login page is ready; continuing accepts TOS and Privacy, so Nolan's confirmation is pending. Google OAuth is preferred per Nolan.
+- TOS/Privacy accepted with Nolan's confirmation; account created via Google OAuth `qizi297@gmail.com`, website anydock.ai. CLI device approval was not granted and the waiting process was cancelled; defer CLI login because the current Cloudflare demo does not need Manufact deployment.
