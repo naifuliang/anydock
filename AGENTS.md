@@ -100,6 +100,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 
 - `server/` — Cloudflare Worker (`anydock`): Hono + Better Auth on D1.
   - `src/index.ts` routes · `src/auth.ts` Better Auth config (shared with the schema generator) · `src/pages.ts` sign-in and device-approval pages · `src/email.ts` Primitive sender (logs the email when unconfigured).
+  - `src/landing.ts` the landing page at `/` (hero story, three verbs, **connectors grid** — `CONNECTOR_GROUPS`, each `live: true|false`; flip to true as integrations ship — and the permission-panel preview). `src/app.ts` the signed-in dashboard at `/app`: one HTML shell + vanilla JS hash routes (`#/` works, `#/inbox`, `#/w/:id` trajectory viewer with live steps / ask why / share / handover / project, `#/projects`, `#/p/:id`, `#/settings` connections). `src/projects.ts` Projects API.
   - `src/works.ts` Works API · `src/hub.ts` `UserHub` Durable Object (live push) · `src/types.ts` shared types.
   - `migrations/0001_auth.sql` is **generated** (`npm run gen:auth-schema`) — regenerate after changing auth plugins, never hand-edit. `0002_anydock.sql` holds our tables: `project`, `projectMember`, `work`, `share`, `inboxItem`; `0003_assignee.sql` adds `work.assigneeId/assigneeEmail`.
   - Test: `test/e2e.mjs` — two/three-user end-to-end run against `wrangler dev` (`npm run test:e2e -- dev.log`). Run it after server changes.
@@ -135,6 +136,9 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 | `POST /works/:id/share` · `/handover` | `{to: email, note}`. Works before the recipient has an account (bound on their first sign-in). Handover sets the assignee | owner or assignee |
 | `GET /works/:id/shares` · `DELETE /shares/:id` | List / revoke shares | owner/assignee · creator or owner |
 | `GET /inbox?unread=1` · `POST /inbox/:id/read` | Shares, handovers (later: questions) | — |
+| `POST /projects` · `GET /projects` · `GET /projects/:id` | Create; list mine (with member/work counts); detail with members + linked works | member |
+| `POST /projects/:id/members` · `DELETE /projects/:id/members/:userId` | Add by email (needs an existing account) · remove (owner) or leave | member · owner |
+| `PUT /works/:id/project` | `{projectId \| null}` — link/unlink; sets visibility `project` (or back to `shared`/`private`) | owner |
 | `GET /live` (WebSocket) | Events `inbox.new`, `work.updated`; CLI passes `?token=` | — |
 
 Access rules: **owner** (uploads, created it) · **assignee** (current responsible person after a handover) · **shared** (explicit share, until revoked) · **project** (member of the linked project and `visibility = project`). Missing and forbidden both return 404. Raw trajectories live in R2 at `works/<id>/trajectory.json`.

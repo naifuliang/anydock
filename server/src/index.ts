@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import { createAuth } from "./auth.ts";
-import { devicePage, homePage, loginPage } from "./pages.ts";
+import { appPage } from "./app.ts";
+import { landingPage } from "./landing.ts";
+import { devicePage, loginPage } from "./pages.ts";
 import type { AppEnv, Env } from "./types.ts";
+import { projects } from "./projects.ts";
 import { works } from "./works.ts";
 
 export { UserHub } from "./hub.ts";
@@ -27,6 +30,7 @@ app.get("/api/me", (c) => {
   return c.json({ user: { id, name, email, image } });
 });
 
+app.route("/api", projects);
 app.route("/api", works);
 
 const providers = (env: Env) => ({
@@ -34,7 +38,13 @@ const providers = (env: Env) => ({
   google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
 });
 
-app.get("/", (c) => c.html(homePage(c.get("session")?.user ?? null, new URL(c.req.url).origin)));
+app.get("/", (c) => c.html(landingPage({ signedIn: Boolean(c.get("session")), origin: new URL(c.req.url).origin })));
+
+app.get("/app", (c) => {
+  const session = c.get("session");
+  if (!session) return c.redirect("/login?next=/app");
+  return c.html(appPage(session.user, new URL(c.req.url).origin));
+});
 
 app.get("/login", (c) => {
   const next = safeNext(c.req.query("next"));

@@ -91,6 +91,18 @@ await call(alice, "DELETE", `/api/shares/${sh.data.share.id}`);
 check("after revoke bob loses access", (await call(bob, "GET", `/api/works/${workId}`)).status === 404);
 check("unauthenticated is 401", (await call(null, "GET", "/api/works")).status === 401);
 
+// Projects: alice creates one, adds bob, links the work; bob sees it through the project.
+const proj = (await call(alice, "POST", "/api/projects", { name: "Hackathon" })).data?.project;
+check("create project", proj?.role === "owner");
+check("add member needs an account", (await call(alice, "POST", `/api/projects/${proj.id}/members`, { email: `nobody+${run}@example.com` })).status === 404);
+check("add member", (await call(alice, "POST", `/api/projects/${proj.id}/members`, { email: `bob+${run}@example.com` })).status === 201);
+check("non-owner can't link others' work", (await call(bob, "PUT", `/api/works/${workId}/project`, { projectId: proj.id })).status === 404);
+check("owner links work to project", (await call(alice, "PUT", `/api/works/${workId}/project`, { projectId: proj.id })).data?.visibility === "project");
+check("member sees work via project", (await call(bob, "GET", "/api/works")).data?.works?.some((w) => w.id === workId && w.role === "project"));
+const pd = (await call(bob, "GET", `/api/projects/${proj.id}`)).data;
+check("project detail lists members and works", pd?.members?.length === 2 && pd.works.some((w) => w.id === workId));
+check("outsider can't see project", (await call(carol, "GET", `/api/projects/${proj.id}`)).status === 404);
+
 bobLive.ws.close();
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
 process.exit(failures ? 1 : 0);

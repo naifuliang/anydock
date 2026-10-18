@@ -60,55 +60,6 @@ ${script}
 </body></html>`;
 }
 
-// Two ways in: one shell command, or one prompt for whatever agent the user already runs.
-function installBlock(origin: string): string {
-  const prod = origin === "https://anydock.ai";
-  const cmd = prod ? "curl -fsSL https://anydock.ai/install.sh | sh" : `curl -fsSL ${origin}/install.sh | ANYDOCK_SERVER=${origin} sh`;
-  const prompt = `Set up AnyDock for me: follow ${origin}/agents.md`;
-  return `<div class="tabs" role="tablist">
-       <button type="button" role="tab" class="tab on" data-tab="agent">Ask your agent</button>
-       <button type="button" role="tab" class="tab" data-tab="term">Terminal</button>
-     </div>
-     <div data-pane="agent">
-       <label>Paste into Claude Code, Codex, Cursor…</label>
-       <div class="cmd"><code>${esc(prompt)}</code><button type="button" class="copy">Copy</button></div>
-     </div>
-     <div data-pane="term" hidden>
-       <label>macOS / Linux, Node 22+</label>
-       <div class="cmd"><code>${esc(cmd)}</code><button type="button" class="copy">Copy</button></div>
-     </div>
-     <p class="fine">Signs you in through the browser, connects Claude Code and Codex, and starts background sync.
-       Nothing leaves your machine until you say <em>"share this with jason@company.com"</em>.</p>`;
-}
-
-const INSTALL_SCRIPT = `
-document.querySelectorAll(".copy").forEach((b) => b.onclick = async () => {
-  await navigator.clipboard.writeText(b.previousElementSibling.textContent);
-  b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1500);
-});
-document.querySelectorAll(".tab").forEach((t) => t.onclick = () => {
-  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === t));
-  document.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== t.dataset.tab);
-});`;
-
-export function homePage(user: { name: string; email: string } | null, origin: string): string {
-  if (!user) {
-    return layout(
-      "AnyDock",
-      `<h1>Agents made individuals 10x.</h1><p>AnyDock makes teams 10x: share and hand over your agent's work — context, trajectory and all — to teammates and their agents.</p>
-       ${installBlock(origin)}<a class="btn" href="/login">Sign in</a>`,
-      INSTALL_SCRIPT,
-    );
-  }
-  return layout(
-    "AnyDock",
-    `<h1>Signed in</h1><p>${esc(user.name || user.email)} · ${esc(user.email)}</p>
-     ${installBlock(origin)}<button id="out">Sign out</button><div id="msg" class="msg"></div>`,
-    `${INSTALL_SCRIPT}
-     document.getElementById("out").onclick = async () => { await api("/api/auth/sign-out", {}); location.href = "/"; };`,
-  );
-}
-
 export function loginPage(opts: { next: string; providers: { github: boolean; google: boolean } }): string {
   const social = [
     opts.providers.github ? `<button data-provider="github">Continue with GitHub</button>` : "",
