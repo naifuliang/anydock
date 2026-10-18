@@ -10,6 +10,7 @@ import { devicePage, loginPage } from "./pages.ts";
 import type { AppEnv, Env } from "./types.ts";
 import { projects } from "./projects.ts";
 import { works } from "./works.ts";
+import { organizations } from "./organizations.ts";
 
 export { UserHub } from "./hub.ts";
 
@@ -39,6 +40,7 @@ app.route("/api", discord);
 app.route("/api", delegate);
 app.route("/api", mailbox);
 app.route("/api", profile);
+app.route("/api", organizations);
 app.route("/api", projects);
 app.route("/api", works);
 

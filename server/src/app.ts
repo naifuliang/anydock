@@ -3,6 +3,7 @@
 // real brand marks and Lucide line icons.
 import { line, logo } from "./icons.ts";
 import { LOGO } from "./landing.ts";
+import { ORGANIZATION_UI } from "./organization-ui.ts";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
@@ -108,6 +109,11 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .seg button { border:0; background:transparent; padding:6px 13px; border-radius:8px; font:500 13px Geist, sans-serif; color:var(--muted); cursor:pointer; }
   .seg button.on { background:#fff; color:var(--text); box-shadow:0 1px 2px rgba(10,10,12,.1); }
 
+  .orgcard { padding:20px; overflow-wrap:anywhere; }
+  .orgform { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; align-items:end; margin:12px 0; }
+  .orgform label { display:flex; flex-direction:column; gap:6px; min-width:0; font-size:13px; }
+  .orgform input,.orgform select,.orgform textarea { width:100%; min-width:0; }
+  .orgform p { grid-column:1 / -1; color:var(--muted); font-size:13px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 1px 2px rgba(10,10,12,.03); }
   .pad { padding:18px 20px; }
   .empty { padding:44px 24px; text-align:center; color:var(--muted); }
@@ -292,6 +298,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
       <a href="#/inbox" data-nav="inbox">${ICONS.inbox}<span class="label">Inbox</span><span class="badge" id="unread" hidden></span></a>
       <div class="navsec">Team</div>
       <a href="#/projects" data-nav="projects">${ICONS.projects}<span class="label">Projects</span></a>
+      <a href="#/organizations" data-nav="organizations">${ICONS.user}<span class="label">Organizations</span></a>
       <div class="navsec">Trust</div>
       <a href="#/permissions" data-nav="permissions">${ICONS.permissions}<span class="label">Permissions</span></a>
       <a href="#/settings" data-nav="settings">${ICONS.connections}<span class="label">Integrations</span></a>
@@ -733,6 +740,7 @@ async function permissionsView(params = new URLSearchParams()) {
 }
 
 // ---------- integrations ----------
+${ORGANIZATION_UI}
 async function settingsView() {
   setNav("settings");
   const del = await api("GET", "/api/delegate").catch(() => null);
@@ -750,6 +758,7 @@ async function settingsView() {
       tile(MARKS.outlook, "Outlook", "Same, from your Outlook / Microsoft 365 mailbox.", del?.connections.outlook?.connected ? "on" : del?.connections.outlook?.available ? "off" : "soon", '<a class="btn sm" href="#/permissions">' + (del?.connections.outlook?.connected ? "Manage" : "Connect") + '</a>') +
       tile(MARKS.proton, "Proton Mail", "End-to-end encrypted mail. Waiting on a public send API.", "soon") +
       tile(MARKS.discord, "Discord", "Handover cards in a project channel, and /anydock why right in Discord.", BOOT.discord ? "off" : "soon", '<a class="btn sm" href="#/projects">Pick a project</a>') +
+      tile(MARKS.mcp, "Manufact", "Manage server access and deployment approvals through your organization.", "off", '<a class="btn sm" href="#/organizations">Manage</a>') +
     '</div><div class="sec"><h2>Coming next</h2></div><div class="igrid">' +
       tile(MARKS.github, "GitHub", "Scoped repo access that moves with a handover.", "soon") +
       tile(MARKS.notion, "Notion", "Docs and decisions in the trajectory your teammates read.", "soon") +
@@ -770,6 +779,7 @@ async function route() {
     else if (h === "/works") await worksView(params);
     else if (h === "/inbox") await inboxView();
     else if (h === "/projects") await projectsView();
+    else if (h === "/organizations") await organizationsView();
     else if (h === "/settings") await settingsView();
     else if (h === "/permissions") await permissionsView(params);
     else if ((m = h.match(/^\/w\/([\w-]+)$/))) await workView(m[1]);

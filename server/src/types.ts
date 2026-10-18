@@ -28,6 +28,7 @@ export interface Env extends AuthEnv {
   INKBOX_IDENTITY_ID?: string;
   INKBOX_PHONE_NUMBER_ID?: string;
   INKBOX_API?: string; // test override; default https://inkbox.ai/api/v1
+  MANUFACT_API?: string; // test override; production uses the fixed Manufact REST origin
 }
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;

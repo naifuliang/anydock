@@ -220,6 +220,14 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 
 - Slack app setup complete; never installed by the agent.
 - Gmail API, gmail.send declaration, production/local Gmail callbacks saved. Outlook app setup blocked by AADSTS16000 for personal Microsoft account.
-- Inkbox: Google OAuth qizi297@gmail.com, free anydock identity and identity-scoped production key; INKBOX_API_KEY and INKBOX_IDENTITY_ID saved. Extra auto-minted Quickstart key revoked. Recipient opt-in and actual delivery test pending. REST: POST https://inkbox.ai/api/v1/messages?agent_identity_id=<uuid>, X-API-Key header; requires recipient-first contact on shared service.
+- Inkbox: Google OAuth qizi297@gmail.com, free anydock identity and identity-scoped production key; INKBOX_API_KEY and INKBOX_IDENTITY_ID saved. Extra auto-minted Quickstart key revoked. Recipient opt-in and provider-level bidirectional iMessage verified via Messages; AnyDock delegated send remains unverified. REST: POST https://inkbox.ai/api/v1/messages?agent_identity_id=<uuid>, X-API-Key header; requires recipient-first contact on shared service.
 - Armature US AnyDock MCP workspace created; ARMATURE_INGEST_KEY stored. Ingest POST https://app.armature.tech/api/mcp-analytics/ingest, Authorization Bearer; wire event shape and SDK compatibility notes in tasks/armature-setup.md. SDK instrumentation and live events not done.
 - Manufact Google OAuth account created; CLI login deferred. User authorized a Manufact connector with AnyDock organization permissions after setup. Implementation must enforce organization membership and per-resource access server-side, never return provider tokens, and audit/approve changes.
+
+### Organization-controlled Manufact connector (Oct 17)
+
+- Implemented locally, not deployed: migration 0007, Organizations dashboard, owner-managed membership (owner/admin/member), encrypted per-organization connection, explicit server allowlist and per-member read/redeploy grants. Members default deny; administrators default read/ask. Only owners change membership, connections or grants.
+- Ask requires a different owner/admin, expires after 15 minutes, and is cancelled by membership/connection/grant changes. Atomic execution claim rechecks version, permissions and approver role. Request UUID prevents duplicate upstream requests. Running operations cannot be recalled.
+- Dock MCP exposes organizations, allowed servers, projected server status, redeploy requests and request history; no approval/credential-management tools. Agents use their human bearer identity; separate agent identities and SSO/project inheritance remain future work.
+- Provider keys stay encrypted server-side; server responses omit provider config/environment. Connection, membership, grant and server actions audited. Deployment acceptance is submitted, not deployed; uncertain outcomes need provider verification before retry.
+- Local validation: 47 security/flow checks, dashboard/landing script parsing, server TypeScript and CLI build. Production migration/deployment and live Manufact connection remain pending.

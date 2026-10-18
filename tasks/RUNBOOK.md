@@ -28,10 +28,10 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | # | Task | Unlocks | Status | Waiting on Nolan |
 |---|---|---|---|---|
 | 1 | `tasks/slack-app-setup.md` | Agents post in Slack as you; approval DMs with buttons | ✅ | Account configuration complete; Nolan connects from dashboard |
-| 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ⏸ | Discord developer portal needs Nolan sign-in |
+| 2 | `tasks/discord-setup.md` | Project channels, handover cards, `/anydock why` | ✅ | Configuration complete; Nolan connects a server from dashboard |
 | 3 | `tasks/google-access-and-email.md` — **Part 2 (Primitive) first**, Part 1 deferred by Nolan (no judge accounts) | Email sign-in codes; AnyDock-sent email | ⏸ delivery verified | Nolan to complete final email-code login; Google test users deferred |
 | 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail API/scopes/callbacks configured; Outlook tenant access still blocked |
-| 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ⏸ identity created | Approved identity-scoped key saved; identity ID configured; recipient opt-in/test pending |
+| 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ✅ provider setup | Identity/key configured; real bidirectional iMessage verified; AnyDock delegate test remains |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ✅ account setup | Workspace/key prepared; SDK instrumentation is separate |
 | 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ⏸ docs recorded | Google OAuth account created; CLI login deferred because current Cloudflare demo does not need deployment |
 | 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ⚠️ prerequisite missing | AnyDock CLI and editors absent from standard app locations; see QA report |
@@ -61,9 +61,9 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 - Oct 17 audit: Cloudflare currently has `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; added `PRIMITIVE_API_KEY` and `EMAIL_FROM` (names only).
 - Google test users deferred by Nolan; demo will be recorded by the team, without judge accounts or judge interaction.
 - Slack: old app `A0C508BD6ET` exists in New Workspace, with old scopes and no redirects. Nolan requested a fresh app, then explicitly confirmed permanent deletion of the old one. Deleted `A0C508BD6ET` Oct 17; Slack displayed "Your application has been deleted" and an empty app list. New app `A0CA7H6T2PN` created Oct 17; saved exact requested scopes, both redirects, HTTP interactivity URL and read-only Messages tab through manifest. `SLACK_CLIENT_ID` stored. Nolan regenerated the client secret; new `SLACK_CLIENT_SECRET` and `SLACK_SIGNING_SECRET` saved via Wrangler and all 3 Slack secret names verified. Icon uploaded successfully. App remains uninstalled.
-- Discord developer portal is signed out; requires Nolan's sign-in.
+- Discord app `1561232574444081184` created; Nolan reset token. Public Bot on, all privileged intents off; no server installation.
 - Primitive GitHub read-only profile/email authorization and terms accepted with Nolan's explicit approval; AnyDock organization created under the existing account. The $100 hackathon credit was redeemed; dashboard confirms no expiry. `PRIMITIVE_API_KEY` and `EMAIL_FROM` saved via Wrangler; production code email delivered to the real Outlook inbox at 8:53 PM PDT. Final code-login session remains unverified because the connector withholds OTP.
-- Inkbox: Google OAuth `qizi297@gmail.com`, Waffle's Org. Created free `anydock` identity (`anydock@inkboxmail.com`), Basic iMessage/shared line; no paid number. Approved `AnyDock production` identity-scoped key created and saved as `INKBOX_API_KEY`; verified secret name. `INKBOX_IDENTITY_ID` resolved through the authenticated API and saved. Recipient opt-in/test remain. Extra Quickstart key revoked with explicit confirmation; only production key remains active.
+- Inkbox: Google OAuth `qizi297@gmail.com`, Waffle's Org. Created free `anydock` identity (`anydock@inkboxmail.com`), Basic iMessage/shared line; no paid number. Approved `AnyDock production` identity-scoped key created and saved as `INKBOX_API_KEY`; verified secret name. `INKBOX_IDENTITY_ID` resolved through the authenticated API and saved. Recipient opt-in complete; Messages sent Hello and received the exact Inkbox console reply. Provider bilateral iMessage verified; AnyDock delegate flow unverified. Extra Quickstart key revoked with explicit confirmation; only production key remains active.
 - Outlook app registration: Entra portal returned AADSTS16000 for personal `qizi297@outlook.com` in Microsoft Services tenant. No registration or paid subscription created.
 - MCP client QA: `/Users/nolanliang/.anydock/bin/anydock` is absent; Cursor, Windsurf and VS Code were not found in `/Applications`. No live client compatibility claim verified.
 
@@ -73,3 +73,7 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 
 - Armature: Google OAuth `qizi297@gmail.com`, US workspace `AnyDock MCP`; free dashboard shows 1,000 monthly credits. Approved ingest key saved as `ARMATURE_INGEST_KEY`; no existing sessions uploaded.
 - Next authorized implementation: Manufact connector managed through AnyDock organization roles and resource grants. User explicitly requested implementation after setup; this supersedes the setup-only code-edit restriction for that implementation stage. Account-dependent verification remains open where documented.
+
+- Manufact organization connector built locally with roles, resource grants, encrypted credentials, approvals and audit. 47 checks pass. Not deployed/live-connected.
+
+- Discord: all 3 secret names verified, both callbacks saved, signed interaction endpoint accepted by Discord. Bot/server connection remains a dashboard action for Nolan.

@@ -37,6 +37,10 @@ allows it (default for calls/texts: **ask me**).
 ## Done when
 
 - [ ] `INKBOX_API_KEY`, `INKBOX_IDENTITY` and `INKBOX_IDENTITY_ID` secrets set (`INKBOX_PHONE_NUMBER_ID` too if there is a number).
-- [ ] Identity `anydock` exists; test message to Nolan arrived (or the paid-plan blocker is written down).
-- [ ] REST endpoint + header for sending a text recorded in `AGENTS.md`.
+- [x] Identity `anydock` exists; test message to Nolan arrived (or the paid-plan blocker is written down).
+- [x] REST endpoint + header for sending a text recorded in `AGENTS.md`.
 - [ ] Your commit pushed.
+
+## Oct 17 verification
+
+Identity-scoped production key and UUID saved. Extra Quickstart key revoked. No paid number purchased. Nolan completed recipient opt-in; Messages sent START/Hello, received by Inkbox. Console reply “AnyDock test: received your hello.” arrived in Messages. Provider bilateral iMessage verified; SMS, voice and AnyDock delegate path unverified. REST: POST https://inkbox.ai/api/v1/messages?agent_identity_id=<uuid>, X-API-Key; shared service requires recipient-first contact.

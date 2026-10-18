@@ -132,6 +132,36 @@ function relevant(steps: Step[], question: string, k = 12): number[] {
 
 const tools: Tool[] = [
   {
+    name: "anydock_organizations",
+    description: "List the AnyDock organizations you belong to. Organization membership controls access to shared Manufact servers.",
+    inputSchema: {type:"object",properties:{}}, annotations:{readOnlyHint:true},
+    run: async () => JSON.stringify(await api("GET","/api/organizations")),
+  },
+  {
+    name: "anydock_manufact_servers",
+    description: "List only the Manufact servers your AnyDock organization permits you to inspect. Never returns provider credentials.",
+    inputSchema: {type:"object",properties:{organizationId:{type:"string"}},required:["organizationId"]}, annotations:{readOnlyHint:true},
+    run: async a => {const d=await api("GET","/api/organizations/"+encodeURIComponent(a.organizationId));return JSON.stringify({connected:d.connected,servers:d.resources});},
+  },
+  {
+    name: "anydock_manufact_server",
+    description: "Read the current status of one authorized Manufact server through AnyDock.",
+    inputSchema: {type:"object",properties:{organizationId:{type:"string"},serverId:{type:"string"}},required:["organizationId","serverId"]}, annotations:{readOnlyHint:true,openWorldHint:true},
+    run: async a => JSON.stringify(await api("GET","/api/organizations/"+encodeURIComponent(a.organizationId)+"/manufact/servers/"+encodeURIComponent(a.serverId))),
+  },
+  {
+    name: "anydock_manufact_redeploy",
+    description: "Request redeployment of an existing Manufact server. AnyDock checks organization and server permissions, records the request, and requires administrator approval unless explicitly allowed. Pending is not deployed; check requests later. Failed/uncertain outcomes must be checked in Manufact before requesting again.",
+    inputSchema: {type:"object",properties:{organizationId:{type:"string"},serverId:{type:"string"},requestKey:{type:"string",description:"A fresh UUID for this intended deployment; reuse exactly this key when retrying the same request so it cannot deploy twice."},branch:{type:"string"}},required:["organizationId","serverId","requestKey"]}, annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true},
+    run: async a => JSON.stringify(await api("POST","/api/organizations/"+encodeURIComponent(a.organizationId)+"/requests",{serverId:a.serverId,requestKey:a.requestKey,...(a.branch?{branch:a.branch}:{})})),
+  },
+  {
+    name: "anydock_organization_requests",
+    description: "Check deployment request and approval status for an AnyDock organization. Members see their own requests; administrators see the organization queue.",
+    inputSchema: {type:"object",properties:{organizationId:{type:"string"}},required:["organizationId"]}, annotations:{readOnlyHint:true},
+    run: async a => JSON.stringify(await api("GET","/api/organizations/"+encodeURIComponent(a.organizationId)+"/requests")),
+  },
+  {
     name: "anydock_share",
     description:
       "Share the work in this agent session with a teammate by email (they get it in their AnyDock inbox and their agent can read the trajectory and ask why). Uploads the session, and keeps syncing new progress to them.",

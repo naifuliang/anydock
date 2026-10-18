@@ -43,7 +43,11 @@ The server registers the slash commands itself on the first connect, so you don'
 
 ## Done when
 
-- [ ] Secrets `DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_BOT_TOKEN` set (`npx wrangler secret list` shows the names).
-- [ ] Redirect URIs added.
-- [ ] Interactions Endpoint URL saved successfully (or noted as waiting on deploy).
-- [ ] `AGENTS.md` Status updated; your commit pushed.
+- [x] Secrets `DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_BOT_TOKEN` set (`npx wrangler secret list` shows the names).
+- [x] Redirect URIs added.
+- [x] Interactions Endpoint URL saved successfully (or noted as waiting on deploy).
+- [x] `AGENTS.md` Status updated; your commit pushed.
+
+## Oct 17 result
+
+App `1561232574444081184` created with Nolan-approved terms and human verification. Nolan reset token; all three Discord secret names saved via Wrangler. Public Bot on, all privileged intents off. Both OAuth redirects saved; Discord confirmed “All your edits have been carefully recorded.” Interaction endpoint saved with the same confirmation after live `/api/discord/status` returned configured true. No server installation performed; channel notification/slash-command test awaits Nolan's dashboard connection.
