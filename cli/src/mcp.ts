@@ -6,6 +6,7 @@ import type { ParsedSession, Source, Step } from "./sources/types.ts";
 import { syncSession } from "./sync.ts";
 import { askOnThisMac, nativeApprovalPossible } from "./native/approve.ts";
 import { VERSION } from "./version.ts";
+import { watchForUpdates } from "./update.ts";
 import { currentSession, launchingAgent, maybeCurrentSession } from "./session.ts";
 import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, signInLink, uploadArtifact, writeArtifact } from "./artifacts.ts";
 import { openInViewer } from "./native/viewer.ts";
@@ -566,7 +567,7 @@ async function handle(msg: Msg): Promise<void> {
     case "initialize":
       return void reply({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
-        capabilities: { tools: {} },
+        capabilities: { tools: { listChanged: true } }, // a reloaded server tells the client to re-list tools
         serverInfo: { name: "anydock", title: "AnyDock", version: VERSION },
         instructions:
           "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked). When the user wants a document, deck, spreadsheet, page or small app that teammates can open, edit or take over, make it an AnyDock artifact (anydock_artifact_create: skeleton first, then fill section by section; anydock_artifact_upload for files and apps) and show it to them: in your built-in browser via the one-time sign-in link it returns (then bring the browser panel to the front), or with anydock_artifact_open.",
@@ -600,6 +601,8 @@ export function serveMcp(): Promise<void> {
   // stdout is the protocol channel; send stray logs to stderr.
   console.log = (...args: unknown[]) => console.error(...args);
   const rl = createInterface({ input: process.stdin });
+  let inflight = 0;
+  let reloadWanted = false;
   rl.on("line", (line) => {
     if (!line.trim()) return;
     let msg: Msg;
@@ -608,7 +611,28 @@ export function serveMcp(): Promise<void> {
     } catch {
       return void send({ id: null, error: { code: -32700, message: "Parse error" } });
     }
-    handle(msg).catch((e) => send({ id: msg.id ?? null, error: { code: -32603, message: String(e) } }));
+    inflight++;
+    handle(msg)
+      .catch((e) => send({ id: msg.id ?? null, error: { code: -32603, message: String(e) } }))
+      .finally(() => { inflight--; if (reloadWanted) setTimeout(reload, 50); });
   });
+
+  // Stay current without the agent restarting us: when a new version is installed, wait until nothing is in flight
+  // and nothing is buffered, then exec the new code on the same stdin/stdout. The client's session carries on (MCP over
+  // stdio holds no other state); the new process tells it to re-list tools so new ones appear.
+  const reload = () => {
+    reloadWanted = true;
+    if (inflight > 0 || process.stdin.readableLength > 0 || process.stdout.writableLength > 0) return;
+    const execve = (process as unknown as { execve?: (file: string, args: string[], env: NodeJS.ProcessEnv) => never }).execve;
+    if (!execve) return;
+    rl.pause();
+    process.stdin.pause();
+    execve(process.execPath, [process.execPath, ...process.argv.slice(1)], { ...process.env, ANYDOCK_MCP_RELOADED: VERSION });
+  };
+  watchForUpdates(reload);
+  if (process.env.ANYDOCK_MCP_RELOADED) {
+    console.error(`AnyDock MCP reloaded: ${process.env.ANYDOCK_MCP_RELOADED} → ${VERSION}`);
+    send({ method: "notifications/tools/list_changed" });
+  }
   return new Promise((r) => rl.on("close", r));
 }

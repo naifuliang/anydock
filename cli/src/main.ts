@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -11,8 +12,8 @@ import { installService, serviceStatus, uninstallService } from "./service.ts";
 import { setup } from "./setup.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import { syncSession, watchAndSync } from "./sync.ts";
-import { selfUpdate, startAutoUpdate, updateInBackground } from "./update.ts";
-import { VERSION } from "./version.ts";
+import { afterUpdate, afterUpdateInBackground, selfUpdate, startAutoUpdate } from "./update.ts";
+import { ENTRY, VERSION } from "./version.ts";
 import { readFileSync } from "node:fs";
 import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, signInLink, uploadArtifact, writeArtifact, type Kind } from "./artifacts.ts";
 import { openInViewer } from "./native/viewer.ts";
@@ -193,17 +194,23 @@ async function main(): Promise<void> {
     case "mcp":
       if (arg === "install") return installMcp();
       if (arg === "uninstall") return uninstallMcp();
-      updateInBackground();
-      return serveMcp();
+      afterUpdateInBackground();
+      return serveMcp(); // keeps itself current: reloads in place when a new version lands
 
     case "watch":
       requireLogin();
+      afterUpdateInBackground();
       startAutoUpdate();
       return watchAndSync();
 
+    case "_after-update": // internal: run once per new version, detached
+      return afterUpdate();
+
     case "update": {
       const v = await selfUpdate();
-      console.log(v ? `Updated AnyDock ${VERSION} → ${v}.` : `AnyDock ${VERSION} is up to date.`);
+      console.log(v ? `Updated AnyDock ${VERSION} → ${v}. Running agents pick it up on their own within a few minutes.` : `AnyDock ${VERSION} is up to date.`);
+      // Refresh skills and native helpers with the new code, in the background.
+      if (v) spawn(process.execPath, [ENTRY, "_after-update"], { detached: true, stdio: "ignore" }).on("error", () => {}).unref();
       return;
     }
 
