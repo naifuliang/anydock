@@ -331,7 +331,7 @@ ${HERO_CSS}
 </div></nav>
 
 <header class="hero center"><div class="wrap">
-  <span class="pill"><svg class="yc" viewBox="0 0 24 24" width="22" height="22" aria-label="Y Combinator"><rect width="24" height="24" rx="4" fill="#F0652F"/><path fill="#fff" d="M6.951 5.896l4.112 7.708v5.064h1.583v-4.972l4.148-7.799h-1.749l-2.457 4.875c-.372.745-.688 1.434-.688 1.434s-.297-.708-.651-1.434L8.831 5.896h-1.88z"/></svg>Built at Make Something Agents Want</span>
+  <span class="pill"><svg class="yc" viewBox="0 0 24 24" width="22" height="22" aria-label="Y Combinator"><rect width="24" height="24" rx="4" fill="#F0652F"/><path fill="#fff" d="M6.951 5.896l4.112 7.708v5.064h1.583v-4.972l4.148-7.799h-1.749l-2.457 4.875c-.372.745-.688 1.434-.688 1.434s-.297-.708-.651-1.434L8.831 5.896h-1.88z"/></svg>Built at Make Something Agents Want Hackathon</span>
   <h1>Agents made individuals&nbsp;10x.<br> <span class="serif">AnyDock</span> makes teams&nbsp;10x.</h1>
   <p class="lede">Share and hand over your agent's work — <em>context, trajectory, every decision</em> — to teammates and their agents. Across Claude Code, Codex and any MCP client.</p>
   ${installBox(prompt, cmd)}
