@@ -43,10 +43,12 @@ The server code will expect these routes (being built now; they don't need to ex
 
 - [x] Secrets `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET` set (`npx wrangler secret list` shows the names).
 - [x] Redirect URLs, user + bot scopes and the interactivity URL saved exactly as above (Oct 17, app `A0CA7H6T2PN`, verified saved manifest).
-- [ ] `AGENTS.md` Status updated; your commit pushed.
+- [x] Configuration progress documented and commit pushed.
 
 ## Oct 17 progress
 
 Old app `A0C508BD6ET` permanently deleted with explicit confirmation. New app `A0CA7H6T2PN` created, not installed. Manifest settings saved: exact scope lists, two callbacks, HTTP interactivity, Messages tab on/read-only, socket mode off, description and white background. Icon remains pending. `SLACK_CLIENT_ID` saved via Wrangler. Client secret appeared in diagnostic selected-page text; Nolan must regenerate it before production use. Signing secret not yet saved.
 
 Nolan confirmed client-secret regeneration. New client secret and signing secret stored via Wrangler, and all 3 names verified with `wrangler secret list`. Original exposed client secret is no longer the configured credential. Icon still pending.
+
+Icon uploaded from `server/public/img/icon.png`; Slack returned Success (Oct 17). Account setup complete; workspace install intentionally left for Nolan through AnyDock.

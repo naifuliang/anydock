@@ -163,7 +163,7 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 | GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
 | Email sign-in codes (Primitive) | Configured; production code email arrived in real Outlook inbox Oct 17 | Complete email-code login session check |
 | Discord | Code done (project channels, cards, `/anydock`); no bot yet | Codex: `tasks/discord-setup.md` |
-| Slack (delegate: post as you + approval DMs) | Code done + tested with a mock Slack; needs the Slack app + secrets | Codex: `tasks/slack-app-setup.md` |
+| Slack (delegate: post as you + approval DMs) | New app A0CA7H6T2PN configured; all 3 secrets and icon saved | Nolan connects from dashboard; live delegate test pending |
 | Email on your behalf | Primitive key and sender configured; delegated send flow not yet tested | Verify through permissions flow |
 | Email as you: Gmail / Outlook (Proton: no public OAuth send API → "coming soon") | **Code done** + tested with mocks (`src/mailbox.ts`); Gmail reuses the Google OAuth client (needs `gmail.send` scope on the consent screen), Outlook needs `MS_CLIENT_ID/SECRET` | Codex: `tasks/email-accounts-setup.md` |
 | Armature (MCP analytics), Manufact (hosted MCP) | Not built | Codex: `tasks/armature-setup.md`, `tasks/manufact-setup.md` |
@@ -214,3 +214,11 @@ elicitation where supported) or async (dashboard live toast, Slack/Discord DM wi
 - Passkey sign-in: deferred until the core flow works (Better Auth passkey plugin).
 - Manufact track ("best MCP server", mcp-use): the local MCP is hand-rolled to keep the CLI dependency-free. To compete there, add a remote mcp-use server on the Worker exposing the same read-side tools.
 - Armature analytics SDK requires MCP SDK 1.x; mcp-use v2 uses SDK v2 — check compatibility before targeting both tracks.
+
+### Oct 17 sponsor setup update
+
+- Slack app setup complete; never installed by the agent.
+- Gmail API, gmail.send declaration, production/local Gmail callbacks saved. Outlook app setup blocked by AADSTS16000 for personal Microsoft account.
+- Inkbox: Google OAuth qizi297@gmail.com, free anydock identity and identity-scoped production key; INKBOX_API_KEY and INKBOX_IDENTITY_ID saved. Extra auto-minted Quickstart key revoked. Recipient opt-in and actual delivery test pending. REST: POST https://inkbox.ai/api/v1/messages?agent_identity_id=<uuid>, X-API-Key header; requires recipient-first contact on shared service.
+- Armature US AnyDock MCP workspace created; ARMATURE_INGEST_KEY stored. Ingest POST https://app.armature.tech/api/mcp-analytics/ingest, Authorization Bearer; wire event shape and SDK compatibility notes in tasks/armature-setup.md. SDK instrumentation and live events not done.
+- Manufact Google OAuth account created; CLI login deferred. User authorized a Manufact connector with AnyDock organization permissions after setup. Implementation must enforce organization membership and per-resource access server-side, never return provider tokens, and audit/approve changes.

@@ -27,6 +27,12 @@ The code will send tool-call events from the AnyDock server (not from users' mac
 
 ## Done when
 
-- [ ] `ARMATURE_INGEST_KEY` set.
-- [ ] Ingest endpoint, auth header and event shape recorded in `AGENTS.md`.
+- [x] `ARMATURE_INGEST_KEY` set via Wrangler Oct 17.
+- [x] Ingest endpoint, auth header and event shape recorded below.
 - [ ] Your commit pushed.
+
+## Oct 17 verified setup
+
+Google OAuth `qizi297@gmail.com`; US workspace **AnyDock MCP**, free usage meter 0/1,000 monthly credits. Key generated with explicit confirmation and stored via Wrangler; no session data uploaded.
+
+Official SDK `@armature-tech/mcp-analytics@0.6.47` (`dist/esm/emit.js`, `types.d.ts`) uses `POST https://app.armature.tech/api/mcp-analytics/ingest`, `Authorization: Bearer <ingest key>`, JSON `{schema_version:1, events:[...]}`. A tool-call event has `event_id`, `kind:"tool_call"`, `actor_id`, `session_id_hint`, `started_at`, `finished_at`, `duration_ms`, `ok`, `error`, `metadata` (tool context), `script_source`, truncation flags, `result_preview`, `calls`, `logs`, `search_calls`. Prefer SDK encoding rather than guessing tool metadata. SDK supports MCP v1 and v2; previous compatibility question is outdated. Docs: https://docs.armature.tech/sdks/typescript and https://docs.armature.tech/sdks/telemetry. Docs and installed package differ on legacy telemetry names; use current package types.

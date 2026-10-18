@@ -44,7 +44,11 @@ Project `western-pivot-512023-a8`, client `AnyDock web` (already used for "Conti
 
 ## Done when
 
-- [ ] Gmail API enabled, `gmail.send` scope added, two Gmail redirect URIs saved.
+- [x] Gmail API enabled, `gmail.send` scope added (Google confirmed saved), two Gmail redirect URIs saved on existing AnyDock web client (Oct 17).
 - [ ] Entra app `AnyDock` exists with the two Outlook redirect URIs and the three delegated permissions.
 - [ ] Secrets `MS_CLIENT_ID`, `MS_CLIENT_SECRET` set (`npx wrangler secret list` shows the names).
 - [ ] `AGENTS.md` Status updated; your commit pushed.
+
+## Oct 17 status
+
+Gmail configuration complete, no mailbox grant/send test yet. Outlook registration blocked: personal `qizi297@outlook.com` gets AADSTS16000 in Microsoft Services tenant. No subscription created, no admin consent granted.
