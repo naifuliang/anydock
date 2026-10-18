@@ -82,6 +82,7 @@ export function landingPage(opts: { signedIn: boolean; origin: string }): string
     background-image:linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
     background-size:72px 72px; mask-image:radial-gradient(70% 55% at 50% 25%, #000 20%, transparent 75%); opacity:.6; }
   .pill { display:inline-flex; align-items:center; gap:10px; padding:5px 14px 5px 5px; border:1px solid var(--line2); border-radius:999px; font-size:13px; color:var(--muted); background:#fff; }
+  .pill .yc { flex:none; display:block; border-radius:6px; }
   .pill b { background:var(--text); color:#fff; font:500 11px var(--mono); padding:3px 9px; border-radius:999px; letter-spacing:.04em; }
   .hero h1 { margin:28px 0 22px; font-weight:500; letter-spacing:-.045em; line-height:1; font-size:clamp(42px, 6.2vw, 84px); text-wrap:balance; }
   .hero h1 .serif { font-style:italic; letter-spacing:-.02em; }
@@ -330,7 +331,7 @@ ${HERO_CSS}
 </div></nav>
 
 <header class="hero center"><div class="wrap">
-  <span class="pill"><b>YC</b>Built at Make Something Agents Want</span>
+  <span class="pill"><svg class="yc" viewBox="0 0 24 24" width="22" height="22" aria-label="Y Combinator"><rect width="24" height="24" rx="4" fill="#F0652F"/><path fill="#fff" d="M6.951 5.896l4.112 7.708v5.064h1.583v-4.972l4.148-7.799h-1.749l-2.457 4.875c-.372.745-.688 1.434-.688 1.434s-.297-.708-.651-1.434L8.831 5.896h-1.88z"/></svg>Built at Make Something Agents Want</span>
   <h1>Agents made individuals&nbsp;10x.<br> <span class="serif">AnyDock</span> makes teams&nbsp;10x.</h1>
   <p class="lede">Share and hand over your agent's work — <em>context, trajectory, every decision</em> — to teammates and their agents. Across Claude Code, Codex and any MCP client.</p>
   ${installBox(prompt, cmd)}
