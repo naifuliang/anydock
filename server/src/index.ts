@@ -84,6 +84,37 @@ app.get("/app", (c) => {
   return c.html(appPage(session.user, new URL(c.req.url).origin, discordEnabled(c.env)));
 });
 
+// The one-time-token plugin's endpoints (our options type is generic, so they aren't inferred).
+type OttApi = {
+  generateOneTimeToken(o: { headers: Headers }): Promise<{ token: string }>;
+  verifyOneTimeToken(o: { body: { token: string }; headers: Headers; returnHeaders: true }): Promise<{ headers: Headers }>;
+};
+const ottApi = (auth: { api: unknown }) => auth.api as OttApi;
+
+// A one-time link that signs a browser in as the caller's current session (an agent session stays an agent session —
+// it can view and edit artifacts, never approve). For agents opening artifacts in their host's built-in browser.
+app.post("/api/sign-in-link", async (c) => {
+  if (!c.get("session")) return c.json({ error: "unauthorized" }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { next?: string };
+  const { token } = await ottApi(c.get("auth")).generateOneTimeToken({ headers: sessionHeaders(c.req.raw) });
+  const origin = new URL(c.req.url).origin;
+  return c.json({ url: `${origin}/l/${token}?next=${encodeURIComponent(safeNext(body.next))}`, expiresInSeconds: 120 });
+});
+
+app.get("/l/:token", async (c) => {
+  const next = safeNext(c.req.query("next"));
+  try {
+    const { headers } = await ottApi(c.get("auth")).verifyOneTimeToken({ body: { token: c.req.param("token") }, headers: c.req.raw.headers, returnHeaders: true });
+    const res = c.redirect(next);
+    headers.getSetCookie().forEach((v) => res.headers.append("Set-Cookie", v));
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Referrer-Policy", "no-referrer");
+    return res;
+  } catch {
+    return c.redirect(`/login?next=${encodeURIComponent(next)}`);
+  }
+});
+
 app.get("/a/:id", (c) => {
   const session = c.get("session");
   if (!session) return c.redirect(`/login?next=${encodeURIComponent(`/a/${c.req.param("id")}`)}`);

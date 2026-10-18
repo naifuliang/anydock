@@ -109,6 +109,10 @@ check("share with a teammate", cli("artifact", "share", id, bobEmail).includes(`
 check("they can open it", (await call(bob, "GET", `/api/artifacts/${id}`)).data?.artifact?.access === "edit");
 check("list shows them", cli("artifact", "list").includes("Launch plan"));
 check("open falls back to the browser without the Mac window", cli("open", id.slice(0, 8)).includes(`/a/${id}`));
+const link = cli("open", id.slice(0, 8), "--link").trim();
+check("create output carries a one-time sign-in link for a built-in browser", /\/l\/[^ ]+\?next=%2Fa%2F/.test(created) && created.includes("bring the browser panel to the front"));
+const signed = await fetch(link, { redirect: "manual" });
+check("open --link prints a working one-time link to the artifact", signed.status === 302 && signed.headers.get("location") === `/a/${id}` && signed.headers.getSetCookie().length > 0, link);
 
 // ---------- MCP: same features ----------
 const mcp = spawn(process.execPath, [CLI, "mcp"], { env, cwd: projectDir });

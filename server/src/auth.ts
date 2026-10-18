@@ -1,5 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { bearer, deviceAuthorization, emailOTP } from "better-auth/plugins";
+import { bearer, deviceAuthorization, emailOTP, oneTimeToken } from "better-auth/plugins";
 import { sendEmail } from "./email.ts";
 
 export interface AuthEnv {
@@ -50,6 +50,10 @@ export function authOptions(env: AuthEnv, database: BetterAuthOptions["database"
         validateClient: (clientId) => clientId === CLI_CLIENT_ID,
       }),
       bearer(),
+      // One-time sign-in links (`POST /api/sign-in-link`): let an agent open an artifact in its host's built-in browser
+      // already signed in — as the same agent session, so with agent powers only. Single use, 2 minutes, generated
+      // server-side only.
+      oneTimeToken({ expiresIn: 2, disableClientRequest: true, storeToken: "hashed" }),
     ],
   };
 }

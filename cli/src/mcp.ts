@@ -7,7 +7,7 @@ import { syncSession } from "./sync.ts";
 import { askOnThisMac, nativeApprovalPossible } from "./native/approve.ts";
 import { VERSION } from "./version.ts";
 import { currentSession, launchingAgent } from "./session.ts";
-import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, uploadArtifact, writeArtifact } from "./artifacts.ts";
+import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, signInLink, uploadArtifact, writeArtifact } from "./artifacts.ts";
 import { openInViewer } from "./native/viewer.ts";
 
 // `anydock mcp`: a stdio MCP server that Claude Code and Codex launch. Agents use it to share or hand over
@@ -402,10 +402,14 @@ const tools: Tool[] = [
   },
   {
     name: "anydock_artifact_open",
-    description: "Open an artifact for the user when you have no built-in browser: on a Mac, its own window (already signed in); elsewhere, the default browser. If you do have a built-in browser, open the artifact's URL there instead.",
-    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    description:
+      "Show an artifact to the user. where=\"builtin\" (use this when you have a built-in browser, e.g. the Claude or Codex desktop app): returns a one-time link that signs your browser in — open it there and bring the browser panel to the front. " +
+      "where=\"window\" (default when you have no browser): on a Mac, a native window already signed in; elsewhere, the default browser.",
+    inputSchema: { type: "object", properties: { id: { type: "string" }, where: { type: "string", enum: ["builtin", "window"] } }, required: ["id"] },
     async run(a) {
-      const { url, title } = await artifactUrl(await resolveId(a.id));
+      const id = await resolveId(a.id);
+      if (a.where === "builtin") return `Open this in your built-in browser now (one-time, signs it in, valid 2 minutes), then bring the browser panel to the front: ${await signInLink(`/a/${id}`)}`;
+      const { url, title } = await artifactUrl(id);
       const how = openInViewer(url, title);
       return how === "window" ? `Opened "${title}" in an AnyDock window on the user's Mac.` : `Opened ${url} in the user's browser.`;
     },
@@ -519,7 +523,7 @@ async function handle(msg: Msg): Promise<void> {
         capabilities: { tools: {} },
         serverInfo: { name: "anydock", title: "AnyDock", version: VERSION },
         instructions:
-          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked). When the user wants a document, deck, spreadsheet, page or small app that teammates can open, edit or take over, make it an AnyDock artifact (anydock_artifact_create: skeleton first, then fill section by section; anydock_artifact_upload for files and apps) and show it to them in your built-in browser, or with anydock_artifact_open.",
+          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked). When the user wants a document, deck, spreadsheet, page or small app that teammates can open, edit or take over, make it an AnyDock artifact (anydock_artifact_create: skeleton first, then fill section by section; anydock_artifact_upload for files and apps) and show it to them: in your built-in browser via the one-time sign-in link it returns (then bring the browser panel to the front), or with anydock_artifact_open.",
       });
     case "ping":
       return void reply({});

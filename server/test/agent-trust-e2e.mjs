@@ -108,5 +108,23 @@ const claim = await call(agent, "GET", `/api/auth/device?user_code=${encodeURICo
 const selfApprove = await call(agent, "POST", "/api/auth/device/approve", { userCode: code.user_code });
 check("agent token can't claim or approve a new CLI login", claim.status === 403 && selfApprove.status === 403);
 
+// One-time sign-in links: an agent opens an artifact in its host's built-in browser, signed in — as an agent.
+const link = await call(agent, "POST", "/api/sign-in-link", { next: "/app#/artifacts" });
+check("agent gets a one-time sign-in link", link.status === 200 && /\/l\/[^?]+\?next=/.test(link.data.url), link.data?.url);
+const path = new URL(link.data.url).pathname + new URL(link.data.url).search;
+const first = await fetch(BASE + path, { redirect: "manual" });
+const cookie = first.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+check("opening it signs the browser in and goes to the page", first.status === 302 && first.headers.get("location") === "/app#/artifacts" && cookie.includes("session_token"));
+const meCookie = await (await fetch(BASE + "/api/me", { headers: { cookie } })).json();
+check("…as the same agent session (agent powers only)", meCookie.agent === true && meCookie.user.id === meA.user.id);
+const a4 = await ask(agent, 4);
+const viaCookie = await fetch(BASE + `/api/actions/${a4.id}/decide`, { method: "POST", headers: { cookie, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ approve: true }) });
+check("so that browser can't approve either", viaCookie.status === 403);
+const again = await fetch(BASE + path, { redirect: "manual" });
+check("the link works once", again.status === 302 && again.headers.get("location").startsWith("/login"));
+const offsite = await call(agent, "POST", "/api/sign-in-link", { next: "https://evil.example/x" });
+check("it only redirects within AnyDock", decodeURIComponent(offsite.data.url).endsWith("next=/"));
+check("the plugin's own endpoints aren't callable by clients", (await call(browser, "GET", "/api/auth/one-time-token/generate")).status === 400);
+
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
 process.exit(failures ? 1 : 0);

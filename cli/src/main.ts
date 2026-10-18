@@ -14,7 +14,7 @@ import { syncSession, watchAndSync } from "./sync.ts";
 import { selfUpdate, startAutoUpdate, updateInBackground } from "./update.ts";
 import { VERSION } from "./version.ts";
 import { readFileSync } from "node:fs";
-import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, uploadArtifact, writeArtifact, type Kind } from "./artifacts.ts";
+import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, signInLink, uploadArtifact, writeArtifact, type Kind } from "./artifacts.ts";
 import { openInViewer } from "./native/viewer.ts";
 
 const HELP = `anydock — share and hand over agent work
@@ -36,7 +36,8 @@ Usage:
   anydock artifact upload <path> [--id ID] [--title T]   A folder (app), Office/PDF/image file, or .md/.csv/.tex/.html
   anydock artifact list                         Yours, shared with you, and your works'
   anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
-  anydock open <artifact-id>                    Open it (a native window on Mac, else the browser)
+  anydock open <artifact-id> [--link]           Open it (a native window on Mac, else the browser); --link prints a
+                                                one-time sign-in link for a built-in browser instead
   anydock mcp install | uninstall               Add AnyDock tools + skill to Claude Code and Codex
   anydock mcp                                   Run the MCP server (agents launch this)
   anydock service install | uninstall | status  Background sync at login (launchd / systemd)
@@ -83,6 +84,7 @@ async function main(): Promise<void> {
       note: { type: "string" },
       viewer: { type: "boolean" },
       handover: { type: "boolean" },
+      link: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -177,7 +179,10 @@ async function main(): Promise<void> {
     case "open": {
       if (!arg) throw new Error("Usage: anydock open <artifact-id>");
       requireLogin();
-      const { url, title } = await artifactUrl(await resolveId(arg));
+      const id = await resolveId(arg);
+      // --link: a one-time sign-in link for a built-in browser (Claude / Codex desktop) instead of opening anything.
+      if (values.link) return console.log(await signInLink(`/a/${id}`));
+      const { url, title } = await artifactUrl(id);
       console.log(openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`);
       return;
     }

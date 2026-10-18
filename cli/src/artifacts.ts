@@ -37,8 +37,16 @@ const MIME: Record<string, string> = {
 };
 const mime = (p: string) => MIME[extname(p).toLowerCase()] ?? "application/octet-stream";
 
-const showIt = (a: { id: string; url: string }) =>
-  `Show it to the user now: open ${a.url} in your built-in browser if you have one (Claude or Codex desktop app); otherwise run \`anydock open ${a.id}\`.`;
+// A one-time link that signs the agent's built-in browser in (single use, 2 minutes) and lands on the artifact.
+export async function signInLink(path: string): Promise<string> {
+  return (await call("POST", "/api/sign-in-link", { json: { next: path } })).url;
+}
+
+const showIt = async (a: { id: string; url: string }) =>
+  `Show it to the user now, visibly:\n` +
+  `  • Built-in browser (Claude or Codex desktop app): open ${await signInLink(`/a/${a.id}`)} — a one-time link that signs that browser in (use it within 2 minutes) — then bring the browser panel to the front so the user sees it.\n` +
+  `  • No built-in browser: anydock_artifact_open id=${a.id} (CLI: anydock open ${a.id}) — a window on a Mac, already signed in.\n` +
+  `  Share ${a.url} with people (not the one-time link).`;
 
 // ---------- create ----------
 
@@ -57,7 +65,7 @@ export async function createArtifact(a: { title: string; type: Kind; outline?: O
   const { artifact } = await call("POST", "/api/artifacts", { json: { title: a.title, kind: a.type, outline, content: a.content, rows: a.rows, ...session } });
   const full = await call("GET", `/api/artifacts/${artifact.id}`);
   const todo = full.sections.filter((s: any) => s.status === "todo");
-  const lines = [`Created ${a.type} "${a.title}" — ${artifact.url}`, `id: ${artifact.id}${artifact.workId ? " (attached to this session's work)" : ""}`, showIt(artifact)];
+  const lines = [`Created ${a.type} "${a.title}" — ${artifact.url}`, `id: ${artifact.id}${artifact.workId ? " (attached to this session's work)" : ""}`, await showIt(artifact)];
   if (todo.length) {
     lines.push(`Skeleton: ${full.sections.length} sections, ${todo.length} still to write. Fill them one by one — the user watches each appear:`);
     full.sections.forEach((s: any, i: number) => lines.push(`  ${i + 1}. ${s.heading || "(intro)"}${s.status === "todo" ? " — to write" : ""}${s.brief ? ` (${s.brief})` : ""}`));
@@ -173,7 +181,7 @@ export async function uploadArtifact(a: { path: string; id?: string; title?: str
   const full = await call("GET", `/api/artifacts/${id}`);
   const art = full.artifact;
   return [`Uploaded ${files.length} file(s) as version ${version} of "${art.title}" (${art.kind}) — ${art.url}`, `id: ${art.id}`,
-    art.appUrl ? `It runs at ${art.appUrl}` : "", showIt(art)].filter(Boolean).join("\n");
+    art.appUrl ? `It runs at ${art.appUrl}` : "", await showIt(art)].filter(Boolean).join("\n");
 }
 
 // ---------- list / share / handover / open ----------

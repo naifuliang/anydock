@@ -28,10 +28,14 @@ especially when someone else will read, edit or take it over — make it an AnyD
 1. **Skeleton first.** Create it with an outline, one entry per section or slide (\`"Heading: what goes here"\`):
    - MCP: \`anydock_artifact_create\` with \`title\`, \`type\` (doc | slides | sheet | latex | html), \`outline\`
    - CLI: \`${cli} artifact create "Launch plan" --type doc --outline "# Launch plan: one-line goal|Timeline: key dates|Risks"\`
-2. **Show it right away**, so the user watches it fill in:
-   - If you have a built-in browser (Claude desktop app, Codex app, or any browser tool), open the artifact URL there,
-     in the side panel.
-   - Otherwise: \`anydock_artifact_open\` / \`${cli} open <id>\` (a native window on a Mac, else the default browser).
+2. **Show it right away — visibly**, so the user watches it fill in. The create result includes a one-time sign-in link.
+   - **Claude desktop app (Code tab):** open that link with your browser tool, then bring the browser pane to the front
+     (show the browser pane) — opening it alone can leave the pane hidden. The link signs the pane in; it works once,
+     within 2 minutes. Need another? \`anydock_artifact_open id=… where=builtin\` (CLI: \`${cli} open <id> --link\`).
+   - **Codex app:** open the link in the in-app browser and make sure it's visible.
+   - **No built-in browser** (terminal): \`anydock_artifact_open id=…\` / \`${cli} open <id>\` — a native window on a Mac,
+     already signed in; elsewhere the default browser.
+   - Never paste the one-time link to other people; share the artifact's normal URL (or \`anydock_artifact_share\`).
 3. **Fill it section by section** — one write per section, in order:
    - MCP: \`anydock_artifact_write\` with \`id\`, \`section\` (number or heading), \`content\` (Markdown body, no heading line)
    - CLI: \`${cli} artifact write <id> 2 --file section.md\` (or \`--content "…"\`, or \`-\` for stdin)
