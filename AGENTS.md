@@ -143,16 +143,16 @@ Access rules: **owner** (uploads, created it) · **assignee** (current responsib
 
 - [x] Repo created, dependencies installed
 - [x] Server auth: email code, GitHub, Google (both enabled only when their secrets are set), CLI device login + bearer tokens; `/login`, `/device`, `/api/me`. Verified locally with email code and device flow.
-- [x] D1 tables (auth + AnyDock domain), created locally; remote D1 and R2 created but not migrated yet.
-- [ ] Not deployed yet — blocked on SETUP.md steps 1–4.
+- [x] D1 tables (auth + AnyDock domain) created locally and remote migrations applied; remote D1 and R2 created.
 - [x] Works API: upload + live step sync, list/get, share, handover (incl. to people without accounts), revoke, inbox, live push over WebSocket. `test/e2e.mjs` passes locally (21 checks).
 - [x] CLI: `login` (device flow) / `logout` / `whoami`, `sessions` (Claude Code + Codex), `sync <id>` / `sync --dir`, `unsync`, `rules`, `watch` (live incremental upload + live inbox events). Nothing uploads without a rule; secrets redacted; meta/injected text dropped. `cli/test/e2e.mjs` passes (18 checks).
 - [x] AnyDock MCP for Claude Code and Codex: share, handover, inbox, list works, read a work's trajectory, ask why. `cli/test/mcp-e2e.mjs` passes (23 checks).
 - [x] **Live at https://anydock.ai** (deployed Oct 17): home page with install command, login + device pages, API, `curl -fsSL https://anydock.ai/install.sh | sh`, self-updating CLI. Remote D1 migrated, `BETTER_AUTH_SECRET` set.
 - [x] Production GitHub and Google OAuth sign-in verified end to end (Oct 17). Reused GitHub app 3892579, corrected callback to `/api/auth/callback/github`, and saved both credentials in Cloudflare; authenticated `/api/me` returned `qizi297@outlook.com`. Google project `western-pivot-512023-a8` under `qizi297@gmail.com`, client `AnyDock web`; both credentials in Cloudflare, callback and authenticated `/api/me` verified for `qizi297@gmail.com`. Google remains in Testing with that test user.
-- [ ] Email sender remains missing; email sign-in codes only appear in `cd server && npx wrangler tail`. Optional local OAuth credential setup remains in SETUP.md.
+- [x] Local GitHub and Google OAuth configured in gitignored `server/.dev.vars` (0600), using localhost:8787. Both browser logins and authenticated `/api/me` verified Oct 17. GitHub app supports both production and localhost callbacks; Google Data Access explicitly saved with only openid/email/profile.
+- [ ] Email sender remains missing; email sign-in codes only appear in `cd server && npx wrangler tail`. Primitive setup is explicitly retained as an open to-do in SETUP.md at the user's request.
 - [ ] Not yet installed into Nolan's real Claude Code / Codex config (`anydock mcp install`).
-- [ ] Next candidates: deploy, localhost UI, distill (summary + method), delegate actions (Slack / email / call) + permission panel, self-update bundle.
+- [ ] Next candidates: localhost UI, distill (summary + method), delegate actions (Slack / email / call) + permission panel.
 
 ## Open questions
 

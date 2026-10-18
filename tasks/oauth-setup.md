@@ -7,7 +7,7 @@ Read `AGENTS.md` first. When done, tick the boxes in `SETUP.md` steps 1–2, upd
 
 `https://anydock.ai/login` only shows "Continue with GitHub / Google" when the Worker has that provider's
 client id and secret (`server/src/index.ts` → `providers()`; `server/src/auth.ts` → `socialProviders`).
-None are set yet, so only email codes exist — and email has no sender yet either.
+At task creation none were set. Both providers are now configured and verified; email sender setup remains a separate open task.
 
 ## Rules
 
@@ -43,10 +43,11 @@ None are set yet, so only email codes exist — and email has no sender yet eith
 
 ## 3. Optional: local dev
 
-For `wrangler dev` sign-in with GitHub, create a second GitHub OAuth app (`AnyDock (dev)`, homepage `http://localhost:8787`,
-callback `http://localhost:8787/api/auth/callback/github`) and put its id/secret in `server/.dev.vars` (gitignored).
-The Google client above already allows localhost; put its id/secret in `server/.dev.vars` too.
+- [x] Existing GitHub app reused with an additional `http://localhost:8787/api/auth/callback/github` redirect URI. Current GitHub UI supports multiple redirects; no separate dev app was needed.
+- [x] Both providers configured in gitignored `server/.dev.vars` with mode 0600 and local `BETTER_AUTH_URL`.
+- [x] Both local browser sign-ins and authenticated `/api/me` responses verified.
+- [x] Google Data Access explicitly saved with only openid, email, and profile.
 
 ## Completion — Oct 17, 2026
 
-Production GitHub and Google credentials saved in Cloudflare. Both browser sign-in flows completed successfully and authenticated `/api/me` confirmed the expected identities. GitHub reused app 3892579; Google uses project `western-pivot-512023-a8` and `AnyDock web`. Google remains in Testing with `qizi297@gmail.com` as a test user. Optional local setup was not performed. See SETUP.md for remaining email/local work.
+Production GitHub and Google credentials saved in Cloudflare. Both browser sign-in flows completed successfully and authenticated `/api/me` confirmed the expected identities. GitHub reused app 3892579; Google uses project `western-pivot-512023-a8` and `AnyDock web`. Google remains in Testing with `qizi297@gmail.com` as a test user. Local setup and both local sign-in flows also verified. OAuth checklist is complete. Primitive email setup remains an explicit open to-do in SETUP.md.

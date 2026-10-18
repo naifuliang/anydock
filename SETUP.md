@@ -12,11 +12,10 @@ Production URL: `https://anydock.ai` · Local dev URL: `http://localhost:8787`
   - Application name: `AnyDock`
   - Homepage URL: `https://anydock.ai`
   - Authorization callback URL: `https://anydock.ai/api/auth/callback/github`
-- [ ] Create a second OAuth App for local dev (GitHub allows one callback per app)
-  - Name `AnyDock (dev)`, homepage `http://localhost:8787`, callback `http://localhost:8787/api/auth/callback/github`
+- [x] Local callback added to existing AnyDock app: `http://localhost:8787/api/auth/callback/github`. GitHub now supports multiple redirect URIs (up to 10 in the current UI), so a second app was unnecessary. Production callback retained; wildcard matching off.
 - [x] Production: `GITHUB_CLIENT_ID` saved in Cloudflare (Oct 17).
 - [x] Production: user generated a new GitHub client secret; saved directly to Cloudflare as `GITHUB_CLIENT_SECRET` (Oct 17). Full GitHub sign-in verified: signed-in landing page and authenticated `/api/me` returned `qizi297@outlook.com`. Existing older secret retained.
-- [ ] Dev: add `GITHUB_CLIENT_ID=…` and `GITHUB_CLIENT_SECRET=…` (from the dev app) to `server/.dev.vars`
+- [x] Dev: GitHub credentials saved in gitignored `server/.dev.vars` (mode 0600). Local login and authenticated `/api/me` verified for `qizi297@outlook.com`.
 
 ## 2. Google sign-in
 
@@ -27,9 +26,12 @@ Oct 17: created project **AnyDock** (`western-pivot-512023-a8`) under `qizi297@g
   - Authorized JavaScript origins: `https://anydock.ai`, `http://localhost:8787`
   - Authorized redirect URIs: `https://anydock.ai/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
 - [x] Production: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` saved in Cloudflare
-- [ ] Dev: add both to `server/.dev.vars`
+- [x] Dev: Google credentials saved in gitignored `server/.dev.vars` (mode 0600); `BETTER_AUTH_URL=http://localhost:8787`. Local login and authenticated `/api/me` verified for `qizi297@gmail.com`.
+- [x] Google Data Access saved with exactly `openid`, `userinfo.email`, and `userinfo.profile`; no sensitive or restricted scopes.
 
-## 3. Email codes via Primitive (sponsor)
+## 3. Email codes via Primitive (sponsor) — OPEN TODO
+
+Explicitly retained on the to-do list at the user's request (Oct 17). This is separate from completed OAuth setup.
 
 Without these, sign-in codes are only printed in the server log (fine for local dev).
 
