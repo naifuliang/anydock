@@ -228,7 +228,7 @@ Agent tokens (Oct 18, Nolan: "the agent must not be able to decode or one-line t
 - **Token at rest is never plain text** (`cli/src/secret.ts`): macOS Keychain via the `anydock-keychain-<hash>` helper
   (items trust only that binary; `security find-generic-password` prompts the person), Linux Secret Service via
   `secret-tool`, otherwise an AES-256-GCM file (`token.enc`, key from a separate salt + uid + machine-id). `config.json`
-  holds only `tokenStore`. Tests use the file store (`ANYDOCK_NO_NATIVE_APPROVAL` / `ANYDOCK_TOKEN_STORE=file`).
+  holds only `tokenStore`. The keychain / keyring entry is per AnyDock home (the real `~/.anydock` uses the server URL as account; any other `ANYDOCK_HOME` appends `#<home>`), so two identities on one Mac (e.g. the demo's Nolan + Jason) never share a token — found by Codex Oct 18. Tests use the file store (`ANYDOCK_NO_NATIVE_APPROVAL` / `ANYDOCK_TOKEN_STORE=file`).
 - MCP elicitation approvals were removed (an agent token can't approve); off-Mac the tool waits for the dashboard / Slack.
 - Residual risks (not solved yet): an agent with computer use clicking Approve in a signed-in dashboard (→ passkey-gated
   dashboard approvals), or approving a device login in the browser.

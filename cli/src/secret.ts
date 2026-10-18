@@ -82,15 +82,20 @@ function fileRead(account: string): string | undefined {
 
 // ---------- public API (synchronous: config is read everywhere) ----------
 
+// The OS keychain / keyring is shared by every AnyDock home on this machine, so each home gets its own entry (the
+// account's real ~/.anydock keeps the plain server URL). Two identities on one Mac never overwrite each other.
+const REAL_HOME = join(userInfo().homedir, ".anydock");
+const osAccount = (account: string) => (HOME === REAL_HOME ? account : `${account}#${HOME}`);
+
 export function readToken(store: Store, account: string): string | undefined {
   if (store === "keychain") {
     const bin = keychainHelper();
     if (!bin) return undefined;
-    const r = spawnSync(bin, ["get", SERVICE, account], { encoding: "utf8" });
+    const r = spawnSync(bin, ["get", SERVICE, osAccount(account)], { encoding: "utf8" });
     return r.status === 0 && r.stdout ? r.stdout : undefined;
   }
   if (store === "secret-tool") {
-    const r = spawnSync("secret-tool", ["lookup", "service", SERVICE, "account", account], { encoding: "utf8" });
+    const r = spawnSync("secret-tool", ["lookup", "service", SERVICE, "account", osAccount(account)], { encoding: "utf8" });
     return r.status === 0 && r.stdout ? r.stdout.trim() : undefined;
   }
   return fileRead(account);
@@ -100,16 +105,16 @@ export function readToken(store: Store, account: string): string | undefined {
 export function writeToken(store: Store, account: string, token: string): Store {
   if (store === "keychain") {
     const bin = keychainHelper();
-    if (bin && spawnSync(bin, ["set", SERVICE, account], { input: token }).status === 0) return "keychain";
+    if (bin && spawnSync(bin, ["set", SERVICE, osAccount(account)], { input: token }).status === 0) return "keychain";
   } else if (store === "secret-tool") {
-    if (spawnSync("secret-tool", ["store", "--label=AnyDock sign-in", "service", SERVICE, "account", account], { input: token }).status === 0) return "secret-tool";
+    if (spawnSync("secret-tool", ["store", "--label=AnyDock sign-in", "service", SERVICE, "account", osAccount(account)], { input: token }).status === 0) return "secret-tool";
   }
   fileWrite(account, token);
   return "file";
 }
 
 export function deleteToken(store: Store | undefined, account: string): void {
-  if (store === "keychain" && existsSync(KEYCHAIN_BIN)) spawnSync(KEYCHAIN_BIN, ["delete", SERVICE, account]);
-  if (store === "secret-tool") spawnSync("secret-tool", ["clear", "service", SERVICE, "account", account]);
+  if (store === "keychain" && existsSync(KEYCHAIN_BIN)) spawnSync(KEYCHAIN_BIN, ["delete", SERVICE, osAccount(account)]);
+  if (store === "secret-tool") spawnSync("secret-tool", ["clear", "service", SERVICE, "account", osAccount(account)]);
   rmSync(TOKEN_FILE, { force: true });
 }
