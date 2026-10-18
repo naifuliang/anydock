@@ -42,7 +42,7 @@ const xml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 // agent sessions (launchd/systemd would otherwise start it with the account's default home).
 function serviceEnv(): Record<string, string> {
   const env: Record<string, string> = { HOME: homedir(), ANYDOCK_HOME };
-  for (const k of ["ANYDOCK_SERVER", "ANYDOCK_HOME", "ANYDOCK_CLAUDE_ROOT", "ANYDOCK_CODEX_HOME"]) {
+  for (const k of ["ANYDOCK_SERVER", "ANYDOCK_HOME", "ANYDOCK_CLAUDE_ROOT", "ANYDOCK_CODEX_HOME", "CODEX_HOME"]) {
     if (process.env[k]) env[k] = process.env[k]!;
   }
   return env;

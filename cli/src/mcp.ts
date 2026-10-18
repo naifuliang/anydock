@@ -150,7 +150,7 @@ const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        to: { type: "string", description: "Teammate's email address" },
+        to: { type: "string", description: "Teammate's name (e.g. \"Jason\", if you've worked together) or email address" },
         note: { type: "string", description: "Optional message, e.g. what to look at or what to do next" },
         session: sessionArg,
       },
@@ -166,7 +166,7 @@ const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        to: { type: "string", description: "Teammate's email address" },
+        to: { type: "string", description: "Teammate's name (e.g. \"Jason\", if you've worked together) or email address" },
         note: { type: "string", description: "Handover note: where things stand and what's next" },
         session: sessionArg,
       },
@@ -395,7 +395,7 @@ const tools: Tool[] = [
     description: "Share an artifact with a teammate by email (editor by default, or viewer), or hand it over (they become the owner with its history; you keep edit access). It lands in their AnyDock inbox.",
     inputSchema: {
       type: "object",
-      properties: { id: { type: "string" }, to: { type: "string" }, role: { type: "string", enum: ["editor", "viewer"] }, handover: { type: "boolean" }, note: { type: "string" } },
+      properties: { id: { type: "string" }, to: { type: "string", description: "Teammate's name or email" }, role: { type: "string", enum: ["editor", "viewer"] }, handover: { type: "boolean" }, note: { type: "string" } },
       required: ["id", "to"],
     },
     annotations: { openWorldHint: true },

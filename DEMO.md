@@ -32,9 +32,10 @@ that number with "Text me when work is handed to me" on. Jason's approvals use h
 2. Jason's AnyDock: `ANYDOCK_HOME=~/.anydock-jason ~/.anydock/bin/anydock login` → **Nolan approves in the Jason profile**.
 3. Jason's Codex: `mkdir ~/.codex-jason && cp ~/.codex/auth.json ~/.codex-jason/`, and `~/.codex-jason/config.toml` with
    `[mcp_servers.anydock]` `command = "/Users/nolanliang/.anydock/bin/anydock"`, `args = ["mcp"]`,
-   `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason" }`; copy `~/.codex/skills/anydock` into `~/.codex-jason/skills/`.
+   `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason", CODEX_HOME = "/Users/nolanliang/.codex-jason" }` (so AnyDock finds Jason's Codex sessions); copy `~/.codex/skills/anydock` into `~/.codex-jason/skills/`.
    Start it with `CODEX_HOME=~/.codex-jason codex`. Nolan's normal Codex is untouched.
 4. Jason's dashboard → Permissions → "You": name "Jason", Nolan's number, "Text me when work is handed to me" on (or click the name card at the top of the sidebar).
+4b. **Team:** in Nolan's dashboard → Projects, create "YC hackathon" and add qizi297@outlook.com. Then agents can say "share it with Jason" / "hand this to Jason" by name (names resolve among teammates; email works too).
 5. Nolan's rules: "Email people outside the team" = Ask me (already). Delete the "Container smoke test" artifact.
 6. Dry-run the whole story once, including one Touch ID panel (the first run after an update compiles it, ~20 s).
 7. Make the repo public at submission time.

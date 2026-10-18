@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 import { clip, isInjected, LIMITS, titleFrom, type ParsedSession, type Step } from "./types.ts";
 
 // Codex: ~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<id>.jsonl; thread names in ~/.codex/session_index.jsonl.
-const CODEX_HOME = process.env.ANYDOCK_CODEX_HOME ?? join(homedir(), ".codex");
+const CODEX_HOME = process.env.ANYDOCK_CODEX_HOME ?? process.env.CODEX_HOME ?? join(homedir(), ".codex");
 export const CODEX_ROOT = join(CODEX_HOME, "sessions");
 
 // Re-read on each parse: Codex renames threads as the conversation goes on. The file is small.

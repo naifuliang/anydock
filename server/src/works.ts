@@ -3,6 +3,7 @@ import { z } from "zod";
 import { notifyDiscord } from "./discord.ts";
 import { publish } from "./hub.ts";
 import { textOnHandover } from "./inkbox.ts";
+import { resolveTeammate } from "./people.ts";
 import type { AppEnv, Env, User, WorkRow } from "./types.ts";
 
 // Works API: upload sessions and their trajectories, share / hand over, inbox, live push.
@@ -232,7 +233,7 @@ works.get("/works/:id/steps", async (c) => {
 // ---------- share / handover ----------
 
 const shareBody = z.object({
-  to: z.string().email(),
+  to: z.string().min(1).max(200), // an email, or a teammate's name ("Jason") — see people.ts
   note: z.string().max(5_000).optional(),
 });
 
@@ -244,8 +245,10 @@ async function createShare(c: Context<AppEnv>, kind: "share" | "handover") {
 
   const parsed = shareBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body", issues: parsed.error.issues }, 400);
-  const toEmail = normEmail(parsed.data.to);
   const me = c.get("user");
+  const who = await resolveTeammate(c.env.DB, me.id, parsed.data.to);
+  if ("error" in who) return c.json(who, 400);
+  const toEmail = normEmail(who.email);
   if (toEmail === normEmail(me.email)) return c.json({ error: "cannot_share_with_self" }, 400);
 
   const db = c.env.DB;

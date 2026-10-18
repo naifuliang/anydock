@@ -74,7 +74,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 ## Architecture
 
 - **Local client (Dock App)** — background service + local web UI on `localhost` (native menubar app later).
-  - Discovers all local sessions: Claude Code `~/.claude/projects/<cwd-slug>/<session>.jsonl`, Codex `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`.
+  - Discovers all local sessions: Claude Code `~/.claude/projects/<cwd-slug>/<session>.jsonl`, Codex `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` (`CODEX_HOME` defaults to `~/.codex`; `ANYDOCK_CODEX_HOME` overrides for tests).
   - Normalizes both into one trajectory format; distills via the user's own agent (`claude -p` / `codex exec`), so no API key is needed and raw data stays local.
   - Syncs only what the user authorized (project link or explicit share); redacts secrets before upload.
   - **Live sync**: watches session files; new steps appear in the local UI immediately and, for authorized sessions, upload incrementally so recipients see progress live (pushed via a per-user Durable Object WebSocket).
@@ -133,6 +133,7 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
     - API: `GET /api/sessions` (sessions seen in 7 days: device, linked work, own rules), `GET /api/sessions/effective?source&sessionId`, `PUT /api/sessions/rule` (agents may only set ask/deny = narrow; allow / inherit is the person's), `DELETE /api/sessions/rules?…` (person only: "Back to my rules"). Dashboard Permissions → "Agent sessions". MCP `anydock_permissions` (see / restrict this session).
     - Note: the session id is reported by the local MCP, so it scopes and narrows within one person's own agents; the hard boundary stays agent tokens + signed approvals.
     - Test: `test/sessions-e2e.mjs` (19 checks).
+  - `src/people.ts` recipients by name: share / handover / artifact share accept "Jason" as well as an email, resolved among people you already work with (shares either way, project and organization co-members, work owners/assignees); ambiguous or unknown names return a clear 400. Test: `test/people-e2e.mjs`.
   - `src/trust.ts` agent vs person (see "Agent tokens" below); test `test/agent-trust-e2e.mjs`.
   - Tests: `test/mail-text-e2e.mjs` (mock Google/Microsoft/Inkbox on :8797; test values in its header) and `test/client-syntax.mjs` (syntax-checks the dashboard/landing inline scripts — run after editing `app.ts`/`landing.ts`; a quoting slip there blanks the page).
   - `src/works.ts` Works API · `src/hub.ts` `UserHub` Durable Object (live push) · `src/types.ts` shared types.

@@ -6,7 +6,7 @@ import { COMMAND } from "./version.ts";
 // The AnyDock skill, installed next to the MCP server into Claude Code (~/.claude/skills) and Codex (~/.codex/skills).
 // The MCP tools give agents the capability; the skill teaches the workflow — and how to show artifacts to the person.
 const CLAUDE_SKILLS = join(homedir(), ".claude", "skills");
-const CODEX_SKILLS = join(process.env.ANYDOCK_CODEX_HOME ?? join(homedir(), ".codex"), "skills");
+const CODEX_SKILLS = join(process.env.ANYDOCK_CODEX_HOME ?? process.env.CODEX_HOME ?? join(homedir(), ".codex"), "skills");
 
 function skill(cli: string): string {
   return `---

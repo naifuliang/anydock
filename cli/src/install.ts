@@ -8,7 +8,7 @@ import { installSkills, uninstallSkills } from "./skill.ts";
 // Registers `anydock mcp` with Claude Code (user scope) and Codex (~/.codex/config.toml).
 const [CMD, ...CMD_ARGS] = COMMAND as [string, ...string[]];
 const ARGS = [...CMD_ARGS, "mcp"];
-const CODEX_CONFIG = join(process.env.ANYDOCK_CODEX_HOME ?? join(homedir(), ".codex"), "config.toml");
+const CODEX_CONFIG = join(process.env.ANYDOCK_CODEX_HOME ?? process.env.CODEX_HOME ?? join(homedir(), ".codex"), "config.toml");
 const CODEX_BLOCK = /\n?\[mcp_servers\.anydock\]\n(?:(?!\[)[^\n]*\n?)*/;
 
 function claude(args: string[]) {

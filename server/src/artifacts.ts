@@ -6,6 +6,7 @@ import { hmacHex } from "./secure.ts";
 import { isAgent } from "./trust.ts";
 import type { AppEnv, Env, User, WorkRow } from "./types.ts";
 import { roleFor } from "./works.ts";
+import { resolveTeammate } from "./people.ts";
 
 // Artifacts: what work produces. People and agents create, edit, share and hand them over; each keeps its history and
 // (when made in an agent session) its Work, so "where did this come from?" has an answer.
@@ -543,7 +544,7 @@ artifacts.get("/artifacts/:id/versions", async (c) => {
 
 // ---------- share / handover ----------
 
-const shareBody = z.object({ to: z.string().email(), role: z.enum(["viewer", "editor"]).default("editor"), note: z.string().max(2000).optional() });
+const shareBody = z.object({ to: z.string().min(1).max(200), role: z.enum(["viewer", "editor"]).default("editor"), note: z.string().max(2000).optional() });
 
 async function shareTo(c: Context<AppEnv>, a: ArtifactRow, to: string, role: "viewer" | "editor", kind: "artifact.share" | "artifact.handover", note: string | null) {
   const db = c.env.DB;
@@ -570,8 +571,10 @@ artifacts.post("/artifacts/:id/share", async (c) => {
   if (l instanceof Response) return l;
   const b = shareBody.safeParse(await c.req.json().catch(() => null));
   if (!b.success) return c.json({ error: "invalid_body", issues: b.error.issues }, 400);
-  if (normEmail(b.data.to) === normEmail(c.get("user").email)) return c.json({ error: "cannot_share_with_self" }, 400);
-  const r = await shareTo(c, l.a, b.data.to, b.data.role, "artifact.share", b.data.note ?? null);
+  const who = await resolveTeammate(c.env.DB, c.get("user").id, b.data.to);
+  if ("error" in who) return c.json(who, 400);
+  if (normEmail(who.email) === normEmail(c.get("user").email)) return c.json({ error: "cannot_share_with_self" }, 400);
+  const r = await shareTo(c, l.a, who.email, b.data.role, "artifact.share", b.data.note ?? null);
   await event(c, l.a, "shared", `${r.toEmail} (${b.data.role})`);
   return c.json({ share: { ...r, role: b.data.role } }, 201);
 });
@@ -583,8 +586,10 @@ artifacts.post("/artifacts/:id/handover", async (c) => {
   const b = shareBody.safeParse(await c.req.json().catch(() => null));
   if (!b.success) return c.json({ error: "invalid_body", issues: b.error.issues }, 400);
   const me = c.get("user");
-  if (normEmail(b.data.to) === normEmail(me.email)) return c.json({ error: "cannot_share_with_self" }, 400);
-  const r = await shareTo(c, l.a, b.data.to, "editor", "artifact.handover", b.data.note ?? null);
+  const who = await resolveTeammate(c.env.DB, me.id, b.data.to);
+  if ("error" in who) return c.json(who, 400);
+  if (normEmail(who.email) === normEmail(me.email)) return c.json({ error: "cannot_share_with_self" }, 400);
+  const r = await shareTo(c, l.a, who.email, "editor", "artifact.handover", b.data.note ?? null);
   if (r.toUserId) {
     await c.env.DB.batch([
       c.env.DB.prepare(`update "artifact" set "ownerId" = ?2 where "id" = ?1`).bind(l.a.id, r.toUserId),
