@@ -109,7 +109,24 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .conn { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:center; padding:16px; border-bottom:1px solid var(--line); }
   .conn:last-child { border-bottom:0; }
   .conn .ic { width:40px; height:40px; border-radius:10px; display:grid; place-items:center; font-weight:700; color:#fff; }
-  .toast { position:fixed; right:20px; bottom:20px; background:var(--fg); color:var(--bg); padding:11px 14px; border-radius:10px; font-size:13.5px;
+  .tri3 { display:inline-flex; background:var(--soft); border-radius:9px; padding:2px; gap:2px; }
+  .tri3 button { border:0; background:transparent; font:500 12.5px Geist, sans-serif; color:var(--faint); padding:5px 11px; border-radius:7px; cursor:pointer; }
+  .tri3 button.on { background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  .tri3 button.on.allow { color:var(--ok); } .tri3 button.on.ask { color:var(--warn); } .tri3 button.on.deny { color:var(--err); }
+  .tri3[aria-disabled="true"] { opacity:.5; pointer-events:none; }
+  .rule { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:14px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line); }
+  .rule:last-child { border-bottom:0; } .rule b { font-weight:500; display:block; } .rule span { color:var(--muted); font-size:13px; }
+  .act { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; gap:12px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .act:last-child { border-bottom:0; } .act .t { font-weight:500; overflow-wrap:anywhere; } .act .m { color:var(--muted); font-size:12.5px; }
+  .pill.pending { color:var(--warn); background:var(--warn-soft); border-color:transparent; }
+  .pill.executed, .pill.approved { color:var(--ok); background:var(--ok-soft); border-color:transparent; }
+  .pill.denied, .pill.blocked, .pill.failed { color:var(--err); background:#fdecec; border-color:transparent; }
+  .approval { position:fixed; right:20px; bottom:20px; z-index:10; width:min(380px, calc(100vw - 32px)); background:var(--card); border:1.5px solid #f5b84a; border-radius:14px;
+              box-shadow:0 20px 50px -20px rgba(0,0,0,.35); padding:14px 16px; display:grid; gap:10px; }
+  .approval b { font-weight:600; } .approval .note { margin:0; }
+  .approval .row { justify-content:flex-end; }
+  .h2 { font-size:15px; font-weight:600; margin:28px 0 10px; }
+  .toast { right:20px; bottom:20px; background:var(--fg); color:var(--bg); padding:11px 14px; border-radius:10px; font-size:13.5px;
            box-shadow:0 10px 30px rgba(0,0,0,.25); max-width:360px; transform:translateY(20px); opacity:0; transition:.25s; pointer-events:none; z-index:9; }
   .toast.on { transform:none; opacity:1; }
   .err { color:var(--err); font-size:13px; }
@@ -131,6 +148,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
       <a href="#/" data-nav="works">Works</a>
       <a href="#/inbox" data-nav="inbox">Inbox <span class="badge" id="unread" hidden></span></a>
       <a href="#/projects" data-nav="projects">Projects</a>
+      <a href="#/permissions" data-nav="permissions">Permissions <span class="badge" id="pending" hidden></span></a>
       <a href="#/settings" data-nav="settings">Connections</a>
     </nav>
     <div class="me"><b>${esc(user.name || user.email)}</b>${esc(user.email)}<div class="live" id="live"><i></i><span>connecting…</span></div></div>
@@ -140,7 +158,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
 <div class="toast" id="toast"></div>
 <script>
 const BOOT = ${boot};
-const MARKS = ${JSON.stringify({ "claude-code": logo("claude", 16), codex: logo("codex", 16) })};
+const MARKS = ${JSON.stringify({ "claude-code": logo("claude", 16), codex: logo("codex", 16), slack: logo("slack", 20), gmail: logo("gmail", 20) })};
 ${CLIENT}
 </script>
 </body></html>`;
@@ -184,6 +202,8 @@ function connectLive(attempt = 0) {
       toast((i.fromName || short(i.fromEmail)) + (i.kind === "handover" ? " handed over " : " shared ") + '"' + i.workTitle + '"');
       refreshUnread();
     }
+    if (ev.type === "action.new" && ev.action.status === "pending") showApproval(ev.action);
+    if (ev.type === "action.updated") { document.getElementById("ap-" + ev.action.id)?.remove(); refreshPending(); }
     listeners.forEach((fn) => fn(ev));
   };
   ws.onclose = () => { el.classList.remove("on"); el.lastElementChild.textContent = "reconnecting…"; setTimeout(() => connectLive(attempt + 1), Math.min(30000, 1000 * 2 ** attempt)); };
@@ -405,6 +425,57 @@ async function discordCard(projectId, guildId) {
   card.querySelectorAll("[data-unlink]").forEach((b) => b.onclick = async () => { await api("DELETE", "/api/projects/" + projectId + "/discord/" + b.dataset.unlink); toast("Disconnected"); discordCard(projectId); });
 }
 
+// ---------- delegate: approvals, rules, activity ----------
+async function refreshPending() {
+  const { actions } = await api("GET", "/api/actions?status=pending");
+  const b = $("#pending"); b.textContent = actions.length; b.hidden = actions.length === 0;
+}
+async function decideAction(id, approve) {
+  const { action } = await api("POST", "/api/actions/" + id + "/decide", { approve, via: "dashboard" });
+  document.getElementById("ap-" + id)?.remove();
+  toast(approve ? (action.status === "executed" ? "Approved — done" : "Approved — " + (action.result?.detail || action.status)) : "Denied");
+  refreshPending(); if (location.hash.startsWith("#/permissions")) permissionsView();
+}
+function showApproval(a) {
+  if (document.getElementById("ap-" + a.id)) return;
+  const el = document.createElement("div"); el.className = "approval"; el.id = "ap-" + a.id;
+  el.innerHTML = '<b>Your agent wants to…</b><div>' + esc(a.summary) + '</div><p class="note">' + esc(a.agent || "agent") + ' · your rule: ask me</p>' +
+    '<div class="row"><button class="btn" data-d="0">Deny</button><button class="btn solid" data-d="1">Approve</button></div>';
+  el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d === "1"));
+  document.body.appendChild(el); refreshPending();
+}
+const STATUS_LABEL = { pending: "waiting for you", approved: "approved", executed: "done", failed: "failed", denied: "denied", blocked: "blocked by rule" };
+async function permissionsView(params = new URLSearchParams()) {
+  setNav("permissions");
+  const [{ actions: rules, connections }, { actions: log }] = await Promise.all([api("GET", "/api/delegate"), api("GET", "/api/actions")]);
+  const sl = connections.slack, em = connections.email;
+  view.innerHTML = '<h1>Permissions</h1><p class="lead">What your agents may do as you. They never see your tokens — AnyDock checks your rule, then acts.</p>' +
+    (params.get("slack") === "connected" ? '<div class="card" style="padding:12px 16px;margin-bottom:14px;border-color:var(--ok)">Slack connected. Your agents can now post as you, within the rules below.</div>' : '') +
+    '<div class="card">' +
+      '<div class="conn"><div class="ic" style="background:#fff;border:1px solid var(--line)">' + MARKS.slack + '</div><div><b>Slack</b><div class="note">' +
+        (sl.connected ? 'Connected to <b>' + esc(sl.label) + '</b> — agents post as you; approvals arrive as Slack DMs.' : sl.available ? 'Connect once; every agent of yours can then post as you, under your rules.' : 'Coming soon — the AnyDock Slack app is being set up.') + '</div></div>' +
+        (sl.connected ? '<button class="btn" id="slackOff">Disconnect</button>' : sl.available ? '<a class="btn solid" href="/api/connectors/slack/start">Connect Slack</a>' : '<span class="pill">coming soon</span>') + '</div>' +
+      '<div class="conn"><div class="ic" style="background:#fff;border:1px solid var(--line)">' + MARKS.gmail + '</div><div><b>Email</b><div class="note">' +
+        (em.available ? 'Sends from <b>' + esc(em.from) + '</b> on your behalf; replies go to you.' : 'Sends through AnyDock once a sender is configured.') + '</div></div><span class="pill ' + (em.available ? 'shared' : '') + '">' + (em.available ? 'ready' : 'setup pending') + '</span></div>' +
+    '</div>' +
+    '<div class="h2">Rules</div><div class="card">' + rules.map((r) =>
+      '<div class="rule"><div><b>' + esc(r.label) + (r.live ? '' : ' <span class="pill">soon</span>') + '</b><span>' + esc(r.sub) + '</span></div>' +
+      '<div class="tri3" data-k="' + r.key + '"' + (r.live ? '' : ' aria-disabled="true"') + '>' + ["allow", "ask", "deny"].map((d) =>
+        '<button class="' + d + (r.decision === d ? " on" : "") + '" data-v="' + d + '">' + (d === "ask" ? "Ask me" : d[0].toUpperCase() + d.slice(1)) + '</button>').join("") + '</div></div>').join("") + '</div>' +
+    '<div class="h2">Activity</div><div class="card">' + (log.length ? log.map((a) =>
+      '<div class="act"><span class="pill ' + a.status + '">' + (STATUS_LABEL[a.status] || a.status) + '</span><div style="min-width:0"><div class="t">' + esc(a.summary) + '</div><div class="m">' +
+      esc(a.agent || "agent") + ' · ' + ago(a.createdAt) + (a.decidedVia && a.decidedVia !== "rule" ? ' · decided in ' + esc(a.decidedVia) : '') + (a.result?.detail ? ' · ' + esc(a.result.detail) : '') + '</div></div>' +
+      (a.status === "pending" ? '<div class="row"><button class="btn" data-deny="' + a.id + '">Deny</button><button class="btn solid" data-ok="' + a.id + '">Approve</button></div>' : '<span></span>') + '</div>').join("")
+      : '<div class="empty">Nothing yet. Ask your agent, e.g. <code>tell #launch the build is green</code>.</div>') + '</div>';
+  view.querySelectorAll(".tri3").forEach((t) => t.querySelectorAll("button").forEach((b) => b.onclick = async () => {
+    await api("PUT", "/api/delegate/policy", { action: t.dataset.k, decision: b.dataset.v });
+    t.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); toast("Rule saved");
+  }));
+  view.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => decideAction(b.dataset.ok, true));
+  view.querySelectorAll("[data-deny]").forEach((b) => b.onclick = () => decideAction(b.dataset.deny, false));
+  const off = $("#slackOff"); if (off) off.onclick = async () => { await api("DELETE", "/api/connectors/slack"); toast("Slack disconnected"); permissionsView(); };
+}
+
 function settingsView() {
   setNav("settings");
   const prod = BOOT.origin === "https://anydock.ai";
@@ -414,7 +485,7 @@ function settingsView() {
         '<br>or a terminal: <code>curl -fsSL ' + esc(BOOT.origin) + '/install.sh | ' + (prod ? "" : "ANYDOCK_SERVER=" + esc(BOOT.origin) + " ") + 'sh</code></div></div><span class="pill shared">available</span></div>' +
       '<div class="conn"><div class="ic" style="background:#5865F2">D</div><div><b>Discord</b><div class="note">Post shares and handovers to a channel, and ask <code>/anydock why</code> from Discord. Connect it from a project page.</div></div>' +
         (BOOT.discord ? '<a class="btn" href="#/projects">Choose a project</a>' : '<span class="pill">coming soon</span>') + '</div>' +
-      '<div class="conn"><div class="ic" style="background:#4A154B">S</div><div><b>Slack</b><div class="note">Notify teammates in Slack when work is shared or handed to them.</div></div><span class="pill">coming soon</span></div>' +
+      '<div class="conn"><div class="ic" style="background:#fff;border:1px solid var(--line)">' + MARKS.slack + '</div><div><b>Slack</b><div class="note">Let your agents post as you, with approvals as Slack DMs.</div></div><a class="btn" href="#/permissions">Open Permissions</a></div>' +
     '</div><div class="row" style="margin-top:24px"><button class="btn" id="signout">Sign out</button></div>';
   $("#signout").onclick = async () => { await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/"; };
 }
@@ -431,6 +502,7 @@ async function route() {
     else if (h === "/inbox") await inboxView();
     else if (h === "/projects") await projectsView();
     else if (h === "/settings") settingsView();
+    else if (h === "/permissions") await permissionsView(params);
     else if ((m = h.match(/^\/w\/([\w-]+)$/))) await workView(m[1]);
     else if ((m = h.match(/^\/p\/([\w-]+)$/))) await projectView(m[1], params);
     else location.hash = "#/";
@@ -441,4 +513,5 @@ async function route() {
 }
 addEventListener("hashchange", route);
 route(); refreshUnread(); connectLive();
+api("GET", "/api/actions?status=pending").then(({ actions }) => actions.slice(0, 3).forEach(showApproval)).catch(() => {});
 `;

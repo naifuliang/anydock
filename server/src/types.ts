@@ -9,6 +9,11 @@ export interface Env extends AuthEnv {
   DISCORD_PUBLIC_KEY?: string;
   DISCORD_BOT_TOKEN?: string;
   DISCORD_API?: string; // override for tests; default https://discord.com/api/v10
+  // Slack connector for delegate (see tasks/slack-app-setup.md).
+  SLACK_CLIENT_ID?: string;
+  SLACK_CLIENT_SECRET?: string;
+  SLACK_SIGNING_SECRET?: string;
+  SLACK_API?: string; // override for tests; default https://slack.com/api
 }
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
@@ -43,4 +48,5 @@ export interface WorkRow {
 // Live-push events delivered over /api/live.
 export type LiveEvent =
   | { type: "inbox.new"; item: unknown }
-  | { type: "work.updated"; workId: string; stepCount: number; updatedAt: string };
+  | { type: "work.updated"; workId: string; stepCount: number; updatedAt: string }
+  | { type: "action.new" | "action.updated"; action: unknown };

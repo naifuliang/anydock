@@ -602,7 +602,7 @@ const FEATURES: [string, string, string, boolean][] = [
   ["shield-check", "Private by default", "Nothing uploads until you share; secrets are scrubbed first; revoke anytime.", true],
   ["zap", "One-prompt setup", "One prompt (or one command) installs, signs in, connects your agents and starts sync.", true],
   ["messages-square", "Discord", "Handover cards in your team's channel, and /anydock why right from Discord.", false],
-  ["key-round", "Permission panel", "Allow, ask me or deny — per agent, per action, inherited from your org.", false],
+  ["key-round", "Permission panel", "Allow, ask me or deny per action; approve from the dashboard, Slack, or right inside your agent.", true],
   ["repeat", "Method replay", "Turn a trajectory into a reusable playbook any teammate's agent can run.", false],
 ];
 
@@ -654,10 +654,10 @@ const CONNECTOR_GROUPS: { title: string; items: Connector[] }[] = [
   {
     title: "Trust & spend",
     items: [
-      { name: "Permission panel", mark: { kind: "line", k: "shield-check" }, what: "Allow, ask me, or deny — per agent, per action.", live: false },
+      { name: "Permission panel", mark: { kind: "line", k: "shield-check" }, what: "Allow, ask me, or deny — per action, with approvals and an activity log.", live: true },
       { name: "Stripe", mark: { kind: "brand", k: "stripe" }, what: "Budgets for agents: spend up to a limit, ask above it, revoke anytime.", live: false },
       { name: "Okta / SSO", mark: { kind: "brand", k: "okta", color: "#0a0a0b" }, what: "Org-wide identity, so agent permissions follow your directory.", live: false },
-      { name: "Audit log", mark: { kind: "line", k: "scroll" }, what: "Who shared what, which agent did what, and why — exportable.", live: false },
+      { name: "Audit log", mark: { kind: "line", k: "scroll" }, what: "Every agent action, who approved it and where — in your activity log.", live: true },
     ],
   },
 ];

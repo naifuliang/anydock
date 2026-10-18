@@ -267,7 +267,102 @@ const tools: Tool[] = [
       ].join("\n");
     },
   },
+  {
+    name: "anydock_slack_post",
+    description:
+      "Post a Slack message AS THE USER (their own Slack account), to a channel like \"#launch\" or to a teammate's email (as a DM). AnyDock checks the user's rule first: it may run at once, ask the user to approve, or be blocked. Use when the user asks you to tell / message / ping someone in Slack.",
+    inputSchema: {
+      type: "object",
+      properties: { to: { type: "string", description: '"#channel" or a teammate\'s email' }, text: { type: "string", description: "The message, written as the user would" } },
+      required: ["to", "text"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    run: (a) => delegateAction("slack.post", { to: a.to, text: a.text }),
+  },
+  {
+    name: "anydock_email",
+    description:
+      "Send an email on the user's behalf (replies go to the user). Emails to the user's own company domain follow their 'email teammates' rule; anyone else follows 'email outside the team' (usually: ask the user first).",
+    inputSchema: {
+      type: "object",
+      properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string", description: "Plain-text body" } },
+      required: ["to", "subject", "body"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    run: (a) => delegateAction("email", { to: a.to, subject: a.subject, body: a.body }),
+  },
+  {
+    name: "anydock_action_status",
+    description: "Check an AnyDock action that was waiting for the user's approval (id from anydock_slack_post / anydock_email).",
+    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    async run(a) {
+      const { action } = await api<{ action: Act }>("GET", `/api/actions/${a.id}`);
+      return describeAction(action);
+    },
+  },
 ];
+
+// ---------- delegate ----------
+
+interface Act {
+  id: string;
+  status: "pending" | "approved" | "denied" | "blocked" | "executed" | "failed";
+  summary: string;
+  decidedVia?: string | null;
+  result?: { detail?: string } | null;
+  approveUrl?: string;
+}
+
+function describeAction(a: Act): string {
+  switch (a.status) {
+    case "executed":
+      return `Done. ${a.result?.detail ?? a.summary}`;
+    case "failed":
+      return `It was allowed but failed: ${a.result?.detail ?? "unknown error"}`;
+    case "blocked":
+      return `Not done: the user's AnyDock rule blocks this ("${a.summary}"). They can change it at anydock.ai/app → Permissions.`;
+    case "denied":
+      return `The user denied it${a.decidedVia ? ` (in ${a.decidedVia})` : ""}. Don't retry unless they ask.`;
+    case "pending":
+      return `Waiting for the user's approval: "${a.summary}". They can approve in the AnyDock dashboard or the Slack DM. Check again with anydock_action_status id=${a.id}.`;
+    default:
+      return `Status: ${a.status}.`;
+  }
+}
+
+async function delegateAction(action: "slack.post" | "email", payload: Record<string, unknown>): Promise<string> {
+  let act: Act;
+  try {
+    ({ action: act } = await api<{ action: Act }>("POST", "/api/actions", { action, payload, agent: launchingAgent() ?? "agent" }));
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403 && (e.data as any)?.action) return describeAction((e.data as any).action);
+    throw e;
+  }
+  if (act.status !== "pending") return describeAction(act);
+
+  // Ask right here if the client can show the user a prompt (MCP elicitation); the model can't answer it for them.
+  if (clientCaps.elicitation) {
+    const answer = await elicit(`AnyDock: your agent wants to ${act.summary}. Allow it?`, {
+      type: "object",
+      properties: { approve: { type: "boolean", title: "Approve", description: act.summary } },
+      required: ["approve"],
+    }).catch(() => null);
+    if (answer && (answer.action === "accept" || answer.action === "decline")) {
+      const approve = answer.action === "accept" && answer.content?.approve === true;
+      const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, { approve, via: "agent" });
+      return describeAction(decided);
+    }
+  }
+  // Otherwise wait a little for an approval in the dashboard or Slack, then hand back the id.
+  const deadline = Date.now() + 50_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const { action: cur } = await api<{ action: Act }>("GET", `/api/actions/${act.id}`);
+    if (cur.status !== "pending") return describeAction(cur);
+  }
+  return describeAction(act);
+}
 
 async function shareOrHandover(kind: "share" | "handover", a: { to: string; note?: string; session?: string }): Promise<string> {
   const s = currentSession(a.session);
@@ -283,7 +378,22 @@ async function shareOrHandover(kind: "share" | "handover", a: { to: string; note
 
 // ---------- JSON-RPC over stdio ----------
 
-type Msg = { jsonrpc: "2.0"; id?: number | string | null; method?: string; params?: any };
+type Msg = { jsonrpc: "2.0"; id?: number | string | null; method?: string; params?: any; result?: any; error?: any };
+
+// What the connected client said it supports in initialize.
+const clientCaps: { elicitation?: boolean } = {};
+const outgoing = new Map<string, (m: Msg) => void>();
+let outSeq = 0;
+
+// Server → client request (MCP elicitation): the client shows the user a small form and returns their answer.
+function elicit(message: string, requestedSchema: object): Promise<{ action: string; content?: any }> {
+  const id = `anydock-elicit-${++outSeq}`;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { outgoing.delete(id); reject(new Error("no answer")); }, 120_000);
+    outgoing.set(id, (m) => { clearTimeout(timer); m.error ? reject(new Error(m.error.message)) : resolve(m.result); });
+    send({ id, method: "elicitation/create", params: { message, requestedSchema } });
+  });
+}
 
 const send = (m: object) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 
@@ -294,12 +404,13 @@ async function handle(msg: Msg): Promise<void> {
 
   switch (method) {
     case "initialize":
+      clientCaps.elicitation = Boolean(params?.capabilities?.elicitation);
       return void reply({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: {} },
         serverInfo: { name: "anydock", title: "AnyDock", version: VERSION },
         instructions:
-          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work.",
+          "AnyDock moves agent work between teammates. Use anydock_share / anydock_handover when the user wants to send this session's work to someone; anydock_inbox to see what teammates sent; anydock_read_work and anydock_ask_why to understand a teammate's work; anydock_slack_post and anydock_email to message people as the user (their rules decide: done, needs approval, or blocked).",
       });
     case "ping":
       return void reply({});
@@ -337,6 +448,12 @@ export function serveMcp(): Promise<void> {
       msg = JSON.parse(line);
     } catch {
       return void send({ id: null, error: { code: -32700, message: "Parse error" } });
+    }
+    // A response to one of our own requests (e.g. elicitation)?
+    if (!msg.method && msg.id != null && outgoing.has(String(msg.id))) {
+      const done = outgoing.get(String(msg.id))!;
+      outgoing.delete(String(msg.id));
+      return void done(msg);
     }
     handle(msg).catch((e) => send({ id: msg.id ?? null, error: { code: -32603, message: String(e) } }));
   });
