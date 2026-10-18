@@ -110,3 +110,8 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Nolan requires a separate window for every recording target, with one demo page per browser window and no unrelated tabs. Use separate windows for dashboards, artifacts, Slack/mail and terminals as needed.
 - Opened a new clean single-tab Nolan AnyDock window; UI confirms qizi297@gmail.com signed in. Jason has a separate single-tab login window in Edge Profile 2, email qizi297@outlook.com entered; Nolan must complete sign-in. No login or approval performed by the agent.
 - Stopped at the explicit Jason-login handoff. Screen recording, stage layout, dry run and raw clips have not started.
+
+### Jason account and browser identity verified
+
+- Nolan completed qizi297@outlook.com web sign-in. Changed its AnyDock display name from Naifu Liang to Jason; verified after reload. Renamed Edge Profile 2 to Jason through browser settings and closed the temporary settings window. Main Gmail account was also observed displaying Nolan.
+- Started isolated AnyDock CLI login with `ANYDOCK_HOME=~/.anydock-jason`. Opened a separate single-page authorization window in Edge Jason and entered its device code. Stopped before Continue/Approve for Nolan; CLI authorization remains pending.
