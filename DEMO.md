@@ -34,7 +34,7 @@ that number with "Text me when work is handed to me" on. Jason's approvals use h
    `[mcp_servers.anydock]` `command = "/Users/nolanliang/.anydock/bin/anydock"`, `args = ["mcp"]`,
    `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason" }`; copy `~/.codex/skills/anydock` into `~/.codex-jason/skills/`.
    Start it with `CODEX_HOME=~/.codex-jason codex`. Nolan's normal Codex is untouched.
-4. Jason's dashboard → Permissions → Your phone: Nolan's number + "Text me when work is handed to me". Display name "Jason".
+4. Jason's dashboard → Permissions → "You": name "Jason", Nolan's number, "Text me when work is handed to me" on (or click the name card at the top of the sidebar).
 5. Nolan's rules: "Email people outside the team" = Ask me (already). Delete the "Container smoke test" artifact.
 6. Dry-run the whole story once, including one Touch ID panel (the first run after an update compiles it, ~20 s).
 7. Make the repo public at submission time.

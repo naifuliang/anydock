@@ -59,6 +59,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   aside { background:#fff; border-right:1px solid var(--line); padding:14px 12px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; overflow-y:auto; }
   .brand { display:flex; align-items:center; gap:9px; font-weight:600; letter-spacing:-.02em; font-size:16.5px; padding:6px 10px 14px; }
   .who { display:flex; align-items:center; gap:10px; padding:9px 10px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; background:var(--bg); }
+  a.who { color:inherit; text-decoration:none; } a.who:hover { border-color:var(--line2); background:#fff; }
   .who b { display:block; font-weight:500; font-size:13.5px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .who small { display:block; color:var(--faint); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .who > div { min-width:0; flex:1; }
@@ -305,7 +306,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
 <div class="shell">
   <aside>
     <a class="brand" href="/">${LOGO}<span class="name">AnyDock</span></a>
-    <div class="who"><span class="av lg" id="meAv"></span><div><b>${esc(user.name || user.email.split("@")[0]!)}</b><small>${esc(user.email)}</small></div></div>
+    <a class="who" href="#/permissions" title="Edit your name and phone"><span class="av lg" id="meAv"></span><div><b>${esc(user.name || user.email.split("@")[0]!)}</b><small>${esc(user.email)}</small></div></a>
     <nav class="nav">
       <div class="navsec">Work</div>
       <a href="#/" data-nav="home">${ICONS.home}<span class="label">Overview</span></a>
@@ -368,7 +369,7 @@ const roleLabel = { owner: "Yours", shared: "Shared with you", assignee: "Handed
 const empty = (icon, title, body) => '<div class="empty"><div class="ei">' + ICONS[icon] + '</div><b>' + title + '</b><p>' + body + '</p></div>';
 const skel = (n = 3) => '<div class="pad">' + Array.from({ length: n }, () => '<div class="skel" style="margin:10px 0;width:' + (60 + Math.random() * 35) + '%"></div>').join("") + '</div>';
 
-$("#meAv").outerHTML = av(BOOT.user.name, BOOT.user.email, "lg");
+$("#meAv").outerHTML = av(BOOT.user.name, BOOT.user.email, "lg").replace("<span", '<span id="meAv"');
 $("#copyPrompt").onclick = async () => { await navigator.clipboard.writeText(PROMPT); toast("Copied — paste it into your agent"); };
 $("#signout").onclick = async () => { await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/"; };
 
@@ -785,14 +786,24 @@ async function sessionsCard(rules) {
 async function phoneCard() {
   const el = $("#phoneCard"); if (!el) return;
   const p = await api("GET", "/api/me/profile");
-  el.innerHTML = '<b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.bot + 'Your phone</b>' +
-    '<p class="note" style="margin:6px 0 10px">' + (p.textingReady ? 'Texts come from AnyDock’s Inkbox identity.' : 'Texting is being set up (Inkbox); you can save your number now.') + '</p>' +
-    '<form id="phoneForm" style="display:grid;gap:8px"><input name="phone" placeholder="+14155550123" value="' + esc(p.phone || "") + '">' +
+  el.innerHTML = '<b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.user + 'You</b>' +
+    '<p class="note" style="margin:6px 0 10px">Your name is what teammates see on shares, handovers and edits. Texts come from AnyDock’s Inkbox identity' + (p.textingReady ? '.' : ' (being set up).') + '</p>' +
+    '<form id="phoneForm" style="display:grid;gap:8px"><input name="name" placeholder="Your name" maxlength="80" value="' + esc(BOOT.user.name || "") + '"><input name="phone" placeholder="+14155550123" value="' + esc(p.phone || "") + '">' +
     '<label class="tog" style="padding:0"><input type="checkbox" name="toh"' + (p.textOnHandover ? " checked" : "") + '> Text me when work is handed to me</label>' +
     '<div class="row"><button class="btn sm solid">Save</button><span class="note" id="phoneMsg"></span></div></form>';
   $("#phoneForm").onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(e.target);
-    try { await api("PUT", "/api/me/profile", { phone: (fd.get("phone") || "").trim() || null, textOnHandover: fd.get("toh") === "on" }); toast("Saved"); $("#phoneMsg").textContent = ""; }
+    try {
+      const name = (fd.get("name") || "").trim();
+      if (name && name !== BOOT.user.name) {
+        await api("POST", "/api/auth/update-user", { name });
+        BOOT.user.name = name;
+        const who = document.querySelector(".who b"); if (who) who.textContent = name;
+        const me = $("#meAv"); if (me) me.outerHTML = av(name, BOOT.user.email, "lg").replace("<span", '<span id="meAv"');
+      }
+      await api("PUT", "/api/me/profile", { phone: (fd.get("phone") || "").trim() || null, textOnHandover: fd.get("toh") === "on" });
+      toast("Saved"); $("#phoneMsg").textContent = "";
+    }
     catch (err) { $("#phoneMsg").innerHTML = '<span class="err">' + esc(err.message) + '</span>'; }
   };
 }
