@@ -149,6 +149,26 @@ Scenario: **this very hackathon** — Nolan researched the 8 sponsors with Claud
 
 Access rules: **owner** (uploads, created it) · **assignee** (current responsible person after a handover) · **shared** (explicit share, until revoked) · **project** (member of the linked project and `visibility = project`). Missing and forbidden both return 404. Raw trajectories live in R2 at `works/<id>/trajectory.json`.
 
+## Integrations status (keep current)
+
+| Integration | State | Next step / owner |
+|---|---|---|
+| Claude Code, Codex | Live: session capture + MCP (auto-registered by `anydock mcp install`) | — |
+| Cursor, Windsurf, VS Code | MCP config documented in `/agents.md`; **not yet tested** | Codex: `tasks/mcp-clients-qa.md` |
+| GitHub / Google sign-in | Live (Google in Testing: listed test users only) | Codex: `tasks/google-access-and-email.md` |
+| Email sign-in codes (Primitive) | Code done; no key yet | Codex: `tasks/google-access-and-email.md` |
+| Discord | Code done (project channels, cards, `/anydock`); no bot yet | Codex: `tasks/discord-setup.md` |
+| Slack (delegate: post as you + approval DMs) | Not built | Codex: `tasks/slack-app-setup.md` (app + secrets); Claude: connector code |
+| Phone / SMS / iMessage (Inkbox) | Not built | Codex: `tasks/inkbox-setup.md` (optional); Claude: connector code |
+| Delegate core (permission rules, approvals, audit) | Not built | Claude |
+| GitHub repo access, Notion, Linear, Drive, Stripe, Okta, sandboxes | Roadmap ("Coming soon" on landing) | — |
+
+Delegate design (agreed direction): agents never see third-party tokens. A person connects a tool once in the dashboard;
+AnyDock stores the token server-side, and MCP tools like `anydock_slack_post` are executed by the server after checking
+that person's rules (allow / ask me / deny; defaults: read own-access = allow, message teammates = allow, outside the
+team / calls = ask me, spend / destructive = deny). "Ask me" reaches the person in-session (harness tool prompt, MCP
+elicitation where supported) or async (dashboard live toast, Slack/Discord DM with Approve/Deny); every action is audited.
+
 ## Status
 
 - [x] Hero carousel avatars generated and deployed (Oct 17): six fictional teammate portraits in `server/public/img/avatars/`, 512×512 WebP, 12–20 KB each. Checked at 28px, verified live hero rendering and all six production files against local bytes.
