@@ -33,7 +33,7 @@ Prompt to start: *"Read AGENTS.md and tasks/RUNBOOK.md in ~/Documents/ychackatho
 | 4 | `tasks/email-accounts-setup.md` | Agents send from your own Gmail / Outlook | ⏸ Outlook blocked | Personal Microsoft account lacks tenant access (AADSTS16000); Gmail API/scopes/callbacks configured; Outlook tenant access still blocked |
 | 5 | `tasks/inkbox-setup.md` | Texts / calls to the person a work was handed to | ✅ provider setup | Identity/key configured; real bidirectional iMessage verified; AnyDock delegate test remains |
 | 6 | `tasks/armature-setup.md` | MCP analytics (sponsor track) | ✅ account setup | Workspace/key prepared; SDK instrumentation is separate |
-| 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ✅ account/connector | Account and encrypted organization connection live; no hosted server; CLI deferred |
+| 7 | `tasks/manufact-setup.md` | Hosted MCP server (sponsor track) | ✅ account/connector | Free test server live; real read/deny/ask/approve/revoke verified; provider CLI unnecessary |
 | 8 | `tasks/mcp-clients-qa.md` | Verifies Cursor / Windsurf / VS Code really work | ⚠️ prerequisite missing | AnyDock CLI and editors absent from standard app locations; see QA report |
 
 Mark Status `✅` (done), `⏸` (waiting on Nolan) or `⚠️` (blocked — say why). Commit this file after each task.
@@ -79,3 +79,5 @@ Source: authenticated Safari chat, https://messages.ycombinator.com/messages/267
 - Discord: all 3 secret names verified, both callbacks saved, signed interaction endpoint accepted by Discord. Bot/server connection remains a dashboard action for Nolan.
 
 - Oct 17: organization connector deployed with migrations 0007/0008; live Manufact connection encrypted and audited. No hosted servers, so live server operations remain unverified; 48 local checks cover permissions/approvals/retries. Outlook tenant, editor QA, Primitive final code-login and per-channel AnyDock flow tests remain open.
+
+- Manufact live flow complete: free fixture running; member read succeeds, default redeploy denied, ask waits, other owner approves and provider reaches Running. Temporary member/grants removed; direct access denied after removal. 53 local checks pass. See tasks/manufact-setup.md.

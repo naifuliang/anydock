@@ -56,3 +56,15 @@ Nolan approved creation and deployment. The 30-day key was saved through AnyDock
 Worker version `4be0d4ea-b7c1-4d39-af4b-e5b1f74912aa` deployed. Migration 0008 adds retry keys to already-applied 0007. Unauthenticated organization API returns 401. Initial fetch failed because Cloudflare rejects redirect:error; manual mode now rejects redirects without forwarding credentials. Connection errors report only safe stage/status.
 
 48 local checks pass. Provider has zero servers; live server reads/redeploy and multi-person approval remain unverified. No Manufact server deployment or GitHub access. CLI still deferred.
+
+## Free server and real approval flow verified Oct 17
+
+Nolan authorized a free test server, GitHub App access to only `naifuliang/anydock`, and two controlled AnyDock identities for testing. GitHub App fixed permissions: metadata read; administration/checks/code/deployments/issues/PR read-write. Nolan completed GitHub reauthentication.
+
+- Fixture: `examples/manufact-permission-smoke`, mcp-use 2.10.1, Node 24 Dockerfile, one public read-only ping tool. No production credentials or user data. Local ping and live MCP tools/list + ping return 200. Public URL: https://warm-forge-yvofr.run.mcp-use.com/mcp.
+- Manufact server `9b81377e-50a9-42da-ae76-7e0c3f8220fb`, dashboard name `anydock`, organization Anydock. Billing shows Free active; $9.58/$10 included credits remained at verification, no paid plan/purchase.
+- Root directory correctly saved. Initial watch-path text was not committed as a selection, so one repository push caused an additional automatic deploy. Corrected through deployment settings: chip `examples/manufact-permission-smoke/**`; provider confirmed “Deployment settings saved”. Later unrelated commits should not auto-deploy this fixture.
+- AnyDock owner discovered and selected only this server using the encrypted saved key. Added owner's own Google identity as member. Read grant allowed a real running-status read; redeploy without grant returned forbidden and audit `redeploy.blocked`.
+- Changed member redeploy to ask. Request `6066ce36-3f51-496a-9edc-8d554fb1677f` stayed pending with no member approval button. Different owner identity approved; D1 confirms userId differs from decidedBy. Provider deployment `01b91e64-b0ca-4ce3-a9e2-46ec114d2ac9` (Deployment #3) reached Running.
+- Removed temporary member afterward. D1 confirms zero test members and zero grants; Google dashboard no longer lists organization; direct authenticated resource GET returns not_found. Server fixture retained free for review; owner alone remains.
+- Server discovery and allowlist editing now reuse the encrypted connection. Server-side projection excludes config/secrets, only owner may manage resources, and version-guarded writes avoid overwriting a concurrently replaced connection. 53 local security/flow checks pass.

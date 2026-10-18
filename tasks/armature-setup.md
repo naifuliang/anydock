@@ -29,7 +29,7 @@ The code will send tool-call events from the AnyDock server (not from users' mac
 
 - [x] `ARMATURE_INGEST_KEY` set via Wrangler Oct 17.
 - [x] Ingest endpoint, auth header and event shape recorded below.
-- [ ] Your commit pushed.
+- [x] Your commit pushed.
 
 ## Oct 17 verified setup
 
