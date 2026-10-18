@@ -41,6 +41,9 @@ const PUBLIC_DOMAINS = new Set(["gmail.com", "googlemail.com", "outlook.com", "h
 
 export interface ActionRow {
   id: string;
+  source?: string | null;
+  sessionId?: string | null;
+  cliSessionId?: string | null;
   userId: string;
   agent: string | null;
   action: ActionKey;
@@ -70,6 +73,30 @@ export async function decisionFor(db: D1Database, userId: string, action: Action
   const row = await db.prepare(`select "decision" from "policy" where "userId" = ?1 and "action" = ?2`).bind(userId, action).first<{ decision: Decision }>();
   const d = row?.decision ?? ACTIONS[action].def;
   return action === "app.grant" && d === "allow" ? "ask" : d;
+}
+
+export type AgentSessionRef = { source: string; sessionId: string };
+const SESSION_HOURS = 8;
+const RANK: Record<Decision, number> = { allow: 0, ask: 1, deny: 2 };
+
+// The decision for one agent session: the person's rule, narrowed by that session's rule — or, only if the person
+// approved "for this session", allowed there (never beyond a deny, never for granting to apps, only in scope).
+export async function effectiveDecision(db: D1Database, userId: string, action: ActionKey, session: AgentSessionRef | null, cliSessionId: string | null, to?: unknown):
+  Promise<{ decision: Decision; sessionRule?: string }> {
+  const person = await decisionFor(db, userId, action);
+  if (person === "deny" || !session) return { decision: person };
+  const r = await db.prepare(
+    `select "id","decision","scope" from "sessionRule" where "userId" = ?1 and "source" = ?2 and "sessionId" = ?3 and "action" = ?4
+       and "revokedAt" is null and "expiresAt" > ?5 and ("cliSessionId" is null or "cliSessionId" = ?6) order by "createdAt" desc limit 1`,
+  ).bind(userId, session.source, session.sessionId, action, now(), cliSessionId).first<{ id: string; decision: Decision; scope: string | null }>();
+  if (!r) return { decision: person };
+  if (r.decision === "allow") {
+    if (action === "app.grant") return { decision: person };
+    const scope = r.scope ? (JSON.parse(r.scope) as { to?: string[] }) : null;
+    if (scope?.to?.length && !scope.to.some((t) => t.toLowerCase() === String(to ?? "").toLowerCase())) return { decision: person };
+    return { decision: "allow", sessionRule: r.id };
+  }
+  return { decision: RANK[r.decision] > RANK[person] ? r.decision : person };
 }
 
 // ---------- Slack plumbing ----------
@@ -199,13 +226,18 @@ export async function run(env: Env, user: User, row: ActionRow): Promise<ActionR
 }
 
 // Approve or deny a pending request, from any channel. Idempotent: only the first decision counts.
-export async function decide(env: Env, userId: string, id: string, approve: boolean, via: string): Promise<ActionRow | null> {
+export async function decide(env: Env, userId: string, id: string, approve: boolean, via: string, scope: "once" | "session" = "once"): Promise<ActionRow | null> {
   const db = env.DB;
   const claimed = await db
     .prepare(`update "actionRequest" set "status" = ?3, "decidedVia" = ?4, "decidedAt" = ?5 where "id" = ?1 and "userId" = ?2 and "status" = 'pending' returning *`)
-    .bind(id, userId, approve ? "approved" : "denied", via, now())
+    .bind(id, userId, approve ? "approved" : "denied", scope === "session" && approve ? `${via} · this session` : via, now())
     .first<ActionRow>();
   if (!claimed) return load(db, id, userId);
+  // "Approve for this session": the same action from the same agent session runs without asking, for a while.
+  if (approve && scope === "session" && claimed.source && claimed.sessionId && claimed.action !== "app.grant") {
+    await db.prepare(`insert into "sessionRule" ("id","userId","cliSessionId","source","sessionId","action","decision","scope","createdVia","requestId","expiresAt","createdAt") values (?1,?2,?3,?4,?5,?6,'allow',null,?7,?8,?9,?10)`)
+      .bind(crypto.randomUUID(), userId, claimed.cliSessionId, claimed.source, claimed.sessionId, claimed.action, via, claimed.id, new Date(Date.now() + SESSION_HOURS * 3_600_000).toISOString(), now()).run();
+  }
   const user = await userById(db, userId);
   const final = approve && user ? await run(env, user, claimed) : claimed;
   if (!approve) await publish(env, [userId], { type: "action.updated", action: actionJson(final) });
@@ -231,6 +263,7 @@ async function notifyApproval(env: Env, user: User, row: ActionRow, origin: stri
       type: "actions",
       elements: [
         { type: "button", style: "primary", text: { type: "plain_text", text: "Approve" }, action_id: "approve", value: row.id },
+        ...(row.sessionId && row.action !== "app.grant" ? [{ type: "button", text: { type: "plain_text", text: "Allow for this session" }, action_id: "approve_session", value: row.id }] : []),
         { type: "button", style: "danger", text: { type: "plain_text", text: "Deny" }, action_id: "deny", value: row.id },
         { type: "button", text: { type: "plain_text", text: "Open in AnyDock" }, url: `${origin}/app#/permissions` },
       ],
@@ -306,10 +339,12 @@ delegate.put("/delegate/policy", async (c) => {
 
 // ---------- API: actions (agent asks; person decides) ----------
 
+const sessionRef = z.object({ source: z.enum(["claude-code", "codex"]), sessionId: z.string().min(1).max(200) });
 const askBody = z.object({
   action: z.enum(["slack.post", "email", "text", "app.grant"]),
   payload: z.record(z.string(), z.unknown()),
   agent: z.string().max(80).optional(),
+  session: sessionRef.optional(), // which agent session is asking (the MCP / CLI fills it in)
 });
 const grantPayload = z.object({
   artifactId: z.string().min(1).max(100),
@@ -363,16 +398,19 @@ export async function classify(env: Env, user: User, name: string, raw: unknown,
 
 // Record a request and apply the person's rule: allow → run now, ask → wait for them, deny → blocked.
 // `forceAllow` is for the person granting from their own browser (they are the approver).
-export async function requestAction(env: Env, origin: string, user: User, req: { action: ActionKey; payload: Record<string, unknown>; summary: string; agent: string | null; forceAllow?: boolean },
+export async function requestAction(env: Env, origin: string, user: User,
+  req: { action: ActionKey; payload: Record<string, unknown>; summary: string; agent: string | null; forceAllow?: boolean; session?: AgentSessionRef | null; cliSessionId?: string | null },
   wait: (p: Promise<unknown>) => void): Promise<{ row: ActionRow; code: 200 | 202 | 403 }> {
-  const decision = req.forceAllow ? "allow" : await decisionFor(env.DB, user.id, req.action);
+  const eff = req.forceAllow ? { decision: "allow" as Decision } : await effectiveDecision(env.DB, user.id, req.action, req.session ?? null, req.cliSessionId ?? null, req.payload.to);
+  const decision = eff.decision;
   const status = decision === "allow" ? "approved" : decision === "ask" ? "pending" : "blocked";
-  const via = req.forceAllow ? "dashboard" : decision === "ask" ? null : "rule";
+  const via = req.forceAllow ? "dashboard" : decision === "ask" ? null : eff.sessionRule ? "session rule" : "rule";
   const row = (await env.DB.prepare(
-    `insert into "actionRequest" ("id","userId","agent","action","payload","summary","status","decision","decidedVia","createdAt","decidedAt")
-     values (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) returning *`,
+    `insert into "actionRequest" ("id","userId","agent","action","payload","summary","status","decision","decidedVia","createdAt","decidedAt","source","sessionId","cliSessionId")
+     values (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14) returning *`,
   )
-    .bind(crypto.randomUUID(), user.id, req.agent, req.action, JSON.stringify(req.payload), req.summary, status, decision, via, now(), decision === "ask" ? null : now())
+    .bind(crypto.randomUUID(), user.id, req.agent, req.action, JSON.stringify(req.payload), req.summary, status, decision, via, now(), decision === "ask" ? null : now(),
+      req.session?.source ?? null, req.session?.sessionId ?? null, req.cliSessionId ?? null)
     .first<ActionRow>())!;
   if (decision === "allow") return { row: await run(env, user, row), code: 200 };
   if (decision === "deny") {
@@ -392,7 +430,9 @@ delegate.post("/actions", async (c) => {
   const cl = await classify(c.env, user, parsed.data.action, parsed.data.payload, agentSession);
   if ("error" in cl) return c.json(cl, cl.error === "forbidden" || cl.error === "not_yours" ? 403 : cl.error === "not_found" ? 404 : 400);
   const origin = new URL(c.req.url).origin;
-  const { row, code } = await requestAction(c.env, origin, user, { ...cl, agent: parsed.data.agent ?? null, forceAllow: cl.action === "app.grant" && !agentSession }, (p) => c.executionCtx.waitUntil(p));
+  const { row, code } = await requestAction(c.env, origin, user,
+    { ...cl, agent: parsed.data.agent ?? null, forceAllow: cl.action === "app.grant" && !agentSession, session: agentSession ? parsed.data.session ?? null : null, cliSessionId: agentSession },
+    (p) => c.executionCtx.waitUntil(p));
   if (code === 202) return c.json({ action: { ...actionJson(row), approveUrl: `${origin}/app#/inbox` } }, 202);
   return c.json({ action: actionJson(row) }, code);
 });
@@ -419,10 +459,10 @@ delegate.get("/actions/:id", async (c) => {
 delegate.post("/actions/:id/decide", async (c) => {
   const user = signedIn(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).optional(), signature: z.string().max(200).optional() })
+  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).optional(), signature: z.string().max(200).optional(), scope: z.enum(["once", "session"]).default("once") })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
-  const { approve, signature } = parsed.data;
+  const { approve, signature, scope } = parsed.data;
   let via: string;
   if (!isAgent(c)) {
     via = "dashboard"; // a person signed in to the web app
@@ -433,14 +473,94 @@ delegate.post("/actions/:id/decide", async (c) => {
     const row = await load(c.env.DB, c.req.param("id"), user.id);
     if (!row) return c.json({ error: "not_found" }, 404);
     const sessionId = c.get("session")!.session.id;
-    const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature) : { ok: false };
+    const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature, scope) : { ok: false };
     if (!check.ok) {
       return c.json({ error: "human_required", message: "Approving needs the person: Touch ID or password on their Mac, the AnyDock dashboard, or Slack." }, 403);
     }
     via = "mac";
   }
-  const row = await decide(c.env, user.id, c.req.param("id"), approve, via);
+  const row = await decide(c.env, user.id, c.req.param("id"), approve, via, scope);
   return row ? c.json({ action: actionJson(row) }) : c.json({ error: "not_found" }, 404);
+});
+
+// ---------- per agent session permissions ----------
+
+// Agent sessions the person has seen lately, each with its own rules on top of the person's.
+delegate.get("/sessions", async (c) => {
+  const user = signedIn(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { results: seen } = await c.env.DB.prepare(
+    `select "source","sessionId", max("createdAt") as "lastAt", count(*) as "requests", max("agent") as "agent", max("cliSessionId") as "cliSessionId"
+     from "actionRequest" where "userId" = ?1 and "sessionId" is not null and "createdAt" > ?2 group by "source","sessionId"
+     union select "source","sessionId", max("createdAt"), 0, null, max("cliSessionId") from "sessionRule" where "userId" = ?1 and "revokedAt" is null and "expiresAt" > ?3 group by "source","sessionId"
+     order by 3 desc limit 50`,
+  ).bind(user.id, since, now()).all<{ source: string; sessionId: string; lastAt: string; requests: number; agent: string | null; cliSessionId: string | null }>();
+  const map = new Map<string, any>();
+  for (const s of seen) {
+    const k = `${s.source}|${s.sessionId}`;
+    const prev = map.get(k);
+    map.set(k, prev ? { ...prev, requests: prev.requests + s.requests, lastAt: prev.lastAt > s.lastAt ? prev.lastAt : s.lastAt } : { ...s });
+  }
+  const sessions = [];
+  for (const s of map.values()) {
+    const [work, rules, device] = await Promise.all([
+      c.env.DB.prepare(`select "id","title" from "work" where "ownerId" = ?1 and "source" = ?2 and "sessionId" = ?3`).bind(user.id, s.source, s.sessionId).first<{ id: string; title: string }>(),
+      c.env.DB.prepare(`select "id","action","decision","scope","createdVia","expiresAt" from "sessionRule" where "userId" = ?1 and "source" = ?2 and "sessionId" = ?3 and "revokedAt" is null and "expiresAt" > ?4 order by "createdAt" desc`)
+        .bind(user.id, s.source, s.sessionId, now()).all(),
+      s.cliSessionId ? c.env.DB.prepare(`select "name" from "approvalKey" where "sessionId" = ?1`).bind(s.cliSessionId).first<{ name: string }>() : null,
+    ]);
+    sessions.push({ ...s, title: work?.title ?? null, workId: work?.id ?? null, device: device?.name ?? null, rules: rules.results.map((r: any) => ({ ...r, scope: r.scope ? JSON.parse(r.scope) : null, label: ACTIONS[r.action as ActionKey]?.label ?? r.action })) });
+  }
+  return c.json({ sessions, hours: SESSION_HOURS });
+});
+
+// What one agent session may do right now (agents use this to know before they ask).
+delegate.get("/sessions/effective", async (c) => {
+  const user = signedIn(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const p = sessionRef.safeParse({ source: c.req.query("source"), sessionId: c.req.query("sessionId") });
+  const cli = isAgent(c) ? c.get("session")!.session.id : null;
+  const out: Record<string, { label: string; decision: Decision; person: Decision; bySession: boolean }> = {};
+  for (const [k, a] of Object.entries(ACTIONS) as [ActionKey, (typeof ACTIONS)[ActionKey]][]) {
+    if (!a.live) continue;
+    const person = await decisionFor(c.env.DB, user.id, k);
+    const eff = await effectiveDecision(c.env.DB, user.id, k, p.success ? p.data : null, cli);
+    out[k] = { label: a.label, decision: eff.decision, person, bySession: eff.decision !== person || Boolean(eff.sessionRule) };
+  }
+  return c.json({ actions: out });
+});
+
+// Set one session's rule for one action. Narrowing (ask / deny) is open to the session's own agent too; allowing — or
+// going back to inheriting, which could widen — is the person's call.
+delegate.put("/sessions/rule", async (c) => {
+  const user = signedIn(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const p = sessionRef.extend({ action: z.enum(Object.keys(ACTIONS) as [ActionKey, ...ActionKey[]]), decision: z.enum(["allow", "ask", "deny"]).nullable(), hours: z.number().min(1).max(72).optional(), to: z.array(z.string().max(200)).max(20).optional() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!p.success) return c.json({ error: "invalid_body", issues: p.error.issues }, 400);
+  const d = p.data;
+  if (isAgent(c) && (d.decision === "allow" || d.decision === null)) return c.json({ error: "human_required", message: "Only the person can allow more for a session." }, 403);
+  if (d.action === "app.grant" && d.decision === "allow") return c.json({ error: "invalid_body", message: "Giving an app your permissions always needs your OK." }, 400);
+  const ts = now();
+  await c.env.DB.prepare(`update "sessionRule" set "revokedAt" = ?5 where "userId" = ?1 and "source" = ?2 and "sessionId" = ?3 and "action" = ?4 and "revokedAt" is null`)
+    .bind(user.id, d.source, d.sessionId, d.action, ts).run();
+  if (d.decision) {
+    await c.env.DB.prepare(`insert into "sessionRule" ("id","userId","cliSessionId","source","sessionId","action","decision","scope","createdVia","expiresAt","createdAt") values (?1,?2,null,?3,?4,?5,?6,?7,?8,?9,?10)`)
+      .bind(crypto.randomUUID(), user.id, d.source, d.sessionId, d.action, d.decision, d.to?.length ? JSON.stringify({ to: d.to }) : null, isAgent(c) ? "agent" : "dashboard",
+        new Date(Date.now() + (d.hours ?? SESSION_HOURS) * 3_600_000).toISOString(), ts).run();
+  }
+  return c.json({ ok: true });
+});
+
+// Back to the person's rules for a session (drops its allows and its restrictions).
+delegate.delete("/sessions/rules", async (c) => {
+  const user = signedIn(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const p = sessionRef.safeParse({ source: c.req.query("source"), sessionId: c.req.query("sessionId") });
+  if (!p.success) return c.json({ error: "invalid_query" }, 400);
+  await c.env.DB.prepare(`update "sessionRule" set "revokedAt" = ?4 where "userId" = ?1 and "source" = ?2 and "sessionId" = ?3 and "revokedAt" is null`).bind(user.id, p.data.source, p.data.sessionId, now()).run();
+  return c.json({ ok: true });
 });
 
 // ---------- Slack connect (OAuth v2: bot for approval DMs + the person's user token) ----------
@@ -529,7 +649,7 @@ delegate.post("/connectors/slack/interactions", async (c) => {
     actions?: { action_id: string; value?: string }[];
   };
   const act = payload.actions?.[0];
-  if (payload.type !== "block_actions" || !act?.value || (act.action_id !== "approve" && act.action_id !== "deny")) return c.body(null, 200);
+  if (payload.type !== "block_actions" || !act?.value || !["approve", "approve_session", "deny"].includes(act.action_id)) return c.body(null, 200);
   const externalId = `${payload.team?.id ?? payload.user?.team_id}:${payload.user?.id}`;
   // Start from the request: whose is it, and is the clicker that person's connected Slack account?
   const owner = await c.env.DB.prepare(
@@ -539,6 +659,6 @@ delegate.post("/connectors/slack/interactions", async (c) => {
     .bind(act.value, externalId)
     .first<{ userId: string }>();
   if (!owner) return c.json({ response_type: "ephemeral", text: "This Slack account isn't connected to AnyDock." });
-  c.executionCtx.waitUntil(decide(c.env, owner.userId, act.value, act.action_id === "approve", "slack").then(() => {}));
+  c.executionCtx.waitUntil(decide(c.env, owner.userId, act.value, act.action_id === "approve" || act.action_id === "approve_session", "slack", act.action_id === "approve_session" ? "session" : "once").then(() => {}));
   return c.body(null, 200);
 });

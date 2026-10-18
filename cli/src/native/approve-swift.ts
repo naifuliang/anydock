@@ -1,7 +1,7 @@
 // Source of the native macOS approval panel. The CLI compiles it with swiftc on first use (see approve.ts).
 // Approving requires the Mac's owner (Touch ID, Apple Watch, or the login password) via LocalAuthentication, so an agent
 // driving the screen (computer use) can click the button but can't complete the approval.
-// Prints exactly one of: approve <signature> | deny | timeout | unavailable
+// Prints exactly one of: approve <signature> | approve-session <signature> | deny | timeout | unavailable
 // "approve" carries a P-256 signature over --message (base64) made with this Mac's Secure Enclave key (--key), which
 // only signs after Touch ID or the password. The server accepts an agent's approval only with that signature.
 // Also: anydock-approve keygen <path>  → creates the Secure Enclave key at <path>, prints its public key (base64 X9.63).
@@ -38,12 +38,14 @@ let rule = arg("rule", "ask me")
 let timeoutSeconds = Double(arg("timeout", "120")) ?? 120
 let keyPath = arg("key")
 let message = Data(base64Encoded: arg("message")) ?? Data()
+// Optional: a second message to sign when the person approves for the whole agent session.
+let sessionMessage = Data(base64Encoded: arg("message-session")) ?? Data()
 
 // Sign with the Secure Enclave key, reusing the context the person just authenticated (no second prompt).
-func sign(_ ctx: LAContext) -> String? {
+func sign(_ ctx: LAContext, _ data: Data) -> String? {
   guard let blob = FileManager.default.contents(atPath: keyPath),
         let key = try? SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: blob, authenticationContext: ctx),
-        let sig = try? key.signature(for: message) else { return nil }
+        let sig = try? key.signature(for: data) else { return nil }
   return sig.rawRepresentation.base64EncodedString()
 }
 
@@ -90,7 +92,9 @@ struct ApprovalView: View {
   @State private var appeared = false
   var onClose: (String) -> Void
 
-  func approve() {
+  func approve() { approve(session: false) }
+  func approveSession() { approve(session: true) }
+  func approve(session: Bool) {
     model.phase = .authenticating
     model.message = ""
     let ctx = LAContext()
@@ -101,11 +105,11 @@ struct ApprovalView: View {
       model.message = "This Mac can't verify you right now."
       return
     }
-    ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "approve your agent's request: " + summary) { ok, _ in
+    ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: (session ? "allow for this agent session: " : "approve your agent's request: ") + summary) { ok, _ in
       DispatchQueue.main.async {
-        if ok, let signature = sign(ctx) {
+        if ok, let signature = sign(ctx, session ? sessionMessage : message) {
           withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { model.phase = .approved }
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose("approve " + signature) }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose((session ? "approve-session " : "approve ") + signature) }
         } else if ok {
           model.phase = .idle
           model.message = "This Mac's approval key is missing. Run: anydock setup"
@@ -157,6 +161,11 @@ struct ApprovalView: View {
         Spacer()
         Button("Deny", action: deny).keyboardShortcut(.cancelAction).controlSize(.large)
           .disabled(model.phase != .idle)
+        if !sessionMessage.isEmpty {
+          Button("This session", action: approveSession).controlSize(.large)
+            .help("Allow this kind of action for the rest of this agent session")
+            .disabled(model.phase != .idle)
+        }
         Button(action: approve) {
           HStack(spacing: 5) {
             if model.phase == .authenticating { ProgressView().controlSize(.small) } else { Image(systemName: "touchid") }

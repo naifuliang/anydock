@@ -77,6 +77,12 @@ or Slack). Never try to work around a refusal.
   \`anydock_handover\`.
 - What did teammates send: \`anydock_inbox\`. Why was something decided: \`anydock_ask_why\`.
 
+## This session's permissions
+
+Each agent session has its own permissions: the user's rules, narrowed for this session or widened for it only by the
+user (e.g. "This session" when they approve). \`anydock_permissions\` shows what this session may do; pass \`restrict\` to
+tighten it yourself when the task calls for it (a research-only session that must not message anyone).
+
 ## Rules
 
 - Never ask for, print or paste tokens or passwords. AnyDock holds every credential; you never need one.

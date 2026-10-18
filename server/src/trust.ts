@@ -26,6 +26,7 @@ const HUMAN_ONLY: [string, RegExp][] = [
   ["POST", /^\/api\/organizations\/[^/]+\/requests\/[^/]+\/decision$/],
   ["DELETE", /^\/api\/approval-keys\//],
   ["DELETE", /^\/api\/artifacts\/[^/]+$/],
+  ["DELETE", /^\/api\/sessions\/rules$/], // revoking could widen (a deny); setting "allow" is checked in the route
 ];
 // Of Better Auth's own endpoints, an agent session may only read itself or sign out
 // (no approving device logins, changing email, linking accounts or listing/revoking sessions).
@@ -40,10 +41,12 @@ const b64 = (s: string) => Uint8Array.from(atob(s), (ch) => ch.charCodeAt(0));
 
 // The exact bytes a device signs to approve one request. Built from the server's own record, so a panel that showed
 // a different summary (or another request) produces a signature that doesn't verify.
-export const approvalMessage = (id: string, userId: string, summary: string) => `anydock-approve:v1\n${id}\n${userId}\n${summary}`;
+// "session" approvals sign a different message, so a one-time approval can't be replayed as a whole-session one.
+export const approvalMessage = (id: string, userId: string, summary: string, scope: "once" | "session" = "once") =>
+  `${scope === "session" ? "anydock-approve-session:v1" : "anydock-approve:v1"}\n${id}\n${userId}\n${summary}`;
 
 export async function verifyDeviceApproval(
-  env: Env, sessionId: string, row: { id: string; userId: string; summary: string }, signatureB64: string,
+  env: Env, sessionId: string, row: { id: string; userId: string; summary: string }, signatureB64: string, scope: "once" | "session" = "once",
 ): Promise<{ ok: boolean; keyName?: string }> {
   const key = await env.DB.prepare(`select "publicKey", "name" from "approvalKey" where "sessionId" = ?1 and "userId" = ?2`)
     .bind(sessionId, row.userId)
@@ -52,7 +55,7 @@ export async function verifyDeviceApproval(
   try {
     const pub = await crypto.subtle.importKey("raw", b64(key.publicKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
     const ok = await crypto.subtle.verify(
-      { name: "ECDSA", hash: "SHA-256" }, pub, b64(signatureB64), new TextEncoder().encode(approvalMessage(row.id, row.userId, row.summary)),
+      { name: "ECDSA", hash: "SHA-256" }, pub, b64(signatureB64), new TextEncoder().encode(approvalMessage(row.id, row.userId, row.summary, scope)),
     );
     return { ok, keyName: key.name };
   } catch {

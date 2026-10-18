@@ -15,6 +15,8 @@ const sql=new DatabaseSync(':memory:');
 sql.exec('create table "user"(id text primary key,email text,name text);');
 sql.exec("insert into user values ('owner','owner@example.test','Owner');");
 sql.exec(readFileSync(new URL('../migrations/0005_delegate.sql',import.meta.url),'utf8'));
+// Per-session columns on actionRequest (0012; its other tables reference tables this fixture doesn't create).
+sql.exec('alter table "actionRequest" add column "source" text; alter table "actionRequest" add column "sessionId" text; alter table "actionRequest" add column "cliSessionId" text; create table "sessionRule"(id text primary key,"userId" text,"cliSessionId" text,source text,"sessionId" text,action text,decision text,scope text,"createdVia" text,"requestId" text,"expiresAt" text,"createdAt" text,"revokedAt" text);');
 const DB={prepare(q){const stmt=sql.prepare(q);let args=[];return {bind(...v){args=v;return this;},async first(){return stmt.get(...args)??null;},async all(){return {results:stmt.all(...args)};},async run(){return {meta:stmt.run(...args)};}};}};
 const app=new Hono();app.use('*',async(c,n)=>{c.set('session',{user:{id:'owner',email:'owner@example.test',name:'Owner'}});await n();});app.route('/api',delegate);
 const previousFetch=globalThis.fetch;let outbound=0;

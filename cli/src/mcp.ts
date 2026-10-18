@@ -6,7 +6,7 @@ import type { ParsedSession, Source, Step } from "./sources/types.ts";
 import { syncSession } from "./sync.ts";
 import { askOnThisMac, nativeApprovalPossible } from "./native/approve.ts";
 import { VERSION } from "./version.ts";
-import { currentSession, launchingAgent } from "./session.ts";
+import { currentSession, launchingAgent, maybeCurrentSession } from "./session.ts";
 import { artifactUrl, createArtifact, listArtifacts, readArtifact, resolveId, shareArtifact, signInLink, uploadArtifact, writeArtifact } from "./artifacts.ts";
 import { openInViewer } from "./native/viewer.ts";
 
@@ -401,6 +401,29 @@ const tools: Tool[] = [
     async run(a) { return shareArtifact({ ...a, id: await resolveId(a.id) }); },
   },
   {
+    name: "anydock_permissions",
+    description:
+      "What this agent session may do right now through AnyDock: for each action, allowed / ask the user / blocked — the user's rules, narrowed or widened for this session only. " +
+      "Pass restrict=[actions] to tighten this session yourself (e.g. a research-only session that must not email anyone); only the user can loosen it.",
+    inputSchema: {
+      type: "object",
+      properties: { restrict: { type: "array", items: { type: "string", enum: ["slack.post", "email.internal", "email.external", "phone.text"] } }, to: { type: "string", enum: ["ask", "deny"], description: "With restrict: ask (default) or deny." } },
+    },
+    annotations: { openWorldHint: true },
+    async run(a) {
+      const s = maybeCurrentSession();
+      if (a.restrict?.length) {
+        if (!s) return "Can't tell which session this is, so nothing was changed.";
+        for (const action of a.restrict) await api("PUT", "/api/sessions/rule", { ...s, action, decision: a.to === "deny" ? "deny" : "ask" });
+      }
+      const q = s ? `?source=${encodeURIComponent(s.source)}&sessionId=${encodeURIComponent(s.sessionId)}` : "";
+      const { actions } = await api<{ actions: Record<string, { label: string; decision: string; person: string; bySession: boolean }> }>("GET", `/api/sessions/effective${q}`);
+      const word = { allow: "allowed", ask: "asks the user first", deny: "blocked" } as Record<string, string>;
+      return [s ? `This ${s.source} session (${s.sessionId.slice(0, 8)}):` : "This agent (session unknown — the user's rules apply):",
+        ...Object.values(actions).map((x) => `- ${x.label}: ${word[x.decision]}${x.bySession ? ` (this session; the user's rule: ${word[x.person]})` : ""}`)].join("\n");
+    },
+  },
+  {
     name: "anydock_app_grant",
     description:
       "Give an app (an AnyDock artifact of type app or html) some of YOUR permissions so it can act through AnyDock — e.g. post in Slack, email, text. " +
@@ -440,6 +463,7 @@ const tools: Tool[] = [
 interface Act {
   id: string;
   userId: string;
+  sessionId?: string | null;
   status: "pending" | "approved" | "denied" | "blocked" | "executed" | "failed";
   summary: string;
   decidedVia?: string | null;
@@ -467,7 +491,8 @@ function describeAction(a: Act): string {
 export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant", payload: Record<string, unknown>): Promise<string> {
   let act: Act;
   try {
-    ({ action: act } = await api<{ action: Act }>("POST", "/api/actions", { action, payload, agent: launchingAgent() ?? "agent" }));
+    // Say which agent session is asking: rules can differ per session, and approvals can be "for this session".
+    ({ action: act } = await api<{ action: Act }>("POST", "/api/actions", { action, payload, agent: launchingAgent() ?? "agent", session: maybeCurrentSession() }));
   } catch (e) {
     if (e instanceof ApiError && e.status === 403 && (e.data as any)?.action) return describeAction((e.data as any).action);
     if (e instanceof ApiError && (e.data as any)?.message) return `Not done: ${(e.data as any).message}`;
@@ -489,12 +514,13 @@ export async function delegateAction(action: "slack.post" | "email" | "text" | "
     })();
     // The panel signs exactly what the server will check (server/src/trust.ts), so the signature can't be reused.
     const message = `anydock-approve:v1\n${act.id}\n${act.userId}\n${act.summary}`;
-    const local = await askOnThisMac({ summary: act.summary, message, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
+    const sessionMessage = act.sessionId && action !== "app.grant" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
+    const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
     const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
     ctrl.abort();
     if (decidedElsewhere) return describeAction(decidedElsewhere);
-    if (local.verdict === "approve" || local.verdict === "deny") {
-      const body = local.verdict === "approve" ? { approve: true, signature: local.signature } : { approve: false, via: "mac" };
+    if (local.verdict === "approve" || local.verdict === "approve-session" || local.verdict === "deny") {
+      const body = local.verdict === "deny" ? { approve: false, via: "mac" } : { approve: true, signature: local.signature, scope: local.verdict === "approve-session" ? "session" : "once" };
       const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, body);
       return describeAction(decided);
     }

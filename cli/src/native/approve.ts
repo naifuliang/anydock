@@ -8,7 +8,7 @@ import { APPROVE_SWIFT } from "./approve-swift.ts";
 // The native approval panel (macOS). Built from source with swiftc into ~/.anydock/bin on first use and cached by hash,
 // so updating the CLI rebuilds it automatically. Anything else (Linux, no Xcode tools) reports "unavailable" and callers
 // fall back to the in-agent prompt or the dashboard.
-export type LocalVerdict = "approve" | "deny" | "timeout" | "unavailable";
+export type LocalVerdict = "approve" | "approve-session" | "deny" | "timeout" | "unavailable";
 export type LocalResult = { verdict: LocalVerdict; signature?: string };
 
 const HASH = createHash("sha256").update(APPROVE_SWIFT).digest("hex").slice(0, 10);
@@ -52,12 +52,13 @@ export function ensureApprovalKey(opts: { fresh?: boolean } = {}): string | null
 }
 
 // message = the exact bytes the server expects signed (see server/src/trust.ts approvalMessage).
-export function askOnThisMac(opts: { summary: string; message: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal }): Promise<LocalResult> {
+export function askOnThisMac(opts: { summary: string; message: string; sessionMessage?: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal }): Promise<LocalResult> {
   const bin = ensureApprovalHelper();
   if (!bin || !existsSync(APPROVAL_KEY)) return Promise.resolve({ verdict: "unavailable" });
   return new Promise((resolve) => {
     const args = ["--summary", opts.summary, "--agent", opts.agent, "--rule", opts.rule ?? "ask me", "--timeout", String(opts.timeoutSec ?? 120),
-      "--key", APPROVAL_KEY, "--message", Buffer.from(opts.message, "utf8").toString("base64")];
+      "--key", APPROVAL_KEY, "--message", Buffer.from(opts.message, "utf8").toString("base64"),
+      ...(opts.sessionMessage ? ["--message-session", Buffer.from(opts.sessionMessage, "utf8").toString("base64")] : [])];
     const p = spawn(bin, args, {
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -68,7 +69,7 @@ export function askOnThisMac(opts: { summary: string; message: string; agent: st
     p.on("error", () => resolve({ verdict: "unavailable" }));
     p.on("exit", () => {
       const [v, signature] = (out.trim().split("\n").pop() ?? "").split(" ") as [LocalVerdict, string?];
-      if (v === "approve") resolve(signature ? { verdict: "approve", signature } : { verdict: "unavailable" });
+      if (v === "approve" || v === "approve-session") resolve(signature ? { verdict: v, signature } : { verdict: "unavailable" });
       else resolve({ verdict: ["deny", "timeout", "unavailable"].includes(v) ? v : "unavailable" });
     });
   });

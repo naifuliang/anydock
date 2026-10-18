@@ -94,6 +94,10 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .sec a { color:var(--muted); font-size:13px; } .sec a:hover { color:var(--text); }
   .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
+  .sess { padding:14px 16px; border-top:1px solid var(--line); } .sess:first-child { border-top:0; }
+  .sess .sh { display:flex; align-items:center; gap:10px; } .sess .chips { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .chip.allow { background:var(--ok-soft); color:var(--ok); border-color:transparent; } .chip.ask { background:var(--warn-soft); color:var(--warn); border-color:transparent; } .chip.deny { background:#fdecec; color:#b42318; border-color:transparent; }
+  .sset { gap:6px; flex-wrap:wrap; } .sset select { font:inherit; font-size:13px; border:1px solid var(--line2); border-radius:8px; padding:5px 8px; background:#fff; }
   .agrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; }
   .acard { display:flex; flex-direction:column; gap:10px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; min-height:132px; transition:box-shadow .15s, transform .15s; }
   .acard:hover { box-shadow:0 8px 30px rgba(0,0,0,.07); transform:translateY(-1px); }
@@ -443,7 +447,7 @@ async function homeView() {
     '<div class="pad" style="padding-top:4px"><div class="progress"><i style="width:' + (n / steps.length * 100) + '%"></i></div></div>';
   view.querySelectorAll("[data-copy]").forEach((b) => b.onclick = async () => { await navigator.clipboard.writeText(PROMPT); toast("Copied — paste it into your agent"); });
   $("#waiting").innerHTML = pend.length ? pend.slice(0, 4).map((a) => '<div class="mini"><span class="src">' + ICONS.key + '</span><div><div class="t">' + esc(a.summary) + '</div><small>' + esc(a.agent || "agent") + ' · ' + ago(a.createdAt) + '</small></div>' +
-    '<button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>').join("")
+    '<button class="btn sm" data-deny="' + a.id + '">Deny</button>' + sessBtn(a) + '<button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>').join("")
     : empty("permissions", "All clear", "Actions that need your OK show up here and in Slack.");
   bindDecide();
 }
@@ -547,7 +551,7 @@ async function inboxView() {
     pend.map((a) => '<div class="msg"><span class="src" style="background:var(--warn-soft);border-color:transparent;color:var(--warn)">' + ICONS.key + '</span>' +
       '<div style="min-width:0"><div class="line1"><b>' + esc(a.agent || "Your agent") + '</b> wants to</div><div class="t">' + esc(a.summary) + '</div>' +
       '<div class="note">Your rule: ask me · ' + ago(a.createdAt) + ' · also on your Mac and in Slack if connected</div></div>' +
-      '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div></div>').join("") + '</div>' : "";
+      '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button>' + sessBtn(a) + '<button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div></div>').join("") + '</div>' : "";
   const sent = '<div class="sec"' + (pend.length ? '' : ' style="margin-top:0"') + '><h2>From teammates</h2><span class="note">' + plural(items.filter((i) => !i.readAt).length, "unread") + '</span></div><div class="card">' + (items.length ? items.map((i) =>
     '<a class="msg' + (i.readAt ? "" : " unread") + '" href="' + (i.artifactId ? "/a/" + i.artifactId : "#/w/" + i.workId) + '" data-read="' + (i.readAt ? "" : i.id) + '">' + av(i.fromName, i.fromEmail, "lg") +
     '<div style="min-width:0"><div class="line1"><b>' + esc(i.fromName || short(i.fromEmail)) + '</b> ' + (i.artifactId ? (i.kind === "artifact.handover" ? "handed over " : "shared ") + (ARTIFACT_NOUN[i.artifactKind] || "a file") + " with you" : i.kind === "handover" ? "handed over a work to you" : "shared a work with you") + '</div>' +
@@ -731,23 +735,51 @@ async function discordCard(projectId, guildId) {
 }
 
 // ---------- delegate: approvals, rules, activity ----------
-async function decideAction(id, approve) {
-  const { action } = await api("POST", "/api/actions/" + id + "/decide", { approve, via: "dashboard" });
+async function decideAction(id, approve, scope) {
+  const { action } = await api("POST", "/api/actions/" + id + "/decide", { approve, via: "dashboard", scope: scope || "once" });
   document.getElementById("ap-" + id)?.remove();
-  toast(approve ? (action.status === "executed" ? "Approved — done" : "Approved — " + (action.result?.detail || action.status)) : "Denied");
+  toast(approve ? (scope === "session" ? "Allowed for this session — " : "Approved — ") + (action.status === "executed" ? "done" : (action.result?.detail || action.status)) : "Denied");
   refreshPending(); route();
 }
+// "This session": approve now, and let the same agent session do this kind of action again without asking (for a while).
+const sessBtn = (a) => a.sessionId && a.action !== "app.grant" ? '<button class="btn sm" data-oks="' + a.id + '" title="Allow this kind of action for the rest of this agent session">This session</button>' : "";
 function bindDecide() {
   view.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => decideAction(b.dataset.ok, true));
+  view.querySelectorAll("[data-oks]").forEach((b) => b.onclick = () => decideAction(b.dataset.oks, true, "session"));
   view.querySelectorAll("[data-deny]").forEach((b) => b.onclick = () => decideAction(b.dataset.deny, false));
 }
 function showApproval(a) {
   if (document.getElementById("ap-" + a.id)) return;
   const el = document.createElement("div"); el.className = "approval"; el.id = "ap-" + a.id;
   el.innerHTML = '<div class="ah"><span>' + ICONS.key + '</span>Your agent is asking</div><div class="what">' + esc(a.summary) + '</div><p class="note" style="margin:0">' + esc(a.agent || "agent") + ' · your rule: ask me · also asking on your Mac</p>' +
-    '<div class="row"><button class="btn" data-d="0">Deny</button><button class="btn solid" data-d="1">Approve</button></div>';
-  el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d === "1"));
+    '<div class="row"><button class="btn" data-d="0">Deny</button>' + (a.sessionId && a.action !== "app.grant" ? '<button class="btn" data-d="s">This session</button>' : '') + '<button class="btn solid" data-d="1">Approve</button></div>';
+  el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d !== "0", b.dataset.d === "s" ? "session" : "once"));
   document.body.appendChild(el); refreshPending();
+}
+// Per agent session permissions: each session inherits your rules; its own rules can only narrow them, except an
+// "allow" you gave it yourself (approving "for this session", or here).
+const DEC_LABEL = { allow: "Allowed", ask: "Ask me", deny: "Blocked" };
+async function sessionsCard(rules) {
+  const el = $("#sessCard"); if (!el) return;
+  const { sessions, hours } = await api("GET", "/api/sessions");
+  const live = rules.filter((r) => r.live && r.key !== "app.grant");
+  el.innerHTML = sessions.length ? sessions.map((s) =>
+    '<div class="sess"><div class="sh">' + (MARKS[s.source] || "") + '<div style="min-width:0;flex:1"><b>' + esc(s.title || (s.source === "codex" ? "Codex" : "Claude Code") + " session " + s.sessionId.slice(0, 8)) + '</b>' +
+      '<div class="note">' + esc((s.device ? s.device + " · " : "") + (s.requests ? plural(s.requests, "request") + " · " : "") + "active " + ago(s.lastAt)) + (s.workId ? ' · <a href="#/w/' + s.workId + '">work</a>' : '') + '</div></div>' +
+      (s.rules.length ? '<button class="btn sm" data-reset="' + esc(s.source + "|" + s.sessionId) + '">Back to my rules</button>' : '') + '</div>' +
+      '<div class="chips">' + (s.rules.length ? s.rules.map((r) => '<span class="chip ' + r.decision + '">' + esc(r.label) + ': ' + DEC_LABEL[r.decision] + (r.scope && r.scope.to ? " (" + esc(r.scope.to.join(", ")) + ")" : "") + ' · until ' + new Date(r.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + '</span>').join("") : '<span class="note">Same as your rules</span>') + '</div>' +
+      '<div class="row sset"><select data-sa="' + esc(s.source + "|" + s.sessionId) + '">' + live.map((r) => '<option value="' + r.key + '">' + esc(r.label) + '</option>').join("") + '</select>' +
+      ["allow", "ask", "deny"].map((d) => '<button class="btn sm" data-sd="' + d + '" data-ss="' + esc(s.source + "|" + s.sessionId) + '">' + DEC_LABEL[d] + '</button>').join("") + '<span class="note">for this session · ' + hours + 'h</span></div></div>').join("")
+    : empty("bot", "No agent sessions yet", "When an agent asks to act, its session shows up here, so you can tighten or loosen just that one.");
+  el.querySelectorAll("[data-sd]").forEach((b) => b.onclick = async () => {
+    const [source, sessionId] = b.dataset.ss.split("|");
+    const action = el.querySelector('[data-sa="' + b.dataset.ss + '"]').value;
+    try { await api("PUT", "/api/sessions/rule", { source, sessionId, action, decision: b.dataset.sd }); toast("Updated this session"); sessionsCard(rules); } catch (e) { toast(e.message); }
+  });
+  el.querySelectorAll("[data-reset]").forEach((b) => b.onclick = async () => {
+    const [source, sessionId] = b.dataset.reset.split("|");
+    await api("DELETE", "/api/sessions/rules?source=" + encodeURIComponent(source) + "&sessionId=" + encodeURIComponent(sessionId)); toast("Back to your rules"); sessionsCard(rules);
+  });
 }
 // Your phone: where agents text you (with your rules) and where handover alerts go if you opt in.
 async function phoneCard() {
@@ -781,7 +813,7 @@ async function permissionsView(params = new URLSearchParams()) {
     '<div class="perm"><div><div class="sec" style="margin-top:0"><h2>Rules</h2><span class="note">Applies to every agent of yours</span></div><div class="card">' + rules.map((r) =>
       '<div class="rule"><div><b>' + esc(r.label) + (r.live ? '' : ' <span class="pill">soon</span>') + '</b><span>' + esc(r.sub) + '</span></div>' +
       '<div class="tri" data-k="' + r.key + '"' + (r.live ? '' : ' aria-disabled="true"') + '>' + ["allow", "ask", "deny"].map((d) =>
-        '<button class="' + d + (r.decision === d ? " on" : "") + '" data-v="' + d + '">' + (d === "ask" ? "Ask me" : d[0].toUpperCase() + d.slice(1)) + '</button>').join("") + '</div></div>').join("") + '</div></div>' +
+        '<button class="' + d + (r.decision === d ? " on" : "") + '" data-v="' + d + '"' + (r.key === "app.grant" && d === "allow" ? ' disabled title="Giving an app your permissions always needs your OK"' : '') + '>' + (d === "ask" ? "Ask me" : d[0].toUpperCase() + d.slice(1)) + '</button>').join("") + '</div></div>').join("") + '</div></div>' +
     '<div><div class="sec" style="margin-top:0"><h2>Connected tools</h2></div><div class="card">' +
       '<div class="ctile"><span class="lg">' + MARKS.slack + '</span><div><b>Slack</b><div class="note">' +
         (sl.connected ? 'Connected to <b style="color:var(--text)">' + esc(sl.label) + '</b>. Agents post as you; approvals arrive as DMs.' : sl.available ? 'Connect once — every agent of yours can then post as you, under your rules.' : 'Coming soon — the AnyDock Slack app is being set up.') + '</div></div>' +
@@ -792,11 +824,12 @@ async function permissionsView(params = new URLSearchParams()) {
         (em.available ? 'Sign-in codes and account notifications are sent from <b style="color:var(--text)">' + esc(em.from) + '</b>.' : 'Account email setup pending.') + '</div></div><span class="pill ' + (em.available ? 'ok' : '') + '">' + (em.available ? 'Ready' : 'Pending') + '</span></div>' +
     '</div><div class="card pad" style="margin-top:14px" id="phoneCard"><div class="note">Loading…</div></div>' +
     '<div class="card pad" style="margin-top:14px;background:var(--bg)"><b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.lock + 'How approvals reach you</b><p class="note" style="margin:6px 0 0">In your agent (if it can show a prompt), as a pop-up here, and as a Slack DM with Approve / Deny. The first answer wins.</p></div></div></div>' +
+    '<div class="sec"><h2>Agent sessions</h2><span class="note">Each session starts with your rules — narrow one, or allow more for just that session</span></div><div class="card" id="sessCard">' + skel(2) + '</div>' +
     '<div class="sec"><h2>Activity</h2><span class="note">Every action your agents asked for</span></div><div class="card timeline">' + (log.length ? log.map((a) =>
       '<div class="ev ' + a.status + '"><span class="d"></span><div style="min-width:0"><div class="t">' + esc(a.summary) + '</div><div class="m">' +
       '<span class="pill ' + a.status + '" style="margin-right:6px">' + (STATUS_LABEL[a.status] || a.status) + '</span>' + esc(a.agent || "agent") + ' · ' + ago(a.createdAt) +
       (a.decidedVia && a.decidedVia !== "rule" ? ' · decided ' + esc(VIA[a.decidedVia] || a.decidedVia) : '') + (a.result?.detail ? ' · ' + esc(a.result.detail) : '') + '</div></div>' +
-      (a.status === "pending" ? '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>' : '<span></span>') + '</div>').join("")
+      (a.status === "pending" ? '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button>' + sessBtn(a) + '<button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>' : '<span></span>') + '</div>').join("")
       : empty("permissions", "No agent actions yet", "Try it: ask your agent to <code>tell #launch the build is green</code>.")) + '</div>';
   view.querySelectorAll(".tri").forEach((t) => t.querySelectorAll("button").forEach((b) => b.onclick = async () => {
     await api("PUT", "/api/delegate/policy", { action: t.dataset.k, decision: b.dataset.v });
@@ -805,6 +838,7 @@ async function permissionsView(params = new URLSearchParams()) {
   bindDecide();
   const off = $("#slackOff"); if (off) off.onclick = async () => { await api("DELETE", "/api/connectors/slack"); toast("Slack disconnected"); permissionsView(); };
   phoneCard();
+  sessionsCard(rules).catch(() => {});
   view.querySelectorAll("[data-mailoff]").forEach((b) => b.onclick = async () => { await api("DELETE", "/api/connectors/" + b.dataset.mailoff); toast("Mailbox disconnected"); permissionsView(); });
 }
 
