@@ -401,6 +401,25 @@ const tools: Tool[] = [
     async run(a) { return shareArtifact({ ...a, id: await resolveId(a.id) }); },
   },
   {
+    name: "anydock_app_grant",
+    description:
+      "Give an app (an AnyDock artifact of type app or html) some of YOUR permissions so it can act through AnyDock — e.g. post in Slack, email, text. " +
+      "Permissions only narrow: you can give only what the user's rules let you do, optionally limited to certain recipients (`to`) and for a number of days. " +
+      "Granting always needs the user's approval (Touch ID / password on their Mac, the dashboard or Slack). The app then calls window.anydock.call(...) from its page or backend; it never sees a token.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The app artifact (id, prefix or exact title)." },
+        actions: { type: "array", items: { type: "string", enum: ["slack.post", "email.internal", "email.external", "phone.text"] } },
+        days: { type: "number", description: "How long (1–30, default 7)." },
+        to: { type: "array", items: { type: "string" }, description: "Optional: only these Slack channels / people / email addresses / phone numbers." },
+      },
+      required: ["id", "actions"],
+    },
+    annotations: { openWorldHint: true },
+    async run(a) { return delegateAction("app.grant", { artifactId: await resolveId(a.id), actions: a.actions, days: a.days ?? 7, ...(a.to?.length ? { to: a.to } : {}) }); },
+  },
+  {
     name: "anydock_artifact_open",
     description:
       "Show an artifact to the user. where=\"builtin\" (use this when you have a built-in browser, e.g. the Claude or Codex desktop app): returns a one-time link that signs your browser in — open it there and bring the browser panel to the front. " +
@@ -445,12 +464,13 @@ function describeAction(a: Act): string {
   }
 }
 
-async function delegateAction(action: "slack.post" | "email" | "text", payload: Record<string, unknown>): Promise<string> {
+export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant", payload: Record<string, unknown>): Promise<string> {
   let act: Act;
   try {
     ({ action: act } = await api<{ action: Act }>("POST", "/api/actions", { action, payload, agent: launchingAgent() ?? "agent" }));
   } catch (e) {
     if (e instanceof ApiError && e.status === 403 && (e.data as any)?.action) return describeAction((e.data as any).action);
+    if (e instanceof ApiError && (e.data as any)?.message) return `Not done: ${(e.data as any).message}`;
     throw e;
   }
   if (act.status !== "pending") return describeAction(act);

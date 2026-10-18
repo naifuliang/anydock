@@ -53,6 +53,22 @@ Formats:
 - **Word / PowerPoint / Excel / PDF / images you generated** — \`anydock_artifact_upload path=<file>\`; the user previews
   them in the browser and can turn Office files into live docs/decks/sheets.
 
+## Apps with a backend (and permissions that only narrow)
+
+An app's page can load \`<script src="_anydock.js"></script>\` (a relative path) and use \`window.anydock\`:
+- \`anydock.data.set(collection, key, value)\` / \`get\` / \`list(collection)\` / \`delete\` — a shared data store for the app
+  (everyone using it sees the same data). Use this instead of localStorage for anything the team shares.
+- \`await anydock.call("slack.post", {to, text})\` · \`("email", {to, subject, body})\` · \`("text", {to, text})\` — act
+  through AnyDock. Only works for what the app was granted, and the user's rules still apply (it may wait for approval).
+- Server code: put \`server.js\` (listening on \`process.env.PORT\`) or a \`package.json\` with a start script in the app
+  folder. It runs in a sandbox; the page reaches it with \`anydock.backend("path")\`. From the server, call AnyDock the same
+  way over HTTP at \`process.env.ANYDOCK_APP_URL\` + \`_api/data/…\` / \`_api/call\` — there is no token to hold.
+
+Permissions flow person → agent → app, and each step can only narrow. To let an app act, ask for exactly what it needs:
+\`anydock_app_grant id=<app> actions=["slack.post"] to=["#launch"] days=7\` (CLI: \`${cli} artifact grant <app> slack.post --to "#launch" --days 7\`).
+You can only grant what your rules allow, and every grant waits for the user's approval (Touch ID / password, dashboard,
+or Slack). Never try to work around a refusal.
+
 ## Passing work on
 
 - Share an artifact: \`anydock_artifact_share id=… to=email\` (\`role: viewer\` for read-only); hand it over with

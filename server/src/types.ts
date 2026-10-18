@@ -5,6 +5,9 @@ export interface Env extends AuthEnv {
   TRAJECTORIES: R2Bucket;
   HUB: DurableObjectNamespace;
   ROOM: DurableObjectNamespace;
+  BLAXEL_API_KEY?: string;
+  BLAXEL_WORKSPACE?: string;
+  BLAXEL_API?: string; // test override for the Blaxel control plane
   USERCONTENT_ORIGIN?: string; // where apps run, e.g. https://u.anydock.ai (local: http://127.0.0.1:8787)
   // Discord connector (see tasks/discord-setup.md). All three are needed for it to turn on.
   DISCORD_APPLICATION_ID?: string;

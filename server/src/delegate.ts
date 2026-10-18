@@ -13,7 +13,7 @@ import type { AppEnv, Env, User } from "./types.ts";
 export const delegate = new Hono<AppEnv>();
 
 type Decision = "allow" | "ask" | "deny";
-type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main";
+export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant";
 
 export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decision; live: boolean }> = {
   "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "allow", live: true },
@@ -23,7 +23,13 @@ export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decis
   "phone.call": { label: "Call a person", sub: "Voice through Inkbox", def: "ask", live: false },
   "money.spend": { label: "Spend money", sub: "Stripe", def: "deny", live: false },
   "github.push_main": { label: "Push to main", sub: "GitHub", def: "deny", live: false },
+  // Granting is itself a permission: handing some of an agent's powers to an app always needs the person.
+  "app.grant": { label: "Let an app act for you", sub: "Give an app some of your agent's permissions — always asks", def: "ask", live: true },
 };
+
+// What an app can be given: only real actions, never the power to grant.
+export const GRANTABLE = ["slack.post", "email.internal", "email.external", "phone.text"] as const;
+export type Grantable = (typeof GRANTABLE)[number];
 
 const now = () => new Date().toISOString();
 const slackApi = (env: Env) => env.SLACK_API ?? "https://slack.com/api";
@@ -33,7 +39,7 @@ const USER_SCOPES = "chat:write,channels:read,groups:read,im:write,users:read,us
 // Webmail domains are never "the team".
 const PUBLIC_DOMAINS = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "icloud.com", "me.com", "yahoo.com", "proton.me", "protonmail.com", "qq.com", "163.com"]);
 
-interface ActionRow {
+export interface ActionRow {
   id: string;
   userId: string;
   agent: string | null;
@@ -49,7 +55,7 @@ interface ActionRow {
   executedAt: string | null;
 }
 
-const actionJson = (r: ActionRow) => ({
+export const actionJson = (r: ActionRow) => ({
   ...r,
   payload: JSON.parse(r.payload),
   result: r.result ? JSON.parse(r.result) : null,
@@ -60,9 +66,10 @@ function signedIn(c: Context<AppEnv>): User | null {
   return c.get("session")?.user ?? null;
 }
 
-async function decisionFor(db: D1Database, userId: string, action: ActionKey): Promise<Decision> {
+export async function decisionFor(db: D1Database, userId: string, action: ActionKey): Promise<Decision> {
   const row = await db.prepare(`select "decision" from "policy" where "userId" = ?1 and "action" = ?2`).bind(userId, action).first<{ decision: Decision }>();
-  return row?.decision ?? ACTIONS[action].def;
+  const d = row?.decision ?? ACTIONS[action].def;
+  return action === "app.grant" && d === "allow" ? "ask" : d;
 }
 
 // ---------- Slack plumbing ----------
@@ -159,6 +166,14 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
     if (!phone) return { ok: false, detail: `No phone number for ${p.to}. Use +1… format, or ask them to add their phone in AnyDock.` };
     return sendText(env, phone, `${p.text}\n— ${user.name || user.email} (via AnyDock)`);
   }
+  if (row.action === "app.grant") {
+    const ts = now();
+    const expires = new Date(Date.now() + (p.days ?? 7) * 86_400_000).toISOString();
+    await env.DB.batch((p.actions as Grantable[]).map((a) =>
+      env.DB.prepare(`insert into "appGrant" ("id","artifactId","userId","grantorSessionId","action","scope","requestId","expiresAt","createdAt") values (?1,?2,?3,?4,?5,?6,?7,?8,?9)`)
+        .bind(crypto.randomUUID(), p.artifactId, user.id, p.grantorSessionId ?? null, a, p.to?.length ? JSON.stringify({ to: p.to }) : null, row.id, expires, ts)));
+    return { ok: true, detail: `App "${p.title}" can now ${(p.actions as Grantable[]).map((a) => ACTIONS[a].label.toLowerCase()).join(", ")} until ${expires.slice(0, 10)}.` };
+  }
   return { ok: false, detail: `${row.action} isn't available yet.` };
 }
 
@@ -171,7 +186,7 @@ async function userById(db: D1Database, id: string): Promise<User | null> {
 }
 
 // Run an action that is allowed (by rule or by an approval) and record the outcome.
-async function run(env: Env, user: User, row: ActionRow): Promise<ActionRow> {
+export async function run(env: Env, user: User, row: ActionRow): Promise<ActionRow> {
   const result = await execute(env, user, row);
   const prev = row.result ? JSON.parse(row.result) : {};
   const updated = await env.DB.prepare(
@@ -277,6 +292,9 @@ delegate.put("/delegate/policy", async (c) => {
     .object({ action: z.enum(Object.keys(ACTIONS) as [ActionKey, ...ActionKey[]]), decision: z.enum(["allow", "ask", "deny"]) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
+  if (parsed.data.action === "app.grant" && parsed.data.decision === "allow") {
+    return c.json({ error: "invalid_body", message: "Giving an app your permissions always needs your OK — choose Ask me or Deny." }, 400);
+  }
   await c.env.DB.prepare(
     `insert into "policy" ("userId","action","decision","updatedAt") values (?1,?2,?3,?4)
      on conflict ("userId","action") do update set "decision" = excluded."decision", "updatedAt" = excluded."updatedAt"`,
@@ -289,60 +307,94 @@ delegate.put("/delegate/policy", async (c) => {
 // ---------- API: actions (agent asks; person decides) ----------
 
 const askBody = z.object({
-  action: z.enum(["slack.post", "email", "text"]),
+  action: z.enum(["slack.post", "email", "text", "app.grant"]),
   payload: z.record(z.string(), z.unknown()),
   agent: z.string().max(80).optional(),
 });
+const grantPayload = z.object({
+  artifactId: z.string().min(1).max(100),
+  actions: z.array(z.enum(GRANTABLE)).min(1).max(GRANTABLE.length),
+  days: z.number().int().min(1).max(30).default(7),
+  to: z.array(z.string().min(2).max(200)).max(20).optional(), // only these recipients / channels
+});
+const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+
+// Turn a request into a concrete action with a human summary (also used for app calls).
+export async function classify(env: Env, user: User, name: string, raw: unknown, grantorSessionId: string | null):
+  Promise<{ action: ActionKey; payload: Record<string, unknown>; summary: string } | { error: string; message?: string }> {
+  if (name === "slack.post") {
+    const p = slackPayload.safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    return { action: "slack.post", payload: p.data, summary: `Post in Slack to ${p.data.to}: “${clip(p.data.text, 120)}”` };
+  }
+  if (name === "text") {
+    const p = textPayload.safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    return { action: "phone.text", payload: p.data, summary: `Text ${p.data.to}: “${clip(p.data.text, 100)}”` };
+  }
+  if (name === "email") {
+    const p = emailPayload.safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    const domain = (s: string) => s.split("@")[1]!.toLowerCase();
+    const mine = domain(user.email);
+    return { action: !PUBLIC_DOMAINS.has(mine) && domain(p.data.to) === mine ? "email.internal" : "email.external", payload: p.data, summary: `Email ${p.data.to}: “${p.data.subject}”` };
+  }
+  if (name === "app.grant") {
+    const p = grantPayload.safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    const art = await env.DB.prepare(`select "id","title","kind","ownerId" from "artifact" where "id" = ?1`).bind(p.data.artifactId).first<{ id: string; title: string; kind: string; ownerId: string }>();
+    if (!art || (art.kind !== "app" && art.kind !== "html")) return { error: "not_found", message: "No such app." };
+    const { artifactAccess } = await import("./artifacts.ts");
+    const access = await artifactAccess(env.DB, (await env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(art.id).first())!, user.id);
+    if (access !== "owner" && access !== "edit") return { error: "forbidden", message: "You can only give permissions to apps you can edit." };
+    // Narrowing: an app only gets what its grantor holds right now.
+    for (const a of p.data.actions) {
+      if ((await decisionFor(env.DB, user.id, a)) === "deny") return { error: "not_yours", message: `Your rules don't allow "${ACTIONS[a].label}", so it can't be given to an app.` };
+    }
+    const what = p.data.actions.map((a) => ACTIONS[a].label.toLowerCase()).join(", ");
+    return {
+      action: "app.grant",
+      payload: { ...p.data, title: art.title, grantorSessionId },
+      summary: `Let app “${art.title}” ${what}${p.data.to?.length ? ` (only ${p.data.to.join(", ")})` : ""} for ${p.data.days} day${p.data.days === 1 ? "" : "s"}`,
+    };
+  }
+  return { error: "invalid_action" };
+}
+
+// Record a request and apply the person's rule: allow → run now, ask → wait for them, deny → blocked.
+// `forceAllow` is for the person granting from their own browser (they are the approver).
+export async function requestAction(env: Env, origin: string, user: User, req: { action: ActionKey; payload: Record<string, unknown>; summary: string; agent: string | null; forceAllow?: boolean },
+  wait: (p: Promise<unknown>) => void): Promise<{ row: ActionRow; code: 200 | 202 | 403 }> {
+  const decision = req.forceAllow ? "allow" : await decisionFor(env.DB, user.id, req.action);
+  const status = decision === "allow" ? "approved" : decision === "ask" ? "pending" : "blocked";
+  const via = req.forceAllow ? "dashboard" : decision === "ask" ? null : "rule";
+  const row = (await env.DB.prepare(
+    `insert into "actionRequest" ("id","userId","agent","action","payload","summary","status","decision","decidedVia","createdAt","decidedAt")
+     values (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) returning *`,
+  )
+    .bind(crypto.randomUUID(), user.id, req.agent, req.action, JSON.stringify(req.payload), req.summary, status, decision, via, now(), decision === "ask" ? null : now())
+    .first<ActionRow>())!;
+  if (decision === "allow") return { row: await run(env, user, row), code: 200 };
+  if (decision === "deny") {
+    await publish(env, [user.id], { type: "action.updated", action: actionJson(row) });
+    return { row, code: 403 };
+  }
+  wait(notifyApproval(env, user, row, origin).catch((e) => console.error("approval notify failed", e)));
+  return { row, code: 202 };
+}
 
 delegate.post("/actions", async (c) => {
   const user = signedIn(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const parsed = askBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body", issues: parsed.error.issues }, 400);
-  const { agent } = parsed.data;
-
-  let action: ActionKey;
-  let payload: Record<string, unknown>;
-  let summary: string;
-  if (parsed.data.action === "slack.post") {
-    const p = slackPayload.safeParse(parsed.data.payload);
-    if (!p.success) return c.json({ error: "invalid_payload", issues: p.error.issues }, 400);
-    action = "slack.post";
-    payload = p.data;
-    summary = `Post in Slack to ${p.data.to}: “${p.data.text.length > 120 ? p.data.text.slice(0, 119) + "…" : p.data.text}”`;
-  } else if (parsed.data.action === "text") {
-    const p = textPayload.safeParse(parsed.data.payload);
-    if (!p.success) return c.json({ error: "invalid_payload", issues: p.error.issues }, 400);
-    action = "phone.text";
-    payload = p.data;
-    summary = `Text ${p.data.to}: “${p.data.text.length > 100 ? p.data.text.slice(0, 99) + "…" : p.data.text}”`;
-  } else {
-    const p = emailPayload.safeParse(parsed.data.payload);
-    if (!p.success) return c.json({ error: "invalid_payload", issues: p.error.issues }, 400);
-    const domain = (s: string) => s.split("@")[1]!.toLowerCase();
-    const mine = domain(user.email);
-    action = !PUBLIC_DOMAINS.has(mine) && domain(p.data.to) === mine ? "email.internal" : "email.external";
-    payload = p.data;
-    summary = `Email ${p.data.to}: “${p.data.subject}”`;
-  }
-
-  const decision = await decisionFor(c.env.DB, user.id, action);
-  const status = decision === "allow" ? "approved" : decision === "ask" ? "pending" : "blocked";
-  const row = (await c.env.DB.prepare(
-    `insert into "actionRequest" ("id","userId","agent","action","payload","summary","status","decision","decidedVia","createdAt","decidedAt")
-     values (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) returning *`,
-  )
-    .bind(crypto.randomUUID(), user.id, agent ?? null, action, JSON.stringify(payload), summary, status, decision, decision === "ask" ? null : "rule", now(), decision === "ask" ? null : now())
-    .first<ActionRow>())!;
-
-  if (decision === "allow") return c.json({ action: actionJson(await run(c.env, user, row)) });
-  if (decision === "deny") {
-    await publish(c.env, [user.id], { type: "action.updated", action: actionJson(row) });
-    return c.json({ action: actionJson(row) }, 403);
-  }
+  const agentSession = isAgent(c) ? c.get("session")!.session.id : null;
+  const cl = await classify(c.env, user, parsed.data.action, parsed.data.payload, agentSession);
+  if ("error" in cl) return c.json(cl, cl.error === "forbidden" || cl.error === "not_yours" ? 403 : cl.error === "not_found" ? 404 : 400);
   const origin = new URL(c.req.url).origin;
-  c.executionCtx.waitUntil(notifyApproval(c.env, user, row, origin).catch((e) => console.error("approval notify failed", e)));
-  return c.json({ action: { ...actionJson(row), approveUrl: `${origin}/app#/permissions` } }, 202);
+  const { row, code } = await requestAction(c.env, origin, user, { ...cl, agent: parsed.data.agent ?? null, forceAllow: cl.action === "app.grant" && !agentSession }, (p) => c.executionCtx.waitUntil(p));
+  if (code === 202) return c.json({ action: { ...actionJson(row), approveUrl: `${origin}/app#/inbox` } }, 202);
+  return c.json({ action: actionJson(row) }, code);
 });
 
 delegate.get("/actions", async (c) => {

@@ -133,7 +133,7 @@ await call(nolan, "PUT", `/api/artifacts/${app.id}/versions/${v}/files/index.htm
 await call(nolan, "PUT", `/api/artifacts/${app.id}/versions/${v}/files/app.js`, "console.log(1)", { "content-type": "text/javascript" });
 await call(nolan, "POST", `/api/artifacts/${app.id}/versions/${v}/done`);
 const appIndex = await fetch(app.appUrl), appJs = await fetch(app.appUrl + "app.js");
-check("app files are served sandboxed (index + assets)", appIndex.status === 200 && (await appIndex.text()).includes("Timer") && appJs.headers.get("content-type") === "text/javascript");
+check("app files are served sandboxed (index + assets)", appIndex.status === 200 && (await appIndex.text()).includes("Timer") && appJs.headers.get("content-type").startsWith("text/javascript"));
 const v2 = (await call(nolan, "POST", `/api/artifacts/${app.id}/versions`)).data.version;
 await call(nolan, "PUT", `/api/artifacts/${app.id}/versions/${v2}/files/index.html`, "<p>Timer v2</p>", { "content-type": "text/html" });
 check("a new version replaces what runs", v2 === v + 1 && (await (await fetch(app.appUrl)).text()).includes("v2"));

@@ -36,6 +36,7 @@ Usage:
   anydock artifact upload <path> [--id ID] [--title T]   A folder (app), Office/PDF/image file, or .md/.csv/.tex/.html
   anydock artifact list                         Yours, shared with you, and your works'
   anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
+  anydock artifact grant <app-id> slack.post,email.external [--days N] [--to a,b]   Give an app some of your permissions (you approve)
   anydock open <artifact-id> [--link]           Open it (a native window on Mac, else the browser); --link prints a
                                                 one-time sign-in link for a built-in browser instead
   anydock mcp install | uninstall               Add AnyDock tools + skill to Claude Code and Codex
@@ -84,6 +85,8 @@ async function main(): Promise<void> {
       note: { type: "string" },
       viewer: { type: "boolean" },
       handover: { type: "boolean" },
+      days: { type: "string" },
+      to: { type: "string" },
       link: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -252,6 +255,11 @@ async function artifactCommand(sub: string, rest: string[], v: Record<string, st
     case "share":
       if (!rest[0] || !rest[1]) throw new Error("Usage: anydock artifact share <id> <email> [--viewer] [--handover] [--note N]");
       return shareArtifact({ id: await resolveId(rest[0]), to: rest[1], role: v.viewer ? "viewer" : "editor", handover: Boolean(v.handover), note: v.note as string | undefined });
+    case "grant": {
+      if (!rest[0] || !rest[1]) throw new Error("Usage: anydock artifact grant <app-id> slack.post,email.external,phone.text [--days N] [--to a,b]");
+      const { delegateAction } = await import("./mcp.ts");
+      return delegateAction("app.grant", { artifactId: await resolveId(rest[0]), actions: rest[1].split(",").map((x) => x.trim()), days: Number(v.days ?? 7), ...(typeof v.to === "string" ? { to: v.to.split(",").map((x) => x.trim()) } : {}) });
+    }
     case "open": {
       const { url, title } = await artifactUrl(await resolveId(rest[0] ?? ""));
       return openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`;

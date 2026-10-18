@@ -13,6 +13,7 @@ import { works } from "./works.ts";
 import { organizations } from "./organizations.ts";
 import { agentForbidden, isAgentSession, recordDeviceLogin } from "./trust.ts";
 import { artifacts, usercontent } from "./artifacts.ts";
+import { apps } from "./apps.ts";
 import { artifactPage } from "./artifact-page.ts";
 
 export { UserHub } from "./hub.ts";
@@ -61,6 +62,7 @@ app.get("/api/me", async (c) => {
 });
 
 // Before projects/works: their middleware requires a session, but Discord calls /api/discord/* itself.
+app.route("/", apps); // before usercontent: its /u/… API routes win over static files
 app.route("/", usercontent);
 app.route("/api", artifacts);
 app.route("/api", discord);

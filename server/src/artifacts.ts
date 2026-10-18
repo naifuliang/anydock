@@ -605,6 +605,35 @@ artifacts.delete("/artifacts/:id/shares/:shareId", async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- app permissions (granted via the "app.grant" action; see apps.ts) ----------
+
+artifacts.get("/artifacts/:id/grants", async (c) => {
+  const l = await load(c, "view");
+  if (l instanceof Response) return l;
+  const { liveGrants } = await import("./apps.ts");
+  const { ACTIONS } = await import("./delegate.ts");
+  const live = new Set((await liveGrants(c.env.DB, l.a.id)).map((g) => g.id));
+  const { results } = await c.env.DB.prepare(
+    `select g.*, u."name" as "userName", u."email" as "userEmail", (g."grantorSessionId" is not null) as "viaAgent"
+     from "appGrant" g join "user" u on u."id" = g."userId" where g."artifactId" = ?1 order by g."createdAt" desc limit 100`,
+  ).bind(l.a.id).all<{ id: string; action: keyof typeof ACTIONS; scope: string | null; expiresAt: string; revokedAt: string | null; createdAt: string; userName: string; userEmail: string; viaAgent: number }>();
+  return c.json({
+    grants: results.map((g) => ({
+      id: g.id, action: g.action, label: ACTIONS[g.action]?.label ?? g.action, scope: g.scope ? JSON.parse(g.scope) : null, expiresAt: g.expiresAt, createdAt: g.createdAt,
+      by: g.userName || g.userEmail, viaAgent: Boolean(g.viaAgent), status: g.revokedAt ? "revoked" : live.has(g.id) ? "active" : "expired",
+    })),
+  });
+});
+
+// Taking a permission back is always allowed (it only narrows), by anyone who can edit the app.
+artifacts.delete("/artifacts/:id/grants/:gid", async (c) => {
+  const l = await load(c, "edit");
+  if (l instanceof Response) return l;
+  await c.env.DB.prepare(`update "appGrant" set "revokedAt" = ?3 where "id" = ?1 and "artifactId" = ?2 and "revokedAt" is null`).bind(c.req.param("gid"), l.a.id, now()).run();
+  await event(c, l.a, "grant.revoked", null);
+  return c.json({ ok: true });
+});
+
 // ---------- live room ----------
 
 artifacts.get("/artifacts/:id/live", async (c) => {
@@ -651,5 +680,7 @@ usercontent.get("/u/:id/:sig/*", async (c) => {
   if (!f) return c.text("Not found", 404);
   const obj = await c.env.TRAJECTORIES.get(f.r2Key);
   if (!obj) return c.text("Not found", 404);
-  return new Response(obj.body, { headers: { ...headers, "Content-Type": f.contentType } });
+  // Text without a declared charset is UTF-8 (agents write UTF-8; browsers would otherwise guess Latin-1).
+  const type = /^(text\/|application\/(javascript|json))/.test(f.contentType) && !/charset/i.test(f.contentType) ? `${f.contentType}; charset=utf-8` : f.contentType;
+  return new Response(obj.body, { headers: { ...headers, "Content-Type": type } });
 });

@@ -649,7 +649,7 @@ function sourceView() {
   let locked = false, saveT = null, renew = null;
   const pdf = FILES.find((f) => /\.pdf$/i.test(f.path));
   main.innerHTML = '<div class="split"><div class="src"><div class="srcbar"><b>' + esc(s.heading || (isTex ? "main.tex" : "index.html")) + '</b><span id="srcState">' + (canEdit() ? "Click to edit — saves as you type" : "View only") + '</span><span class="sp"></span></div><textarea id="src" spellcheck="false"' + (canEdit() ? "" : " readonly") + ">" + esc(s.body) + '</textarea></div><div class="pv"><div class="pvbar"><b>Preview</b>' +
-    (isTex && pdf ? '<button class="btn sm" id="pdfBtn">Compiled PDF</button>' : "") + (A.appUrl ? '<a class="btn sm" target="_blank" href="' + A.appUrl + '">Open ↗</a>' : "") + '<span class="sp" id="pvState"></span></div><div class="err" id="err" hidden></div><iframe id="pv" ' + (isTex ? "" : 'sandbox="allow-scripts allow-forms allow-modals allow-popups"') + "></iframe></div></div>";
+    (isTex && pdf ? '<button class="btn sm" id="pdfBtn">Compiled PDF</button>' : "") + (A.appUrl ? '<a class="btn sm" target="_blank" href="' + A.appUrl + '">Open ↗</a>' : "") + (!isTex ? '<button class="btn sm" id="permsBtn">Permissions</button>' : "") + '<span class="sp" id="pvState"></span></div><div class="err" id="err" hidden></div><iframe id="pv" ' + (isTex ? "" : 'sandbox="allow-scripts allow-forms allow-modals allow-popups"') + "></iframe></div></div>";
   const ta = $("#src");
   async function renderPreview() {
     const src = ta.value;
@@ -670,6 +670,7 @@ function sourceView() {
   ta.addEventListener("input", () => { if (!locked) return; $("#srcState").textContent = "Saving…"; clearTimeout(saveT); saveT = setTimeout(async () => { try { await api("PUT", "/api/artifacts/" + A.id + "/sections/" + s.id, { body: ta.value, status: "done" }); $("#srcState").textContent = "Saved"; } catch (e) { $("#srcState").textContent = e.message; } }, 700); });
   ta.addEventListener("blur", () => setTimeout(async () => { if (document.activeElement === ta || !locked) return; clearTimeout(saveT); await api("PUT", "/api/artifacts/" + A.id + "/sections/" + s.id, { body: ta.value, status: "done" }).catch(() => {}); locked = false; clearInterval(renew); await lockSection(s.id, false).catch(() => {}); focusOn(null); $("#srcState").textContent = "Click to edit — saves as you type"; }, 150));
   ta.addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); const p = ta.selectionStart; ta.setRangeText("  ", p, ta.selectionEnd, "end"); ta.dispatchEvent(new Event("input")); } });
+  const pm = $("#permsBtn"); if (pm) pm.onclick = () => { const d = $("#drawer"); d.hidden = false; $("#events").innerHTML = '<div id="grants"></div>'; d.querySelector(".dh b").textContent = "App permissions"; renderGrants($("#grants")); };
   const pb = $("#pdfBtn"); if (pb) pb.onclick = async () => { const url = URL.createObjectURL(await fileBlob(pdf.path)); $("#pv").removeAttribute("srcdoc"); $("#pv").src = url; };
   VIEW = {
     event(ev) {
@@ -694,8 +695,39 @@ function sourceView() {
 function appView() {
   main.innerHTML = '<div class="appwrap"><iframe id="app" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads" src="' + A.appUrl + '"></iframe><div class="side"><h4>Running</h4><p class="note" style="margin:0 0 8px">Runs on its own origin: it can\'t see AnyDock or your accounts.</p><div style="display:flex;gap:6px"><a class="btn sm" target="_blank" href="' + A.appUrl + '">Open ↗</a><button class="btn sm" id="reloadApp">Reload</button></div><h4>Files · v' + A.version + "</h4>" +
     (FILES.length ? FILES.map((f) => '<div class="fl"><span>' + esc(f.path) + "</span><span>" + (f.size > 1024 ? Math.round(f.size / 1024) + " KB" : f.size + " B") + "</span></div>").join("") : '<p class="note">No files yet. Your agent uploads the app with <code>anydock_artifact_upload</code>.</p>') + "</div></div>";
+  $(".side").insertAdjacentHTML("beforeend", '<h4>Permissions</h4><div id="grants"><div class="sk w80"></div></div>');
+  renderGrants($("#grants"));
   $("#reloadApp").onclick = () => ($("#app").src = A.appUrl + "?t=" + Date.now());
   VIEW = { event(ev) { if (ev.type === "version.uploaded") load().then(() => { appView(); toast("New version " + A.version + " from " + ev.by.name); }); }, exports() { return FILES.map((f) => [f.path, "download", async () => download(await fileBlob(f.path), f.path.split("/").pop())]); } };
+}
+
+// What this app may do through AnyDock: person → agent → app, each step narrower. Granting from here is the person
+// themselves (no extra approval); an agent's request for a grant waits for the person's OK (Touch ID / Inbox / Slack).
+const GRANTABLE = [["slack.post", "Post in Slack"], ["email.internal", "Email teammates"], ["email.external", "Email outside the team"], ["phone.text", "Text a person"]];
+async function renderGrants(box) {
+  let grants = [];
+  try { grants = (await api("GET", "/api/artifacts/" + A.id + "/grants")).grants; } catch (e) { box.innerHTML = '<p class="note">' + esc(e.message) + "</p>"; return; }
+  const active = grants.filter((g) => g.status === "active");
+  box.innerHTML = '<p class="note" style="margin:0 0 8px">It can only use what someone gave it, never more than they have — and their rules still apply.</p>' +
+    (active.length ? active.map((g) => '<div class="fl" style="font-family:var(--sans);align-items:center"><span><b style="font-weight:600">' + esc(g.label) + "</b>" + (g.scope && g.scope.to ? '<br><small style="color:var(--muted)">only ' + esc(g.scope.to.join(", ")) + "</small>" : "") +
+      '<br><small style="color:var(--faint)">from ' + esc(g.by) + (g.viaAgent ? " (via agent)" : "") + " · until " + esc(g.expiresAt.slice(0, 10)) + "</small></span>" + (canEdit() ? '<button class="btn sm ghost" data-revoke="' + g.id + '">Revoke</button>' : "") + "</div>").join("")
+      : '<p class="note" style="margin:0 0 8px">Nothing yet — it can store data, but not act for anyone.</p>') +
+    (canEdit() ? '<details style="margin-top:10px"><summary class="btn sm" style="display:inline-flex">+ Give permission</summary><div style="margin-top:10px;display:grid;gap:6px;font-size:13px">' +
+      GRANTABLE.map((x) => '<label><input type="checkbox" value="' + x[0] + '"> ' + x[1] + "</label>").join("") +
+      '<input id="gTo" placeholder="Only to… (optional, comma-separated)" style="font:inherit;font-size:12.5px;border:1px solid var(--line2);border-radius:8px;padding:6px 8px">' +
+      '<label style="color:var(--muted)">For <select id="gDays"><option>1</option><option selected>7</option><option>30</option></select> days</label>' +
+      '<button class="btn sm primary" id="gGo">Give</button></div></details>' : "");
+  box.querySelectorAll("[data-revoke]").forEach((b) => (b.onclick = async () => { await api("DELETE", "/api/artifacts/" + A.id + "/grants/" + b.dataset.revoke).catch((e) => toast(e.message)); toast("Revoked"); renderGrants(box); }));
+  const go = box.querySelector("#gGo");
+  if (go) go.onclick = async () => {
+    const actions = [...box.querySelectorAll("input[type=checkbox]:checked")].map((c) => c.value);
+    if (!actions.length) return toast("Pick at least one permission");
+    const to = box.querySelector("#gTo").value.split(",").map((x) => x.trim()).filter(Boolean);
+    try {
+      const r = await api("POST", "/api/actions", { action: "app.grant", payload: Object.assign({ artifactId: A.id, actions, days: +box.querySelector("#gDays").value }, to.length ? { to } : {}), agent: "dashboard" });
+      toast(r.action.status === "executed" ? "Given" : r.action.summary); renderGrants(box);
+    } catch (e) { toast(e.message); }
+  };
 }
 
 // ===== FILE (Word, PowerPoint, Excel, PDF, images, anything) =====
