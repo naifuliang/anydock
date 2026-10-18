@@ -143,7 +143,7 @@ const SLIDES: Slide[] = [
     say: "do what Nolan did, for competitor C",
     stage: `
       <div class="st-meet">
-        <div class="cal" data-t="0"><div class="ct">${line("presentation", 14)} Tue 3:00 – 4:00 PM</div><b>Teach Jason the research flow</b><span class="strike" data-t="0.8"></span><em data-t="1.2">Cancelled — not needed</em></div>
+        <div class="cal" data-t="0"><div class="ct">${line("presentation", 14)} Tue 3:00 – 4:00 PM</div><b class="ttl">Teach Jason the research flow<span class="strike" data-t="0.8"></span></b><em data-t="1.2">Cancelled — not needed</em></div>
         <div class="pair">
           <div class="book">
             <div class="bh">${av("N", "#d97757", 22)} Nolan's method <small>last week · competitor A</small></div>
@@ -382,8 +382,11 @@ export const HERO_CSS = `
   .st-meet { display:flex; flex-direction:column; gap:16px; }
   .st-meet .cal { position:relative; align-self:flex-start; background:#fff; border:1px solid var(--line2); border-left:4px solid var(--accent); border-radius:12px; padding:10px 14px; box-shadow:var(--shadow); font-size:14px; min-width:280px; }
   .st-meet .cal .ct { display:flex; gap:6px; align-items:center; font:11.5px var(--mono); color:var(--faint); margin-bottom:3px; }
-  .st-meet .cal b { font-weight:500; }
-  .st-meet .strike { position:absolute; left:12px; right:12px; top:56%; height:2px; background:#b91c1c; transform-origin:left; }
+  .st-meet .cal .ttl { position:relative; display:inline-block; font-weight:500; transition:color .4s ease .2s; }
+  .st-meet .strike { position:absolute; left:-2px; right:-2px; top:52%; height:2px; margin-top:-1px; background:#b91c1c; border-radius:2px; transform-origin:left; }
+  .st-meet .cal:has(.strike.in) .ttl { color:var(--faint); }
+  .st-meet .cal .ct { transition:opacity .4s ease .2s; } .st-meet .cal:has(.strike.in) .ct { opacity:.5; }
+  .st-meet .cal { transition:border-color .4s ease .2s; } .st-meet .cal:has(.strike.in) { border-left-color:var(--line2); }
   .st-meet .strike[data-t] { opacity:1; transform:scaleX(0); } .st-meet .strike.in { transform:scaleX(1); transition:transform .5s ease; }
   .st-meet .cal em { display:block; font:500 12px var(--sans); font-style:normal; color:#b91c1c; margin-top:4px; }
   .st-meet .pair { display:grid; grid-template-columns:1fr 40px 1fr; gap:8px; align-items:center; }
