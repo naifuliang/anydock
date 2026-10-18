@@ -24,7 +24,7 @@ const homeFor = (name) => ({
   ANYDOCK_HOME: join(root, name, "anydock"),
   ANYDOCK_CLAUDE_ROOT: join(root, name, "claude", "projects"),
   ANYDOCK_CODEX_HOME: join(root, name, "codex"),
-  ANYDOCK_SERVER: SERVER,
+  ANYDOCK_SERVER: SERVER, ANYDOCK_NO_NATIVE_APPROVAL: "1",
 });
 const nolanEnv = { ...homeFor("nolan"), CLAUDE_CODE_ENTRYPOINT: "cli" };
 const jasonEnv = { ...homeFor("jason"), CODEX_THREAD: "1" };

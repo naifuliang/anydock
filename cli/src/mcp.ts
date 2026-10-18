@@ -4,6 +4,7 @@ import { loadConfig, loadState, realPath, saveState } from "./config.ts";
 import { findSession, listSessionFiles, parseSession } from "./sources/discover.ts";
 import type { ParsedSession, Source, Step } from "./sources/types.ts";
 import { syncSession } from "./sync.ts";
+import { askOnThisMac, nativeApprovalPossible } from "./native/approve.ts";
 import { VERSION } from "./version.ts";
 
 // `anydock mcp`: a stdio MCP server that Claude Code and Codex launch. Agents use it to share or hand over
@@ -292,6 +293,18 @@ const tools: Tool[] = [
     run: (a) => delegateAction("email", { to: a.to, subject: a.subject, body: a.body }),
   },
   {
+    name: "anydock_text",
+    description:
+      "Text a person (iMessage/SMS) on the user's behalf, e.g. to tell the teammate you handed work to that it's urgent. `to` is a phone number in +1… format or a teammate's email (uses the phone they saved in AnyDock). Usually needs the user's approval.",
+    inputSchema: {
+      type: "object",
+      properties: { to: { type: "string", description: "+14155550123 or teammate@company.com" }, text: { type: "string", description: "Short message (≤1600 chars)" } },
+      required: ["to", "text"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    run: (a) => delegateAction("text", { to: a.to, text: a.text }),
+  },
+  {
     name: "anydock_action_status",
     description: "Check an AnyDock action that was waiting for the user's approval (id from anydock_slack_post / anydock_email).",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
@@ -331,7 +344,7 @@ function describeAction(a: Act): string {
   }
 }
 
-async function delegateAction(action: "slack.post" | "email", payload: Record<string, unknown>): Promise<string> {
+async function delegateAction(action: "slack.post" | "email" | "text", payload: Record<string, unknown>): Promise<string> {
   let act: Act;
   try {
     ({ action: act } = await api<{ action: Act }>("POST", "/api/actions", { action, payload, agent: launchingAgent() ?? "agent" }));
@@ -340,6 +353,30 @@ async function delegateAction(action: "slack.post" | "email", payload: Record<st
     throw e;
   }
   if (act.status !== "pending") return describeAction(act);
+
+  // Best: the native Mac panel. Approving needs the Mac's owner (Touch ID / Watch / login password), which an agent
+  // driving the screen can't provide. If the user decides elsewhere first, the panel closes.
+  if (nativeApprovalPossible()) {
+    const ctrl = new AbortController();
+    const elsewhere = (async () => {
+      while (!ctrl.signal.aborted) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const { action: cur } = await api<{ action: Act }>("GET", `/api/actions/${act.id}`).catch(() => ({ action: act }));
+        if (cur.status !== "pending") { ctrl.abort(); return cur; }
+      }
+      return null;
+    })();
+    const verdict = await askOnThisMac({ summary: act.summary, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
+    const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
+    ctrl.abort();
+    if (decidedElsewhere) return describeAction(decidedElsewhere);
+    if (verdict === "approve" || verdict === "deny") {
+      const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, { approve: verdict === "approve", via: "mac" });
+      return describeAction(decided);
+    }
+    if (verdict === "timeout") return describeAction(act);
+    // "unavailable": fall through to the in-agent prompt / waiting.
+  }
 
   // Ask right here if the client can show the user a prompt (MCP elicitation); the model can't answer it for them.
   if (clientCaps.elicitation) {

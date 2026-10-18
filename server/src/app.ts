@@ -17,7 +17,7 @@ const ICONS = {
 };
 const MARKS = {
   "claude-code": logo("claude", 16), codex: logo("codex", 16), claude: logo("claude", 22), codexL: logo("codex", 22), cursor: logo("cursor", 22, "#0a0a0b"),
-  slack: logo("slack", 22), gmail: logo("gmail", 22), discord: logo("discord", 22), github: logo("github", 22, "#0a0a0b"), google: logo("google", 22),
+  slack: logo("slack", 22), gmail: logo("gmail", 22), outlook: logo("outlook", 22), proton: logo("protonmail", 22), discord: logo("discord", 22), github: logo("github", 22, "#0a0a0b"), google: logo("google", 22),
   notion: logo("notion", 22, "#0a0a0b"), linear: logo("linear", 22), stripe: logo("stripe", 22), mcp: logo("mcp", 22, "#0a0a0b"),
 };
 
@@ -293,7 +293,7 @@ export function appPage(user: { name: string; email: string; image?: string | nu
       <div class="navsec">Team</div>
       <a href="#/projects" data-nav="projects">${ICONS.projects}<span class="label">Projects</span></a>
       <div class="navsec">Trust</div>
-      <a href="#/permissions" data-nav="permissions">${ICONS.permissions}<span class="label">Permissions</span><span class="badge" id="pending" hidden></span></a>
+      <a href="#/permissions" data-nav="permissions">${ICONS.permissions}<span class="label">Permissions</span></a>
       <a href="#/settings" data-nav="settings">${ICONS.connections}<span class="label">Integrations</span></a>
     </nav>
     <div class="quick"><b>${ICONS.sparkles} Connect an agent</b><p>Paste this into Claude Code, Codex or Cursor.</p>
@@ -369,14 +369,13 @@ function connectLive(attempt = 0) {
   ws.onclose = () => { el.classList.remove("on"); el.lastElementChild.textContent = "reconnecting…"; setTimeout(() => connectLive(attempt + 1), Math.min(30000, 1000 * 2 ** attempt)); };
   setInterval(() => ws.readyState === 1 && ws.send("ping"), 30000);
 }
+// One badge for "waiting for you": unread shares/handovers + approvals to decide.
 async function refreshUnread() {
-  const { items } = await api("GET", "/api/inbox?unread=1");
-  const b = $("#unread"); b.textContent = items.length; b.hidden = items.length === 0;
+  const [{ items }, { actions }] = await Promise.all([api("GET", "/api/inbox?unread=1"), api("GET", "/api/actions?status=pending")]);
+  const n = items.length + actions.length;
+  const b = $("#unread"); b.textContent = n; b.hidden = n === 0;
 }
-async function refreshPending() {
-  const { actions } = await api("GET", "/api/actions?status=pending");
-  const b = $("#pending"); b.textContent = actions.length; b.hidden = actions.length === 0;
-}
+const refreshPending = refreshUnread;
 
 function setNav(key) { document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === key)); }
 const head = (title, lead, right = "") => '<div class="head"><div><h1>' + title + '</h1>' + (lead ? '<p class="lead">' + lead + '</p>' : '') + '</div>' + right + '</div>';
@@ -394,7 +393,7 @@ async function homeView() {
       '<div class="sec"><h2>Latest from teammates</h2><a href="#/inbox">Inbox →</a></div><div class="card" id="latest">' + skel(2) + '</div>' +
     '</div><div>' +
       '<div class="sec"><h2>Get set up</h2><span class="note" id="setupPct"></span></div><div class="card" id="setup">' + skel(4) + '</div>' +
-      '<div class="sec"><h2>Waiting for you</h2><a href="#/permissions">Permissions →</a></div><div class="card" id="waiting">' + skel(1) + '</div>' +
+      '<div class="sec"><h2>Waiting for you</h2><a href="#/inbox">Inbox →</a></div><div class="card" id="waiting">' + skel(1) + '</div>' +
     '</div></div>';
   const [{ works }, { items }, { projects }, del, { actions: pend }] = await Promise.all([
     api("GET", "/api/works"), api("GET", "/api/inbox"), api("GET", "/api/projects"), api("GET", "/api/delegate"), api("GET", "/api/actions?status=pending")]);
@@ -404,7 +403,7 @@ async function homeView() {
   $("#stats").innerHTML =
     stat("#/works", "works", "Your works", mine.length, plural(mine.reduce((a, w) => a + w.stepCount, 0), "step") + " captured") +
     stat("#/works?f=shared", "share", "Shared with you", others.length, plural(items.filter((i) => !i.readAt).length, "unread") ) +
-    stat("#/permissions", "permissions", "Waiting for you", pend.length, pend.length ? "approvals to review" : "nothing to approve") +
+    stat("#/inbox", "permissions", "Waiting for you", pend.length, pend.length ? "approvals to review" : "nothing to approve") +
     stat("#/works", "refresh", "Live now", live.length, live.length ? "synced in the last 15 min" : "no agent activity right now");
   const recent = [...works].sort((a, b) => new Date(b.lastActivityAt || b.updatedAt) - new Date(a.lastActivityAt || a.updatedAt)).slice(0, 5);
   $("#recent").innerHTML = recent.length ? recent.map(miniWork).join("") : empty("works", "No works yet", "In Claude Code or Codex, say <code>share this session with a teammate</code> — it shows up here.");
@@ -464,17 +463,25 @@ function workRow(w) {
     '<div class="ago">' + (fresh ? '<span class="dot" style="margin-right:6px"></span>' : '') + ago(w.lastActivityAt || w.updatedAt) + '</div></a>';
 }
 
-// ---------- inbox ----------
+// ---------- inbox: everything waiting for you ----------
+const VIA = { mac: "on your Mac (Touch ID / password)", slack: "in Slack", dashboard: "in the dashboard", agent: "in your agent", rule: "by your rule" };
 async function inboxView() {
   setNav("inbox");
-  view.innerHTML = head("Inbox", "Work teammates sent you. Open one to read the trajectory, ask why, or pick it up in your agent.") + '<div class="card" id="list">' + skel(3) + '</div>';
-  const { items } = await api("GET", "/api/inbox");
-  $("#list").innerHTML = items.length ? items.map((i) =>
+  view.innerHTML = head("Inbox", "Everything waiting for you: approvals your agents asked for, and work teammates sent you.") + '<div id="inboxBody"><div class="card">' + skel(3) + '</div></div>';
+  const [{ items }, { actions: pend }] = await Promise.all([api("GET", "/api/inbox"), api("GET", "/api/actions?status=pending")]);
+  const approvals = pend.length ? '<div class="sec" style="margin-top:0"><h2>Needs your decision</h2><span class="note">' + plural(pend.length, "request") + '</span></div><div class="card">' +
+    pend.map((a) => '<div class="msg"><span class="src" style="background:var(--warn-soft);border-color:transparent;color:var(--warn)">' + ICONS.key + '</span>' +
+      '<div style="min-width:0"><div class="line1"><b>' + esc(a.agent || "Your agent") + '</b> wants to</div><div class="t">' + esc(a.summary) + '</div>' +
+      '<div class="note">Your rule: ask me · ' + ago(a.createdAt) + ' · also on your Mac and in Slack if connected</div></div>' +
+      '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div></div>').join("") + '</div>' : "";
+  const sent = '<div class="sec"' + (pend.length ? '' : ' style="margin-top:0"') + '><h2>From teammates</h2><span class="note">' + plural(items.filter((i) => !i.readAt).length, "unread") + '</span></div><div class="card">' + (items.length ? items.map((i) =>
     '<a class="msg' + (i.readAt ? "" : " unread") + '" href="#/w/' + i.workId + '" data-read="' + (i.readAt ? "" : i.id) + '">' + av(i.fromName, i.fromEmail, "lg") +
     '<div style="min-width:0"><div class="line1"><b>' + esc(i.fromName || short(i.fromEmail)) + '</b> ' + (i.kind === "handover" ? "handed over a work to you" : "shared a work with you") + '</div>' +
     '<div class="t">' + (MARKS[i.workSource] || "") + esc(i.workTitle) + '</div>' + (i.body ? '<q>' + esc(i.body) + '</q>' : '') + '</div>' +
     '<div class="row" style="flex-direction:column;align-items:flex-end;gap:6px">' + (i.readAt ? "" : '<span class="pill new">new</span>') + '<span class="pill ' + i.kind + '">' + (i.kind === "handover" ? "Handover" : "Share") + '</span><span class="ago">' + ago(i.createdAt) + "</span></div></a>").join("")
-    : empty("inbox", "Inbox zero", "When someone shares or hands over work to you, it shows up here — live.");
+    : empty("inbox", "Nothing from teammates yet", "When someone shares or hands over work to you, it shows up here — live.")) + '</div>';
+  $("#inboxBody").innerHTML = approvals + sent;
+  bindDecide();
   view.querySelectorAll("[data-read]").forEach((a) => a.dataset.read && a.addEventListener("click", () => api("POST", "/api/inbox/" + a.dataset.read + "/read").then(refreshUnread)));
 }
 
@@ -661,10 +668,30 @@ function bindDecide() {
 function showApproval(a) {
   if (document.getElementById("ap-" + a.id)) return;
   const el = document.createElement("div"); el.className = "approval"; el.id = "ap-" + a.id;
-  el.innerHTML = '<div class="ah"><span>' + ICONS.key + '</span>Your agent is asking</div><div class="what">' + esc(a.summary) + '</div><p class="note" style="margin:0">' + esc(a.agent || "agent") + ' · your rule for this is “ask me”</p>' +
+  el.innerHTML = '<div class="ah"><span>' + ICONS.key + '</span>Your agent is asking</div><div class="what">' + esc(a.summary) + '</div><p class="note" style="margin:0">' + esc(a.agent || "agent") + ' · your rule: ask me · also asking on your Mac</p>' +
     '<div class="row"><button class="btn" data-d="0">Deny</button><button class="btn solid" data-d="1">Approve</button></div>';
   el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d === "1"));
   document.body.appendChild(el); refreshPending();
+}
+// Your phone: where agents text you (with your rules) and where handover alerts go if you opt in.
+async function phoneCard() {
+  const el = $("#phoneCard"); if (!el) return;
+  const p = await api("GET", "/api/me/profile");
+  el.innerHTML = '<b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.bot + 'Your phone</b>' +
+    '<p class="note" style="margin:6px 0 10px">' + (p.textingReady ? 'Texts come from AnyDock’s Inkbox identity.' : 'Texting is being set up (Inkbox); you can save your number now.') + '</p>' +
+    '<form id="phoneForm" style="display:grid;gap:8px"><input name="phone" placeholder="+14155550123" value="' + esc(p.phone || "") + '">' +
+    '<label class="tog" style="padding:0"><input type="checkbox" name="toh"' + (p.textOnHandover ? " checked" : "") + '> Text me when work is handed to me</label>' +
+    '<div class="row"><button class="btn sm solid">Save</button><span class="note" id="phoneMsg"></span></div></form>';
+  $("#phoneForm").onsubmit = async (e) => {
+    e.preventDefault(); const fd = new FormData(e.target);
+    try { await api("PUT", "/api/me/profile", { phone: (fd.get("phone") || "").trim() || null, textOnHandover: fd.get("toh") === "on" }); toast("Saved"); $("#phoneMsg").textContent = ""; }
+    catch (err) { $("#phoneMsg").innerHTML = '<span class="err">' + esc(err.message) + '</span>'; }
+  };
+}
+function mailTile(key, mark, name, st) {
+  return '<div class="ctile"><span class="lg">' + mark + '</span><div><b>' + name + '</b><div class="note">' +
+    (st.connected ? 'Agents send as <b style="color:var(--text)">' + esc(st.label) + '</b>.' : st.available ? 'Connect once — agents send from your own address.' : 'Coming soon — setup pending.') + '</div></div>' +
+    (st.connected ? '<button class="btn sm" data-mailoff="' + key + '">Disconnect</button>' : st.available ? '<a class="btn solid sm" href="/api/connectors/' + key + '/start">Connect</a>' : '<span class="pill">soon</span>') + '</div>';
 }
 const STATUS_LABEL = { pending: "Waiting for you", approved: "Approved", executed: "Done", failed: "Failed", denied: "Denied", blocked: "Blocked by rule" };
 async function permissionsView(params = new URLSearchParams()) {
@@ -674,6 +701,7 @@ async function permissionsView(params = new URLSearchParams()) {
   const sl = connections.slack, em = connections.email;
   view.innerHTML = head("Permissions", "What your agents may do as you. They never see your tokens — AnyDock checks your rule, then acts.") +
     (params.get("slack") === "connected" ? '<div class="banner">' + ICONS.check + 'Slack connected — your agents can now post as you, within the rules below.</div>' : '') +
+    (params.get("gmail") === "connected" || params.get("outlook") === "connected" ? '<div class="banner">' + ICONS.check + 'Mailbox connected — your agents now email from your own address, within the rules below.</div>' : '') +
     '<div class="perm"><div><div class="sec" style="margin-top:0"><h2>Rules</h2><span class="note">Applies to every agent of yours</span></div><div class="card">' + rules.map((r) =>
       '<div class="rule"><div><b>' + esc(r.label) + (r.live ? '' : ' <span class="pill">soon</span>') + '</b><span>' + esc(r.sub) + '</span></div>' +
       '<div class="tri" data-k="' + r.key + '"' + (r.live ? '' : ' aria-disabled="true"') + '>' + ["allow", "ask", "deny"].map((d) =>
@@ -682,13 +710,16 @@ async function permissionsView(params = new URLSearchParams()) {
       '<div class="ctile"><span class="lg">' + MARKS.slack + '</span><div><b>Slack</b><div class="note">' +
         (sl.connected ? 'Connected to <b style="color:var(--text)">' + esc(sl.label) + '</b>. Agents post as you; approvals arrive as DMs.' : sl.available ? 'Connect once — every agent of yours can then post as you, under your rules.' : 'Coming soon — the AnyDock Slack app is being set up.') + '</div></div>' +
         (sl.connected ? '<button class="btn sm" id="slackOff">Disconnect</button>' : sl.available ? '<a class="btn solid sm" href="/api/connectors/slack/start">Connect</a>' : '<span class="pill">soon</span>') + '</div>' +
-      '<div class="ctile"><span class="lg">' + MARKS.gmail + '</span><div><b>Email</b><div class="note">' +
-        (em.available ? 'Sends from <b style="color:var(--text)">' + esc(em.from) + '</b> on your behalf; replies go to you.' : 'Sends through AnyDock once a sender is configured.') + '</div></div><span class="pill ' + (em.available ? 'ok' : '') + '">' + (em.available ? 'Ready' : 'Setup pending') + '</span></div>' +
-    '</div><div class="card pad" style="margin-top:14px;background:var(--bg)"><b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.lock + 'How approvals reach you</b><p class="note" style="margin:6px 0 0">In your agent (if it can show a prompt), as a pop-up here, and as a Slack DM with Approve / Deny. The first answer wins.</p></div></div></div>' +
+      mailTile("gmail", MARKS.gmail, "Gmail", connections.gmail) + mailTile("outlook", MARKS.outlook, "Outlook", connections.outlook) +
+      '<div class="ctile"><span class="lg">' + MARKS.proton + '</span><div><b>Proton Mail</b><div class="note">No public send API yet — coming soon.</div></div><span class="pill">soon</span></div>' +
+      '<div class="ctile"><span class="lg">' + ICONS.mail + '</span><div><b>AnyDock sender</b><div class="note">' +
+        (em.available ? 'Used when no mailbox is connected: sends from <b style="color:var(--text)">' + esc(em.from) + '</b>; replies go to you.' : 'Fallback sender — setup pending.') + '</div></div><span class="pill ' + (em.available ? 'ok' : '') + '">' + (em.available ? 'Ready' : 'Pending') + '</span></div>' +
+    '</div><div class="card pad" style="margin-top:14px" id="phoneCard"><div class="note">Loading…</div></div>' +
+    '<div class="card pad" style="margin-top:14px;background:var(--bg)"><b style="display:flex;gap:8px;align-items:center;font-weight:500">' + ICONS.lock + 'How approvals reach you</b><p class="note" style="margin:6px 0 0">In your agent (if it can show a prompt), as a pop-up here, and as a Slack DM with Approve / Deny. The first answer wins.</p></div></div></div>' +
     '<div class="sec"><h2>Activity</h2><span class="note">Every action your agents asked for</span></div><div class="card timeline">' + (log.length ? log.map((a) =>
       '<div class="ev ' + a.status + '"><span class="d"></span><div style="min-width:0"><div class="t">' + esc(a.summary) + '</div><div class="m">' +
       '<span class="pill ' + a.status + '" style="margin-right:6px">' + (STATUS_LABEL[a.status] || a.status) + '</span>' + esc(a.agent || "agent") + ' · ' + ago(a.createdAt) +
-      (a.decidedVia && a.decidedVia !== "rule" ? ' · decided in ' + esc(a.decidedVia) : '') + (a.result?.detail ? ' · ' + esc(a.result.detail) : '') + '</div></div>' +
+      (a.decidedVia && a.decidedVia !== "rule" ? ' · decided ' + esc(VIA[a.decidedVia] || a.decidedVia) : '') + (a.result?.detail ? ' · ' + esc(a.result.detail) : '') + '</div></div>' +
       (a.status === "pending" ? '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button><button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>' : '<span></span>') + '</div>').join("")
       : empty("permissions", "No agent actions yet", "Try it: ask your agent to <code>tell #launch the build is green</code>.")) + '</div>';
   view.querySelectorAll(".tri").forEach((t) => t.querySelectorAll("button").forEach((b) => b.onclick = async () => {
@@ -697,6 +728,8 @@ async function permissionsView(params = new URLSearchParams()) {
   }));
   bindDecide();
   const off = $("#slackOff"); if (off) off.onclick = async () => { await api("DELETE", "/api/connectors/slack"); toast("Slack disconnected"); permissionsView(); };
+  phoneCard();
+  view.querySelectorAll("[data-mailoff]").forEach((b) => b.onclick = async () => { await api("DELETE", "/api/connectors/" + b.dataset.mailoff); toast("Mailbox disconnected"); permissionsView(); });
 }
 
 // ---------- integrations ----------
@@ -713,7 +746,9 @@ async function settingsView() {
       tile(MARKS.mcp, "Cursor, Windsurf, VS Code", "Any MCP client can connect to the AnyDock MCP server.", "live", '<a class="btn sm" href="/agents.md" target="_blank">Setup guide</a>') +
     '</div><div class="sec"><h2>Act on your behalf</h2></div><div class="igrid">' +
       tile(MARKS.slack, "Slack", "Agents post as you; approvals arrive as DMs with Approve / Deny.", slackOn ? "on" : slackAvail ? "off" : "soon", '<a class="btn sm' + (slackOn ? '' : ' solid') + '" href="#/permissions">' + (slackOn ? "Manage" : "Connect") + '</a>') +
-      tile(MARKS.gmail, "Email", "Agents email teammates or, with your OK, people outside the team.", del?.connections.email.available ? "live" : "soon", '<a class="btn sm" href="#/permissions">Rules</a>') +
+      tile(MARKS.gmail, "Gmail", "Agents send from your own Gmail — teammates directly, outsiders with your OK.", del?.connections.gmail?.connected ? "on" : del?.connections.gmail?.available ? "off" : "soon", '<a class="btn sm" href="#/permissions">' + (del?.connections.gmail?.connected ? "Manage" : "Connect") + '</a>') +
+      tile(MARKS.outlook, "Outlook", "Same, from your Outlook / Microsoft 365 mailbox.", del?.connections.outlook?.connected ? "on" : del?.connections.outlook?.available ? "off" : "soon", '<a class="btn sm" href="#/permissions">' + (del?.connections.outlook?.connected ? "Manage" : "Connect") + '</a>') +
+      tile(MARKS.proton, "Proton Mail", "End-to-end encrypted mail. Waiting on a public send API.", "soon") +
       tile(MARKS.discord, "Discord", "Handover cards in a project channel, and /anydock why right in Discord.", BOOT.discord ? "off" : "soon", '<a class="btn sm" href="#/projects">Pick a project</a>') +
     '</div><div class="sec"><h2>Coming next</h2></div><div class="igrid">' +
       tile(MARKS.github, "GitHub", "Scoped repo access that moves with a handover.", "soon") +

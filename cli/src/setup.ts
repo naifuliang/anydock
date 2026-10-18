@@ -2,6 +2,7 @@ import { api, ApiError } from "./api.ts";
 import { loadConfig } from "./config.ts";
 import { installMcp } from "./install.ts";
 import { login } from "./login.ts";
+import { ensureApprovalHelper, nativeApprovalPossible } from "./native/approve.ts";
 import { installService } from "./service.ts";
 
 // Everything after install, in one go: sign in, connect Claude Code + Codex, start background sync.
@@ -23,6 +24,11 @@ export async function setup(opts: { openBrowser: boolean; service: boolean }): P
 
   console.log("\n2/3 Connect your agents");
   installMcp();
+
+  if (nativeApprovalPossible()) {
+    console.log("    Building the Mac approval panel (one time, ~20s)…");
+    console.log(ensureApprovalHelper() ? "    Approvals will ask for Touch ID or your Mac password." : "    Couldn't build it; approvals will use your agent's prompt or the dashboard.");
+  }
 
   console.log("\n3/3 Background sync");
   if (!opts.service) console.log("    Skipped (--no-service). Run `anydock watch` to sync live.");

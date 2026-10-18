@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { notifyDiscord } from "./discord.ts";
 import { publish } from "./hub.ts";
+import { textOnHandover } from "./inkbox.ts";
 import type { AppEnv, Env, User, WorkRow } from "./types.ts";
 
 // Works API: upload sessions and their trajectories, share / hand over, inbox, live push.
@@ -273,6 +274,9 @@ async function createShare(c: Context<AppEnv>, kind: "share" | "handover") {
   c.executionCtx.waitUntil(
     notifyDiscord(c.env, new URL(c.req.url).origin, work, { kind, actor: me.name || me.email, to: toEmail, note }),
   );
+  if (toUserId && kind === "handover") {
+    c.executionCtx.waitUntil(textOnHandover(c.env, toUserId, me.name || me.email, work.title, `${new URL(c.req.url).origin}/app#/w/${work.id}`));
+  }
   if (toUserId) {
     const item = await inboxItemById(db, inboxId);
     c.executionCtx.waitUntil(publish(c.env, [toUserId], { type: "inbox.new", item }));

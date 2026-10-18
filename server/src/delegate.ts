@@ -1,6 +1,8 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { sendEmail } from "./email.ts";
+import { E164, phoneForEmail, sendText, textingReady } from "./inkbox.ts";
+import { mailboxStatus, sendAsUser } from "./mailbox.ts";
 import { publish } from "./hub.ts";
 import { decryptToken, encryptToken, hmacHex, readState, sameString, signState } from "./secure.ts";
 import type { AppEnv, Env, User } from "./types.ts";
@@ -11,13 +13,14 @@ import type { AppEnv, Env, User } from "./types.ts";
 export const delegate = new Hono<AppEnv>();
 
 type Decision = "allow" | "ask" | "deny";
-type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.call" | "money.spend" | "github.push_main";
+type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main";
 
 export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decision; live: boolean }> = {
   "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "allow", live: true },
   "email.internal": { label: "Email teammates", sub: "Same company domain as you", def: "allow", live: true },
   "email.external": { label: "Email people outside the team", sub: "Any other address", def: "ask", live: true },
-  "phone.call": { label: "Call or text a person", sub: "Phone & iMessage", def: "ask", live: false },
+  "phone.text": { label: "Text a person", sub: "iMessage / SMS through Inkbox", def: "ask", live: true },
+  "phone.call": { label: "Call a person", sub: "Voice through Inkbox", def: "ask", live: false },
   "money.spend": { label: "Spend money", sub: "Stripe", def: "deny", live: false },
   "github.push_main": { label: "Push to main", sub: "GitHub", def: "deny", live: false },
 };
@@ -128,6 +131,7 @@ async function slackTarget(env: Env, token: string, to: string): Promise<string>
 // ---------- executing actions ----------
 
 const slackPayload = z.object({ to: z.string().min(2).max(200), text: z.string().min(1).max(4000) });
+const textPayload = z.object({ to: z.string().min(3).max(200), text: z.string().min(1).max(1600) });
 const emailPayload = z.object({ to: z.string().email(), subject: z.string().min(1).max(200), body: z.string().min(1).max(20_000) });
 
 async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: boolean; detail: string; [k: string]: unknown }> {
@@ -145,6 +149,9 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
     }
   }
   if (row.action === "email.internal" || row.action === "email.external") {
+    // Their own Gmail / Outlook when connected; AnyDock's sender otherwise.
+    const own = await sendAsUser(env, user, { to: p.to, subject: p.subject, body: p.body });
+    if (own) return own;
     // Without a sender, only local dev may "send" (to the log). In production, say so instead of pretending.
     const local = env.BETTER_AUTH_URL.startsWith("http://localhost");
     if (!(env.PRIMITIVE_API_KEY && env.EMAIL_FROM) && !local) return { ok: false, detail: "Email isn't set up on AnyDock yet (no sender configured)." };
@@ -158,6 +165,11 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
     } catch (e) {
       return { ok: false, detail: (e as Error).message };
     }
+  }
+  if (row.action === "phone.text") {
+    const phone = E164.test(p.to) ? p.to : p.to.includes("@") ? await phoneForEmail(env.DB, p.to) : null;
+    if (!phone) return { ok: false, detail: `No phone number for ${p.to}. Use +1… format, or ask them to add their phone in AnyDock.` };
+    return sendText(env, phone, `${p.text}\n— ${user.name || user.email} (via AnyDock)`);
   }
   return { ok: false, detail: `${row.action} isn't available yet.` };
 }
@@ -264,6 +276,8 @@ delegate.get("/delegate", async (c) => {
     connections: {
       slack: { available: slackReady(c.env), connected: Boolean(conn), label: conn?.label ?? null, since: conn?.createdAt ?? null },
       email: { available: Boolean(c.env.PRIMITIVE_API_KEY && c.env.EMAIL_FROM), from: c.env.EMAIL_FROM ?? null },
+      ...(await mailboxStatus(c.env, user.id)),
+      texting: { available: textingReady(c.env) },
     },
   });
 });
@@ -287,7 +301,7 @@ delegate.put("/delegate/policy", async (c) => {
 // ---------- API: actions (agent asks; person decides) ----------
 
 const askBody = z.object({
-  action: z.enum(["slack.post", "email"]),
+  action: z.enum(["slack.post", "email", "text"]),
   payload: z.record(z.string(), z.unknown()),
   agent: z.string().max(80).optional(),
 });
@@ -308,6 +322,12 @@ delegate.post("/actions", async (c) => {
     action = "slack.post";
     payload = p.data;
     summary = `Post in Slack to ${p.data.to}: “${p.data.text.length > 120 ? p.data.text.slice(0, 119) + "…" : p.data.text}”`;
+  } else if (parsed.data.action === "text") {
+    const p = textPayload.safeParse(parsed.data.payload);
+    if (!p.success) return c.json({ error: "invalid_payload", issues: p.error.issues }, 400);
+    action = "phone.text";
+    payload = p.data;
+    summary = `Text ${p.data.to}: “${p.data.text.length > 100 ? p.data.text.slice(0, 99) + "…" : p.data.text}”`;
   } else {
     const p = emailPayload.safeParse(parsed.data.payload);
     if (!p.success) return c.json({ error: "invalid_payload", issues: p.error.issues }, 400);
@@ -359,7 +379,7 @@ delegate.get("/actions/:id", async (c) => {
 delegate.post("/actions/:id/decide", async (c) => {
   const user = signedIn(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent"]).default("dashboard") }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).default("dashboard") }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
   const row = await decide(c.env, user.id, c.req.param("id"), parsed.data.approve, parsed.data.via);
   return row ? c.json({ action: actionJson(row) }) : c.json({ error: "not_found" }, 404);
@@ -453,8 +473,12 @@ delegate.post("/connectors/slack/interactions", async (c) => {
   const act = payload.actions?.[0];
   if (payload.type !== "block_actions" || !act?.value || (act.action_id !== "approve" && act.action_id !== "deny")) return c.body(null, 200);
   const externalId = `${payload.team?.id ?? payload.user?.team_id}:${payload.user?.id}`;
-  const owner = await c.env.DB.prepare(`select "userId" from "connection" where "provider" = 'slack' and "externalId" = ?1`)
-    .bind(externalId)
+  // Start from the request: whose is it, and is the clicker that person's connected Slack account?
+  const owner = await c.env.DB.prepare(
+    `select r."userId" from "actionRequest" r join "connection" k on k."userId" = r."userId" and k."provider" = 'slack'
+     where r."id" = ?1 and k."externalId" = ?2`,
+  )
+    .bind(act.value, externalId)
     .first<{ userId: string }>();
   if (!owner) return c.json({ response_type: "ephemeral", text: "This Slack account isn't connected to AnyDock." });
   c.executionCtx.waitUntil(decide(c.env, owner.userId, act.value, act.action_id === "approve", "slack").then(() => {}));

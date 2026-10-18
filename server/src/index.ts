@@ -4,6 +4,8 @@ import { appPage } from "./app.ts";
 import { delegate } from "./delegate.ts";
 import { discord, discordEnabled } from "./discord.ts";
 import { landingPage } from "./landing.ts";
+import { profile } from "./inkbox.ts";
+import { mailbox } from "./mailbox.ts";
 import { devicePage, loginPage } from "./pages.ts";
 import type { AppEnv, Env } from "./types.ts";
 import { projects } from "./projects.ts";
@@ -35,6 +37,8 @@ app.get("/api/me", (c) => {
 // Before projects/works: their middleware requires a session, but Discord calls /api/discord/* itself.
 app.route("/api", discord);
 app.route("/api", delegate);
+app.route("/api", mailbox);
+app.route("/api", profile);
 app.route("/api", projects);
 app.route("/api", works);
 

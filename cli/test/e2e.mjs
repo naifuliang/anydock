@@ -20,7 +20,7 @@ const env = {
   ANYDOCK_HOME: join(root, "home"),
   ANYDOCK_CLAUDE_ROOT: join(root, "claude", "projects"),
   ANYDOCK_CODEX_HOME: join(root, "codex"),
-  ANYDOCK_SERVER: SERVER,
+  ANYDOCK_SERVER: SERVER, ANYDOCK_NO_NATIVE_APPROVAL: "1",
 };
 const projectDir = join(root, "work", "demo");
 const claudeId = randomUUID();

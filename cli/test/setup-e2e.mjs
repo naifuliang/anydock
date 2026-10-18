@@ -31,7 +31,7 @@ async function signIn(email) {
 const HOME = mkdtempSync(join(tmpdir(), "anydock-setup-"));
 mkdirSync(join(HOME, ".codex"), { recursive: true }); // "Codex is installed"
 // Minimal PATH, like a fresh shell: node is there, claude is not (so real Claude config is never touched).
-const env = { HOME, SHELL: "/bin/zsh", PATH: `/usr/bin:/bin:${dirname(process.execPath)}`, ANYDOCK_SERVER: SERVER, ANYDOCK_NO_BROWSER: "1" };
+const env = { HOME, SHELL: "/bin/zsh", PATH: `/usr/bin:/bin:${dirname(process.execPath)}`, ANYDOCK_SERVER: SERVER, ANYDOCK_NO_NATIVE_APPROVAL: "1", ANYDOCK_NO_BROWSER: "1" };
 const bin = join(HOME, ".anydock", "bin", "anydock");
 const email = `newuser+${Date.now()}@example.com`;
 const browser = await signIn(email); // the user's browser session

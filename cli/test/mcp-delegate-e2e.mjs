@@ -15,7 +15,7 @@ let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name}${extra ? "  " + extra : ""}`); if (!ok) failures++; };
 
 const root = mkdtempSync(join(tmpdir(), "anydock-mcpdel-"));
-const env = { ...process.env, ANYDOCK_HOME: join(root, "home"), ANYDOCK_CLAUDE_ROOT: join(root, "claude"), ANYDOCK_CODEX_HOME: join(root, "codex"), ANYDOCK_SERVER: SERVER, CLAUDE_CODE_ENTRYPOINT: "cli", ANYDOCK_NO_BROWSER: "1" };
+const env = { ...process.env, ANYDOCK_HOME: join(root, "home"), ANYDOCK_CLAUDE_ROOT: join(root, "claude"), ANYDOCK_CODEX_HOME: join(root, "codex"), ANYDOCK_SERVER: SERVER, ANYDOCK_NO_NATIVE_APPROVAL: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ANYDOCK_NO_BROWSER: "1" };
 mkdirSync(env.ANYDOCK_CLAUDE_ROOT, { recursive: true });
 
 async function call(token, method, path, body) {

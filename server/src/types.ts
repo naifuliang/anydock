@@ -14,6 +14,20 @@ export interface Env extends AuthEnv {
   SLACK_CLIENT_SECRET?: string;
   SLACK_SIGNING_SECRET?: string;
   SLACK_API?: string; // override for tests; default https://slack.com/api
+  // Email as you (tasks/email-accounts-setup.md). Gmail reuses GOOGLE_CLIENT_ID/SECRET.
+  MS_CLIENT_ID?: string;
+  MS_CLIENT_SECRET?: string;
+  // Test overrides.
+  GOOGLE_OAUTH_URL?: string;
+  GOOGLE_TOKEN_URL?: string;
+  GMAIL_API?: string;
+  MS_LOGIN_URL?: string;
+  MS_GRAPH_API?: string;
+  // Inkbox (tasks/inkbox-setup.md).
+  INKBOX_API_KEY?: string;
+  INKBOX_IDENTITY_ID?: string;
+  INKBOX_PHONE_NUMBER_ID?: string;
+  INKBOX_API?: string; // test override; default https://inkbox.ai/api/v1
 }
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
