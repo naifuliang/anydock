@@ -38,6 +38,7 @@ Usage:
   anydock artifact list                         Yours, shared with you, and your works'
   anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
   anydock artifact grant <app-id> slack.post,email.external [--days N] [--to a,b]   Give an app some of your permissions (you approve)
+  anydock artifact delete <id>                       Delete one you own, for everyone (you approve)
   anydock open <artifact-id> [--link]           Open it (a native window on Mac, else the browser); --link prints a
                                                 one-time sign-in link for a built-in browser instead
   anydock mcp install | uninstall               Add AnyDock tools + skill to Claude Code and Codex
@@ -267,12 +268,17 @@ async function artifactCommand(sub: string, rest: string[], v: Record<string, st
       const { delegateAction } = await import("./mcp.ts");
       return delegateAction("app.grant", { artifactId: await resolveId(rest[0]), actions: rest[1].split(",").map((x) => x.trim()), days: Number(v.days ?? 7), ...(typeof v.to === "string" ? { to: v.to.split(",").map((x) => x.trim()) } : {}) });
     }
+    case "delete": {
+      if (!rest[0]) throw new Error("Usage: anydock artifact delete <id>   (asks you to approve; only artifacts you own)");
+      const { delegateAction } = await import("./mcp.ts");
+      return delegateAction("artifact.delete", { artifactId: await resolveId(rest[0]) });
+    }
     case "open": {
       const { url, title } = await artifactUrl(await resolveId(rest[0] ?? ""));
       return openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`;
     }
     default:
-      throw new Error(`Unknown: anydock artifact ${sub}. Try: create, write, read, upload, list, share, open.`);
+      throw new Error(`Unknown: anydock artifact ${sub}. Try: create, write, read, upload, list, share, grant, delete, open.`);
   }
 }
 

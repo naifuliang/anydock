@@ -102,6 +102,24 @@ check("the person can still change rules", policyHuman.status === 200);
 const sess = await call(agent, "GET", "/api/auth/get-session");
 check("agent token can still read its own session", sess.status === 200 && sess.data?.user);
 
+// Deleting an artifact: the agent's own → it asks (Touch ID); someone else's → refused outright; never pre-allowed.
+const mine = (await call(browser, "POST", "/api/artifacts", { title: `Scratch ${run}`, kind: "doc", content: "# x" })).data.artifact;
+const bob = await signIn(`bob+${run}@acme.dev`);
+const theirs = (await call(bob, "POST", "/api/artifacts", { title: `Bob's ${run}`, kind: "doc", content: "# y" })).data.artifact;
+await call(bob, "POST", `/api/artifacts/${theirs.id}/share`, { to: `alice+${run}@acme.dev`, role: "editor" });
+check("agent can't DELETE an artifact directly", (await call(agent, "DELETE", `/api/artifacts/${mine.id}`)).status === 403);
+const delMine = await call(agent, "POST", "/api/actions", { action: "artifact.delete", payload: { artifactId: mine.id }, agent: "claude-code", session: { source: "claude-code", sessionId: `s-${run}` } });
+check("deleting its own artifact asks the person", delMine.status === 202 && delMine.data.action.status === "pending" && delMine.data.action.action === "artifact.delete", JSON.stringify(delMine.data));
+const delTheirs = await call(agent, "POST", "/api/actions", { action: "artifact.delete", payload: { artifactId: theirs.id }, agent: "claude-code" });
+check("someone else's artifact (even with edit access): refused, nobody asked", delTheirs.status === 403 && delTheirs.data.error === "forbidden", JSON.stringify(delTheirs.data));
+check("…and it's still there", (await call(bob, "GET", `/api/artifacts/${theirs.id}`)).status === 200);
+check("a rule can't pre-allow deleting", (await call(browser, "PUT", "/api/delegate/policy", { action: "artifact.delete", decision: "allow" })).status === 400);
+const sessDel = await call(browser, "POST", `/api/actions/${delMine.data.action.id}/decide`, { approve: true, scope: "session" });
+check("approved → deleted for everyone", sessDel.status === 200 && sessDel.data.action.status === "executed" && (await call(browser, "GET", `/api/artifacts/${mine.id}`)).status === 404, JSON.stringify(sessDel.data.action?.result));
+const mine2 = (await call(browser, "POST", "/api/artifacts", { title: `Scratch2 ${run}`, kind: "doc", content: "# x" })).data.artifact;
+const delAgain = await call(agent, "POST", "/api/actions", { action: "artifact.delete", payload: { artifactId: mine2.id }, agent: "claude-code", session: { source: "claude-code", sessionId: `s-${run}` } });
+check("\"this session\" never carries over to deleting", delAgain.status === 202);
+
 // An agent can't mint itself a new login + key: approving a device code needs the person.
 const code = (await call(null, "POST", "/api/auth/device/code", { client_id: "anydock-cli" })).data;
 const claim = await call(agent, "GET", `/api/auth/device?user_code=${encodeURIComponent(code.user_code)}`);

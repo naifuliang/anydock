@@ -69,6 +69,9 @@ Permissions flow person → agent → app, and each step can only narrow. To let
 You can only grant what your rules allow, and every grant waits for the user's approval (Touch ID / password, dashboard,
 or Slack). Never try to work around a refusal.
 
+To delete an artifact: \`anydock_artifact_delete id=<artifact>\` (CLI: \`${cli} artifact delete <id>\`). Only ones the user
+owns; it always waits for the user's approval, because it's gone for everyone.
+
 ## Passing work on
 
 - Share an artifact: \`anydock_artifact_share id=… to=email\` (\`role: viewer\` for read-only); hand it over with

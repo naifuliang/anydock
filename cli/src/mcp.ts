@@ -444,6 +444,15 @@ const tools: Tool[] = [
     async run(a) { return delegateAction("app.grant", { artifactId: await resolveId(a.id), actions: a.actions, days: a.days ?? 7, ...(a.to?.length ? { to: a.to } : {}) }); },
   },
   {
+    name: "anydock_artifact_delete",
+    description:
+      "Delete an artifact for everyone (its history and files too). Only artifacts the user owns; anything else is refused. " +
+      "Always needs the user's approval (Touch ID / password on their Mac, the dashboard or Slack).",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The artifact (id, prefix or exact title)." } }, required: ["id"] },
+    annotations: { destructiveHint: true, openWorldHint: true },
+    async run(a) { return delegateAction("artifact.delete", { artifactId: await resolveId(a.id) }); },
+  },
+  {
     name: "anydock_artifact_open",
     description:
       "Show an artifact to the user. where=\"builtin\" (use this when you have a built-in browser, e.g. the Claude or Codex desktop app): returns a one-time link that signs your browser in — open it there and bring the browser panel to the front. " +
@@ -489,7 +498,7 @@ function describeAction(a: Act): string {
   }
 }
 
-export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant", payload: Record<string, unknown>): Promise<string> {
+export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant" | "artifact.delete", payload: Record<string, unknown>): Promise<string> {
   let act: Act;
   try {
     // Say which agent session is asking: rules can differ per session, and approvals can be "for this session".
@@ -515,7 +524,7 @@ export async function delegateAction(action: "slack.post" | "email" | "text" | "
     })();
     // The panel signs exactly what the server will check (server/src/trust.ts), so the signature can't be reused.
     const message = `anydock-approve:v1\n${act.id}\n${act.userId}\n${act.summary}`;
-    const sessionMessage = act.sessionId && action !== "app.grant" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
+    const sessionMessage = act.sessionId && action !== "app.grant" && action !== "artifact.delete" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
     const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
     const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
     ctrl.abort();

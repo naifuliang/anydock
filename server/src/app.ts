@@ -743,7 +743,9 @@ async function decideAction(id, approve, scope) {
   refreshPending(); route();
 }
 // "This session": approve now, and let the same agent session do this kind of action again without asking (for a while).
-const sessBtn = (a) => a.sessionId && a.action !== "app.grant" ? '<button class="btn sm" data-oks="' + a.id + '" title="Allow this kind of action for the rest of this agent session">This session</button>' : "";
+// Kinds of action that always need the person (mirrors ALWAYS_ASK in delegate.ts).
+const ALWAYS_ASK = ["app.grant", "artifact.delete"];
+const sessBtn = (a) => a.sessionId && !ALWAYS_ASK.includes(a.action) ? '<button class="btn sm" data-oks="' + a.id + '" title="Allow this kind of action for the rest of this agent session">This session</button>' : "";
 function bindDecide() {
   view.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => decideAction(b.dataset.ok, true));
   view.querySelectorAll("[data-oks]").forEach((b) => b.onclick = () => decideAction(b.dataset.oks, true, "session"));
@@ -753,7 +755,7 @@ function showApproval(a) {
   if (document.getElementById("ap-" + a.id)) return;
   const el = document.createElement("div"); el.className = "approval"; el.id = "ap-" + a.id;
   el.innerHTML = '<div class="ah"><span>' + ICONS.key + '</span>Your agent is asking</div><div class="what">' + esc(a.summary) + '</div><p class="note" style="margin:0">' + esc(a.agent || "agent") + ' · your rule: ask me · also asking on your Mac</p>' +
-    '<div class="row"><button class="btn" data-d="0">Deny</button>' + (a.sessionId && a.action !== "app.grant" ? '<button class="btn" data-d="s">This session</button>' : '') + '<button class="btn solid" data-d="1">Approve</button></div>';
+    '<div class="row"><button class="btn" data-d="0">Deny</button>' + (a.sessionId && !ALWAYS_ASK.includes(a.action) ? '<button class="btn" data-d="s">This session</button>' : '') + '<button class="btn solid" data-d="1">Approve</button></div>';
   el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d !== "0", b.dataset.d === "s" ? "session" : "once"));
   document.body.appendChild(el); refreshPending();
 }
@@ -763,7 +765,7 @@ const DEC_LABEL = { allow: "Allowed", ask: "Ask me", deny: "Blocked" };
 async function sessionsCard(rules) {
   const el = $("#sessCard"); if (!el) return;
   const { sessions, hours } = await api("GET", "/api/sessions");
-  const live = rules.filter((r) => r.live && r.key !== "app.grant");
+  const live = rules.filter((r) => r.live && !ALWAYS_ASK.includes(r.key));
   el.innerHTML = sessions.length ? sessions.map((s) =>
     '<div class="sess"><div class="sh">' + (MARKS[s.source] || "") + '<div style="min-width:0;flex:1"><b>' + esc(s.title || (s.source === "codex" ? "Codex" : "Claude Code") + " session " + s.sessionId.slice(0, 8)) + '</b>' +
       '<div class="note">' + esc((s.device ? s.device + " · " : "") + (s.requests ? plural(s.requests, "request") + " · " : "") + "active " + ago(s.lastAt)) + (s.workId ? ' · <a href="#/w/' + s.workId + '">work</a>' : '') + '</div></div>' +
@@ -824,7 +826,7 @@ async function permissionsView(params = new URLSearchParams()) {
     '<div class="perm"><div><div class="sec" style="margin-top:0"><h2>Rules</h2><span class="note">Applies to every agent of yours</span></div><div class="card">' + rules.map((r) =>
       '<div class="rule"><div><b>' + esc(r.label) + (r.live ? '' : ' <span class="pill">soon</span>') + '</b><span>' + esc(r.sub) + '</span></div>' +
       '<div class="tri" data-k="' + r.key + '"' + (r.live ? '' : ' aria-disabled="true"') + '>' + ["allow", "ask", "deny"].map((d) =>
-        '<button class="' + d + (r.decision === d ? " on" : "") + '" data-v="' + d + '"' + (r.key === "app.grant" && d === "allow" ? ' disabled title="Giving an app your permissions always needs your OK"' : '') + '>' + (d === "ask" ? "Ask me" : d[0].toUpperCase() + d.slice(1)) + '</button>').join("") + '</div></div>').join("") + '</div></div>' +
+        '<button class="' + d + (r.decision === d ? " on" : "") + '" data-v="' + d + '"' + (ALWAYS_ASK.includes(r.key) && d === "allow" ? ' disabled title="Always needs your OK"' : '') + '>' + (d === "ask" ? "Ask me" : d[0].toUpperCase() + d.slice(1)) + '</button>').join("") + '</div></div>').join("") + '</div></div>' +
     '<div><div class="sec" style="margin-top:0"><h2>Connected tools</h2></div><div class="card">' +
       '<div class="ctile"><span class="lg">' + MARKS.slack + '</span><div><b>Slack</b><div class="note">' +
         (sl.connected ? 'Connected to <b style="color:var(--text)">' + esc(sl.label) + '</b>. Agents post as you; approvals arrive as DMs.' : sl.available ? 'Connect once — every agent of yours can then post as you, under your rules.' : 'Coming soon — the AnyDock Slack app is being set up.') + '</div></div>' +

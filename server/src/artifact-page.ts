@@ -303,11 +303,17 @@ function renderShare() {
     SHARES.map((s) => '<div class="who"><span class="ini">' + esc(initials(s.name || s.toEmail)) + "</span>" + esc(s.name || s.toEmail) + '<span class="m">' + (s.role === "editor" ? "Can edit" : "Can view") + (owner ? ' · <a href="#" data-unshare="' + s.id + '">remove</a>' : "") + "</span></div>").join("") +
     (WORK ? '<p class="note">Also visible to whoever can see its work, <a href="/app#/w/' + WORK.id + '">' + esc(WORK.title) + "</a>; a handover of that work moves it too.</p>" : "") +
     (owner ? '<div class="sep"></div><b style="font-size:13.5px">Hand over</b><p class="note" style="margin:2px 0 8px">They become the owner, with this artifact\'s full history; you keep edit access.</p><div class="row"><input id="hoTo" type="email" placeholder="who takes it over"></div><textarea id="hoNote" placeholder="Note for them (what\'s done, what\'s next)"></textarea><button class="btn sm" id="hoGo">Hand over</button>' : "") +
-    '<div class="sep"></div><button class="btn sm ghost" id="copyLink">Copy link</button>';
+    '<div class="sep"></div><div style="display:flex;justify-content:space-between"><button class="btn sm ghost" id="copyLink">Copy link</button>' +
+    (owner ? '<button class="btn sm ghost" id="delArt" style="color:var(--red)">Delete</button>' : "") + "</div>";
   const go = $("#shGo"); if (go) go.onclick = async () => { const to = $("#shTo").value.trim(); if (!to) return; try { await api("POST", "/api/artifacts/" + A.id + "/share", { to, role: $("#shRole").value }); toast("Shared with " + to); await load(); renderShare(); } catch (e) { toast(e.message); } };
   const ho = $("#hoGo"); if (ho) ho.onclick = async () => { const to = $("#hoTo").value.trim(); if (!to) return; try { await api("POST", "/api/artifacts/" + A.id + "/handover", { to, note: $("#hoNote").value || undefined }); toast("Handed over to " + to); await load(); renderShare(); } catch (e) { toast(e.message); } };
   p.querySelectorAll("[data-unshare]").forEach((a) => (a.onclick = async (e) => { e.preventDefault(); await api("DELETE", "/api/artifacts/" + A.id + "/shares/" + a.dataset.unshare).catch((x) => toast(x.message)); await load(); renderShare(); }));
   $("#copyLink").onclick = () => { navigator.clipboard.writeText(location.origin + "/a/" + A.id); toast("Link copied"); };
+  const del = $("#delArt");
+  if (del) del.onclick = async () => {
+    if (!confirm("Delete “" + A.title + "” for everyone? Its history and files go too.")) return;
+    try { await api("DELETE", "/api/artifacts/" + A.id); location.href = "/app#/artifacts"; } catch (e) { toast(e.message); }
+  };
 }
 
 // ---------- export menu ----------

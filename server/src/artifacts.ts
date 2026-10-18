@@ -316,11 +316,16 @@ artifacts.patch("/artifacts/:id", async (c) => {
 artifacts.delete("/artifacts/:id", async (c) => {
   const l = await load(c, "owner");
   if (l instanceof Response) return l;
-  const files = await c.env.DB.prepare(`select "r2Key" from "artifactFile" where "artifactId" = ?1`).bind(l.a.id).all<{ r2Key: string }>();
-  if (files.results.length) await c.env.TRAJECTORIES.delete(files.results.map((f) => f.r2Key));
-  await c.env.DB.prepare(`delete from "artifact" where "id" = ?1`).bind(l.a.id).run();
+  await deleteArtifact(c.env, l.a.id);
   return c.json({ ok: true });
 });
+
+// Gone for everyone: rows (cascade) and stored files. Agents reach this only through an approved "artifact.delete".
+export async function deleteArtifact(env: Env, id: string) {
+  const files = await env.DB.prepare(`select "r2Key" from "artifactFile" where "artifactId" = ?1`).bind(id).all<{ r2Key: string }>();
+  if (files.results.length) await env.TRAJECTORIES.delete(files.results.map((f) => f.r2Key));
+  await env.DB.prepare(`delete from "artifact" where "id" = ?1`).bind(id).run();
+}
 
 // ---------- sections (doc, slides, latex, html) ----------
 

@@ -28,8 +28,10 @@ that number with "Text me when work is handed to me" on. Jason's approvals use h
 
 ## Before recording (one time)
 
-1. **Nolan:** `npm i -g @openai/codex` (Codex CLI), then in Edge profile "Jason" sign in to anydock.ai as qizi297@outlook.com.
-2. Jason's AnyDock: `ANYDOCK_HOME=~/.anydock-jason ~/.anydock/bin/anydock login` → **Nolan approves in the Jason profile**.
+Codex does all of this itself — the checklist is `tasks/video-production.md` §1. Steps 1–2 are already done.
+
+1. ~~Codex CLI installed; Edge profile "Jason" signed in to anydock.ai as qizi297@outlook.com.~~
+2. ~~Jason's AnyDock: `ANYDOCK_HOME=~/.anydock-jason anydock login` (approved in the Jason profile).~~
 3. Jason's Codex: `mkdir ~/.codex-jason && cp ~/.codex/auth.json ~/.codex-jason/`, and `~/.codex-jason/config.toml` with
    `[mcp_servers.anydock]` `command = "/Users/nolanliang/.anydock/bin/anydock"`, `args = ["mcp"]`,
    `env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason", CODEX_HOME = "/Users/nolanliang/.codex-jason" }` (so AnyDock finds Jason's Codex sessions); copy `~/.codex/skills/anydock` into `~/.codex-jason/skills/`.

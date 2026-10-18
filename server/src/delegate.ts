@@ -13,7 +13,7 @@ import type { AppEnv, Env, User } from "./types.ts";
 export const delegate = new Hono<AppEnv>();
 
 type Decision = "allow" | "ask" | "deny";
-export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant";
+export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant" | "artifact.delete";
 
 export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decision; live: boolean }> = {
   "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "allow", live: true },
@@ -25,7 +25,12 @@ export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decis
   "github.push_main": { label: "Push to main", sub: "GitHub", def: "deny", live: false },
   // Granting is itself a permission: handing some of an agent's powers to an app always needs the person.
   "app.grant": { label: "Let an app act for you", sub: "Give an app some of your agent's permissions — always asks", def: "ask", live: true },
+  // Deleting is final for everyone, so an agent can only ask; only artifacts you own.
+  "artifact.delete": { label: "Delete your artifacts", sub: "Docs, decks, sheets and apps you own — always asks", def: "ask", live: true },
 };
+
+// Actions that can never be pre-allowed — not by a rule, not "for this session".
+export const ALWAYS_ASK = new Set<ActionKey>(["app.grant", "artifact.delete"]);
 
 // What an app can be given: only real actions, never the power to grant.
 export const GRANTABLE = ["slack.post", "email.internal", "email.external", "phone.text"] as const;
@@ -72,7 +77,7 @@ function signedIn(c: Context<AppEnv>): User | null {
 export async function decisionFor(db: D1Database, userId: string, action: ActionKey): Promise<Decision> {
   const row = await db.prepare(`select "decision" from "policy" where "userId" = ?1 and "action" = ?2`).bind(userId, action).first<{ decision: Decision }>();
   const d = row?.decision ?? ACTIONS[action].def;
-  return action === "app.grant" && d === "allow" ? "ask" : d;
+  return ALWAYS_ASK.has(action) && d === "allow" ? "ask" : d;
 }
 
 export type AgentSessionRef = { source: string; sessionId: string };
@@ -91,7 +96,7 @@ export async function effectiveDecision(db: D1Database, userId: string, action: 
   ).bind(userId, session.source, session.sessionId, action, now(), cliSessionId).first<{ id: string; decision: Decision; scope: string | null }>();
   if (!r) return { decision: person };
   if (r.decision === "allow") {
-    if (action === "app.grant") return { decision: person };
+    if (ALWAYS_ASK.has(action)) return { decision: person };
     const scope = r.scope ? (JSON.parse(r.scope) as { to?: string[] }) : null;
     if (scope?.to?.length && !scope.to.some((t) => t.toLowerCase() === String(to ?? "").toLowerCase())) return { decision: person };
     return { decision: "allow", sessionRule: r.id };
@@ -201,6 +206,14 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
         .bind(crypto.randomUUID(), p.artifactId, user.id, p.grantorSessionId ?? null, a, p.to?.length ? JSON.stringify({ to: p.to }) : null, row.id, expires, ts)));
     return { ok: true, detail: `App "${p.title}" can now ${(p.actions as Grantable[]).map((a) => ACTIONS[a].label.toLowerCase()).join(", ")} until ${expires.slice(0, 10)}.` };
   }
+  if (row.action === "artifact.delete") {
+    const a = await env.DB.prepare(`select "id","ownerId" from "artifact" where "id" = ?1`).bind(p.artifactId).first<{ id: string; ownerId: string }>();
+    if (!a) return { ok: true, detail: `“${p.title}” was already deleted.` };
+    if (a.ownerId !== user.id) return { ok: false, detail: "Only the owner can delete it." };
+    const { deleteArtifact } = await import("./artifacts.ts");
+    await deleteArtifact(env, a.id);
+    return { ok: true, detail: `Deleted “${p.title}” for everyone.` };
+  }
   return { ok: false, detail: `${row.action} isn't available yet.` };
 }
 
@@ -234,7 +247,7 @@ export async function decide(env: Env, userId: string, id: string, approve: bool
     .first<ActionRow>();
   if (!claimed) return load(db, id, userId);
   // "Approve for this session": the same action from the same agent session runs without asking, for a while.
-  if (approve && scope === "session" && claimed.source && claimed.sessionId && claimed.action !== "app.grant") {
+  if (approve && scope === "session" && claimed.source && claimed.sessionId && !ALWAYS_ASK.has(claimed.action)) {
     await db.prepare(`insert into "sessionRule" ("id","userId","cliSessionId","source","sessionId","action","decision","scope","createdVia","requestId","expiresAt","createdAt") values (?1,?2,?3,?4,?5,?6,'allow',null,?7,?8,?9,?10)`)
       .bind(crypto.randomUUID(), userId, claimed.cliSessionId, claimed.source, claimed.sessionId, claimed.action, via, claimed.id, new Date(Date.now() + SESSION_HOURS * 3_600_000).toISOString(), now()).run();
   }
@@ -263,7 +276,7 @@ async function notifyApproval(env: Env, user: User, row: ActionRow, origin: stri
       type: "actions",
       elements: [
         { type: "button", style: "primary", text: { type: "plain_text", text: "Approve" }, action_id: "approve", value: row.id },
-        ...(row.sessionId && row.action !== "app.grant" ? [{ type: "button", text: { type: "plain_text", text: "Allow for this session" }, action_id: "approve_session", value: row.id }] : []),
+        ...(row.sessionId && !ALWAYS_ASK.has(row.action) ? [{ type: "button", text: { type: "plain_text", text: "Allow for this session" }, action_id: "approve_session", value: row.id }] : []),
         { type: "button", style: "danger", text: { type: "plain_text", text: "Deny" }, action_id: "deny", value: row.id },
         { type: "button", text: { type: "plain_text", text: "Open in AnyDock" }, url: `${origin}/app#/permissions` },
       ],
@@ -325,8 +338,8 @@ delegate.put("/delegate/policy", async (c) => {
     .object({ action: z.enum(Object.keys(ACTIONS) as [ActionKey, ...ActionKey[]]), decision: z.enum(["allow", "ask", "deny"]) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
-  if (parsed.data.action === "app.grant" && parsed.data.decision === "allow") {
-    return c.json({ error: "invalid_body", message: "Giving an app your permissions always needs your OK — choose Ask me or Deny." }, 400);
+  if (ALWAYS_ASK.has(parsed.data.action) && parsed.data.decision === "allow") {
+    return c.json({ error: "invalid_body", message: `"${ACTIONS[parsed.data.action].label}" always needs your OK — choose Ask me or Deny.` }, 400);
   }
   await c.env.DB.prepare(
     `insert into "policy" ("userId","action","decision","updatedAt") values (?1,?2,?3,?4)
@@ -341,7 +354,7 @@ delegate.put("/delegate/policy", async (c) => {
 
 const sessionRef = z.object({ source: z.enum(["claude-code", "codex"]), sessionId: z.string().min(1).max(200) });
 const askBody = z.object({
-  action: z.enum(["slack.post", "email", "text", "app.grant"]),
+  action: z.enum(["slack.post", "email", "text", "app.grant", "artifact.delete"]),
   payload: z.record(z.string(), z.unknown()),
   agent: z.string().max(80).optional(),
   session: sessionRef.optional(), // which agent session is asking (the MCP / CLI fills it in)
@@ -392,6 +405,19 @@ export async function classify(env: Env, user: User, name: string, raw: unknown,
       payload: { ...p.data, title: art.title, grantorSessionId },
       summary: `Let app “${art.title}” ${what}${p.data.to?.length ? ` (only ${p.data.to.join(", ")})` : ""} for ${p.data.days} day${p.data.days === 1 ? "" : "s"}`,
     };
+  }
+  if (name === "artifact.delete") {
+    const p = z.object({ artifactId: z.string().min(1).max(100) }).safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    const art = await env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(p.data.artifactId).first<{ id: string; title: string; kind: string; ownerId: string }>();
+    if (!art) return { error: "not_found", message: "No such artifact." };
+    // Not yours: refused outright, nobody is asked.
+    if (art.ownerId !== user.id) {
+      const { artifactAccess } = await import("./artifacts.ts");
+      if (!(await artifactAccess(env.DB, art as any, user.id))) return { error: "not_found", message: "No such artifact." };
+      return { error: "forbidden", message: `Only the owner can delete “${art.title}”.` };
+    }
+    return { action: "artifact.delete", payload: { artifactId: art.id, title: art.title }, summary: `Delete ${art.kind} “${art.title}” for everyone (its history and files too)` };
   }
   return { error: "invalid_action" };
 }
@@ -541,7 +567,7 @@ delegate.put("/sessions/rule", async (c) => {
   if (!p.success) return c.json({ error: "invalid_body", issues: p.error.issues }, 400);
   const d = p.data;
   if (isAgent(c) && (d.decision === "allow" || d.decision === null)) return c.json({ error: "human_required", message: "Only the person can allow more for a session." }, 403);
-  if (d.action === "app.grant" && d.decision === "allow") return c.json({ error: "invalid_body", message: "Giving an app your permissions always needs your OK." }, 400);
+  if (ALWAYS_ASK.has(d.action) && d.decision === "allow") return c.json({ error: "invalid_body", message: `"${ACTIONS[d.action].label}" always needs your OK.` }, 400);
   const ts = now();
   await c.env.DB.prepare(`update "sessionRule" set "revokedAt" = ?5 where "userId" = ?1 and "source" = ?2 and "sessionId" = ?3 and "action" = ?4 and "revokedAt" is null`)
     .bind(user.id, d.source, d.sessionId, d.action, ts).run();

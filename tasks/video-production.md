@@ -18,24 +18,47 @@ clips by **Oct 18, 7:30 AM PDT**.
 
 ## Stop and ask Nolan when
 
-- Installing the Codex CLI (`npm i -g @openai/codex`) and signing in to anydock.ai in the "Jason" Edge profile.
-- Approving Jason's AnyDock CLI login in the browser.
 - macOS asks for **Screen Recording** permission.
-- Creating `#launch` in his Slack workspace (if it doesn't exist).
 - Shots 6 and 8 (Touch ID) and 7 (the phone, via iPhone Mirroring).
 - The voice: he records the narration, or picks one of your TTS samples.
+- Any sign-in, password, 2FA or device-login approval (both CLI identities are already signed in — see 1.1).
 
-## 1. Stage (one Mac, two people)
+Everything else in section 1 is yours to do.
 
-1. DEMO.md "Before recording" steps 1–6 (Codex CLI for Jason with `CODEX_HOME=~/.codex-jason`, Jason's AnyDock in
-   `~/.anydock-jason`, Jason's phone + display name, cleanup, one full dry run).
-2. Focus on, Dock hidden, quit unrelated apps. Save Nolan's wallpaper as `video/wallpaper.png` (screen resolution,
+## 1. Stage (one Mac, two people) — you do all of this
+
+Status Oct 18 ~3 AM: the Codex CLI is installed (0.163.0, `codex --version`); both AnyDock identities are signed in and
+isolated (Keychain fix shipped); Jason's display name is "Jason"; Edge profile 2 is "Jason".
+
+1. **Check identities.** `anydock whoami` → qizi297@gmail.com; `ANYDOCK_HOME=~/.anydock-jason anydock whoami` →
+   qizi297@outlook.com. If either is wrong, stop and tell Nolan + Claude.
+2. **Jason's Codex** (separate from Nolan's normal Codex):
+   `mkdir -p ~/.codex-jason/skills && cp ~/.codex/auth.json ~/.codex-jason/ && cp -R ~/.codex/skills/anydock ~/.codex-jason/skills/`,
+   then write `~/.codex-jason/config.toml`:
+   ```toml
+   [mcp_servers.anydock]
+   command = "/Users/nolanliang/.anydock/bin/anydock"
+   args = ["mcp"]
+   env = { ANYDOCK_HOME = "/Users/nolanliang/.anydock-jason", CODEX_HOME = "/Users/nolanliang/.codex-jason" }
+   ```
+   Start it with `CODEX_HOME=~/.codex-jason codex` and check the AnyDock tools are listed (`/mcp`). Don't touch `~/.codex`.
+3. **Team project** (so agents can say "share it with Jason"): in Edge profile **Nolan** → anydock.ai/app → Projects →
+   create **"YC hackathon"** → add member **qizi297@outlook.com**. Confirm it shows in profile **Jason** too.
+4. **Jason's profile:** profile **Jason** → Permissions → **You**: name "Jason" (already), phone = Nolan's number
+   (ask Nolan for it if you don't have it — never guess), check "Text me when work is handed to me", Save.
+5. **Slack:** in Nolan's demo workspace ("New Workspace"), create channel **#launch** if it doesn't exist (no apps, no invites).
+6. **Cleanup:** in profile **Nolan** → Artifacts → open "Container smoke test (safe to delete)" → Share → **Delete**.
+   Remove any other test leftovers from both accounts' Works / Artifacts lists the same way.
+7. **Nolan's rules:** Permissions → "Email people outside the team" = Ask me, "Post in Slack as you" = Allow (check only).
+8. **Dry run** the whole story once without recording (DEMO.md shots 4–9), including one Touch ID panel with Nolan.
+   Fix nothing in the product yourself — report anything odd.
+9. Focus on, Dock hidden, quit unrelated apps. Save Nolan's wallpaper as `video/wallpaper.png` (screen resolution,
    nothing on it).
-3. Edge profiles: **Nolan** (qizi297@gmail.com) and **Jason** (qizi297@outlook.com). Bookmarks bar off, zoom 110–125%.
-4. Terminals: left = Nolan's Claude Code (`~/Documents/ychackathon/sponsor-research`), right = Jason's Codex
-   (`CODEX_HOME=~/.codex-jason codex`). 16–18 pt font, light theme, short prompt.
-5. Fixed layout: each recorded window exactly 960×1080 (split shots) or 1920×1080 (full shots), always the same
-   positions, so clips line up.
+10. Edge: bookmarks bar off, zoom 110–125% in both profiles; every recorded page in its own single-page window.
+11. Terminals: left = Nolan's Claude Code (`~/Documents/ychackathon/sponsor-research`), right = Jason's Codex
+    (`CODEX_HOME=~/.codex-jason codex`). 16–18 pt font, light theme, short prompt.
+12. Fixed layout: each recorded window exactly 960×1080 (split shots) or 1920×1080 (full shots), always the same
+    positions, so clips line up.
 
 ## 2. Seed the real session
 
