@@ -78,7 +78,7 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - [ ] Stage set (two accounts, two agents, two Edge profiles), cleanup done, one dry run passed.
 - [ ] Real seed session recorded and renamed.
 - [ ] Raw clips for shots 2, 4–8 in `video/raw/`, logged in `video/shots.md`.
-- [x] Voice recorded or chosen.
+- [ ] Voice recorded or chosen (Nolan will read; recording pending).
 - [ ] Handed to Claude for the cut.
 
 ## Production notes — Oct 18
@@ -103,3 +103,10 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - Cut handoff bundle: `../video/voice/AnyDock-Aiden-voice-pack.zip`; includes all shot files, preview, exact narration and timing notes, and `timing.json`. Shot durations: 1.995 / 10.640 / 4.160 / 1.360 / 6.715 / 13.200 / 14.720 / 11.995 / 6.560 s. Shot 02 needs about 0.64 s from the following title card if keeping the script timeline.
 - Validation: every delivered audio file decodes and peaks below clipping; full-preview local ASR covers all nine sections without repeated outros. Short-clip ASR produced hallucinated tails, so those were not treated as spoken content. Proper-name recognition remains imperfect; subjective performance approval is Nolan's listening decision.
 - Voice pack ready for the eventual cut; no direct message to Claude sent. Jason login, stage, seed session, dry run and raw footage remain pending.
+
+### Recording preparation resumed — Nolan voice and isolated windows
+
+- Nolan decided to read the narration himself; TTS is superseded. Existing samples and full Aiden pack retained. Root `video/voice/01.m4a`–`09.m4a` TTS copies moved into `video/voice/tts-placeholder-superseded/` so they cannot be mistaken for Nolan's final narration.
+- Nolan requires a separate window for every recording target, with one demo page per browser window and no unrelated tabs. Use separate windows for dashboards, artifacts, Slack/mail and terminals as needed.
+- Opened a new clean single-tab Nolan AnyDock window; UI confirms qizi297@gmail.com signed in. Jason has a separate single-tab login window in Edge Profile 2, email qizi297@outlook.com entered; Nolan must complete sign-in. No login or approval performed by the agent.
+- Stopped at the explicit Jason-login handoff. Screen recording, stage layout, dry run and raw clips have not started.
