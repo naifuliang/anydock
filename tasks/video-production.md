@@ -80,3 +80,10 @@ captions, timing to ≤ 2:00 → `~/Movies/AnyDock-demo.mp4`.
 - [ ] Raw clips for shots 2, 4–8 in `video/raw/`, logged in `video/shots.md`.
 - [ ] Voice recorded or chosen.
 - [ ] Handed to Claude for the cut.
+
+## Production notes — Oct 18
+
+- Codex and Claude CLIs already installed; no installation performed.
+- Created an isolated Edge profile (currently “Profile 2”) without importing personal data; light appearance, AnyDock login page open. Nolan must sign in as qizi297@outlook.com; profile rename to Jason and CLI device approval remain pending. No login or approval performed by the agent.
+- Free macOS English voice samples generated: `../video/voice/sample-Samantha.wav` (19.5 s), `sample-Daniel.wav` (21.1 s), `sample-Karen.wav` (20.9 s). Same excerpt at 165 words/min; Nolan's selection pending. Source text: `../video/voice/sample-script.txt`.
+- No raw footage, seed session, dry run, or completed stage claimed yet.
