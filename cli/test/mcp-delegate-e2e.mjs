@@ -13,6 +13,9 @@ const CLI = new URL("../src/main.ts", import.meta.url).pathname;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name}${extra ? "  " + extra : ""}`); if (!ok) failures++; };
+// Agent email only goes out from a connected Gmail/Outlook (no platform fallback), so with no mailbox an approved send
+// "fails closed". Either outcome proves the approval path ran.
+const ran = (s) => s.startsWith("Done.") || s.includes("Connect Gmail or Outlook");
 
 const root = mkdtempSync(join(tmpdir(), "anydock-mcpdel-"));
 const env = { ...process.env, ANYDOCK_HOME: join(root, "home"), ANYDOCK_CLAUDE_ROOT: join(root, "claude"), ANYDOCK_CODEX_HOME: join(root, "codex"), ANYDOCK_SERVER: SERVER, ANYDOCK_NO_NATIVE_APPROVAL: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ANYDOCK_NO_BROWSER: "1" };
@@ -26,7 +29,7 @@ async function signIn(email) {
   await call(null, "POST", "/api/auth/email-otp/send-verification-otp", { email, type: "sign-in" });
   await sleep(800);
   const lines = readFileSync(LOG, "utf8").split("\n");
-  const otp = lines.slice(lines.findLastIndex((l) => l.includes(`to=${email}`))).join("\n").match(/sign-in code is (\d{6})/)[1];
+  const otp = lines.slice(lines.findLastIndex((l) => (l.includes(`to=${email}`) || l === `To: ${email}`))).join("\n").match(/(?:sign-in code is|AnyDock code:) (\d{6})/)[1];
   return (await call(null, "POST", "/api/auth/sign-in/email-otp", { email, otp })).headers.get("set-auth-token");
 }
 async function cliLogin(email) {
@@ -70,11 +73,11 @@ const names = await a.list();
 check("delegate tools are listed", ["anydock_slack_post", "anydock_email", "anydock_action_status"].every((n) => names.includes(n)));
 
 const internal = await a.tool("anydock_email", { to: `erin+${run}@acme.dev`, subject: "Notes", body: "Here you go" });
-check("same-domain email runs without asking", internal.startsWith("Done.") && a.asked.length === 0, internal);
+check("same-domain email runs without asking", ran(internal) && a.asked.length === 0, internal);
 
 const ext = await a.tool("anydock_email", { to: "partner@gmail.com", subject: "Intro", body: "Hi" });
 check("outside email asks the user in-session (elicitation)", a.asked.length === 1 && a.asked[0].message.includes("partner@gmail.com"));
-check("user approves in the prompt → done", ext.startsWith("Done."), ext);
+check("user approves in the prompt → done", ran(ext), ext);
 const acts = (await call(browser, "GET", "/api/actions")).data.actions;
 check("decision recorded as made in the agent", acts.find((x) => x.summary.includes("partner@gmail.com"))?.decidedVia === "agent");
 
@@ -94,8 +97,8 @@ let id;
 for (let i = 0; i < 30 && !id; i++) { await sleep(300); id = (await call(browser, "GET", "/api/actions?status=pending")).data.actions[0]?.id; }
 await call(browser, "POST", `/api/actions/${id}/decide`, { approve: true });
 const late = await waiting;
-check("without elicitation, approval in the dashboard completes the tool call", late.startsWith("Done."), late);
-check("anydock_action_status reports it", (await b.tool("anydock_action_status", { id })).startsWith("Done."));
+check("without elicitation, approval in the dashboard completes the tool call", ran(late), late);
+check("anydock_action_status reports it", ran(await b.tool("anydock_action_status", { id })));
 
 await call(browser, "PUT", "/api/delegate/policy", { action: "email.external", decision: "deny" });
 const blocked = await b.tool("anydock_email", { to: "x@gmail.com", subject: "x", body: "x" });

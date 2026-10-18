@@ -24,7 +24,7 @@ async function signIn(email) {
   await call(null, "POST", "/api/auth/email-otp/send-verification-otp", { email, type: "sign-in" });
   await sleep(800);
   const lines = readFileSync(LOG, "utf8").split("\n");
-  const otp = lines.slice(lines.findLastIndex((l) => l.includes(`to=${email}`))).join("\n").match(/sign-in code is (\d{6})/)[1];
+  const otp = lines.slice(lines.findLastIndex((l) => (l.includes(`to=${email}`) || l === `To: ${email}`))).join("\n").match(/(?:sign-in code is|AnyDock code:) (\d{6})/)[1];
   return (await call(null, "POST", "/api/auth/sign-in/email-otp", { email, otp })).headers.get("set-auth-token");
 }
 
