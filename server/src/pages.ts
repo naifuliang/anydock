@@ -1,5 +1,6 @@
 // Server-rendered pages for sign-in and CLI device approval. Plain HTML + fetch, no bundle.
 import { LOGO } from "./landing.ts";
+import { brand, logo } from "./icons.ts";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
@@ -30,6 +31,8 @@ function layout(title: string, body: string, script = ""): string {
                  color:var(--fg); font:inherit; font-weight:500; cursor:pointer; text-align:center; text-decoration:none; margin-bottom:8px; }
   button.primary { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
   button:disabled { opacity:.6; cursor:default; }
+  button[data-provider] { display:flex; align-items:center; justify-content:center; gap:10px; }
+  button[data-provider] svg { flex:none; }
   .or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; margin:14px 0; }
   .or::before, .or::after { content:""; flex:1; border-top:1px solid var(--line); }
   .code { font:600 22px/1 ui-monospace, monospace; letter-spacing:.12em; text-align:center; padding:14px; border:1px dashed var(--line); border-radius:9px; margin-bottom:16px; }
@@ -64,8 +67,8 @@ ${script}
 
 export function loginPage(opts: { next: string; providers: { github: boolean; google: boolean } }): string {
   const social = [
-    opts.providers.github ? `<button data-provider="github">Continue with GitHub</button>` : "",
-    opts.providers.google ? `<button data-provider="google">Continue with Google</button>` : "",
+    opts.providers.github ? `<button data-provider="github">${brand("github", 18, "currentColor")}Continue with GitHub</button>` : "",
+    opts.providers.google ? `<button data-provider="google">${logo("google-g", 18)}Continue with Google</button>` : "",
   ].join("");
   return layout(
     "Sign in · AnyDock",
