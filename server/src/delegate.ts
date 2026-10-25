@@ -27,12 +27,15 @@ export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decis
   "app.grant": { label: "Let an app act for you", sub: "Give an app some of your agent's permissions — always asks", def: "ask", live: true },
   // Deleting is final for everyone, so an agent can only ask; only artifacts you own.
   // Opening work to the whole internet: asks by default; the person may change that rule.
-  "artifact.publish": { label: "Make an artifact public", sub: "Anyone with the link can view it", def: "ask", live: true },
+  "artifact.publish": { label: "Make an artifact public", sub: "Anyone with the link can view it — always asks, and asks twice", def: "ask", live: true },
   "artifact.delete": { label: "Delete your artifacts", sub: "Docs, decks, sheets and apps you own — always asks", def: "ask", live: true },
 };
 
 // Actions that can never be pre-allowed — not by a rule, not "for this session".
-export const ALWAYS_ASK = new Set<ActionKey>(["app.grant", "artifact.delete"]);
+export const ALWAYS_ASK = new Set<ActionKey>(["app.grant", "artifact.delete", "artifact.publish"]);
+// …and these need a second, explicit confirmation on top of Touch ID: the Mac panel signs a distinct "confirmed"
+// message only after its confirmation dialog, the dashboard confirms in a dialog, Slack shows its confirm dialog.
+export const CONFIRM_TWICE = new Set<ActionKey>(["artifact.publish"]);
 
 // What an app can be given: only real actions, never the power to grant.
 export const GRANTABLE = ["slack.post", "email.internal", "email.external", "phone.text"] as const;
@@ -285,7 +288,8 @@ async function notifyApproval(env: Env, user: User, row: ActionRow, origin: stri
     {
       type: "actions",
       elements: [
-        { type: "button", style: "primary", text: { type: "plain_text", text: "Approve" }, action_id: "approve", value: row.id },
+        { type: "button", style: "primary", text: { type: "plain_text", text: "Approve" }, action_id: "approve", value: row.id,
+          ...(CONFIRM_TWICE.has(row.action) ? { confirm: { title: { type: "plain_text", text: "Make it public?" }, text: { type: "mrkdwn", text: "Anyone with the link will be able to view it, without signing in." }, confirm: { type: "plain_text", text: "Make public" }, deny: { type: "plain_text", text: "Cancel" } } } : {}) },
         ...(row.sessionId && !ALWAYS_ASK.has(row.action) ? [{ type: "button", text: { type: "plain_text", text: "Allow for this session" }, action_id: "approve_session", value: row.id }] : []),
         { type: "button", style: "danger", text: { type: "plain_text", text: "Deny" }, action_id: "deny", value: row.id },
         { type: "button", text: { type: "plain_text", text: "Open in AnyDock" }, url: `${origin}/app#/permissions` },
@@ -521,7 +525,9 @@ delegate.post("/actions/:id/decide", async (c) => {
     const row = await load(c.env.DB, c.req.param("id"), user.id);
     if (!row) return c.json({ error: "not_found" }, 404);
     const sessionId = c.get("session")!.session.id;
-    const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature, scope) : { ok: false };
+    const twice = CONFIRM_TWICE.has(row.action);
+    if (twice && scope === "session") return c.json({ error: "invalid_body", message: "This can only be approved one request at a time." }, 400);
+    const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature, twice ? "confirmed" : scope) : { ok: false };
     if (!check.ok) {
       return c.json({ error: "human_required", message: "Approving needs the person: Touch ID or password on their Mac, the AnyDock dashboard, or Slack." }, 403);
     }

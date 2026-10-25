@@ -46,13 +46,14 @@ export function ensureApprovalKey(opts: { fresh?: boolean } = {}): string | null
 }
 
 // message = the exact bytes the server expects signed (see server/src/trust.ts approvalMessage).
-export function askOnThisMac(opts: { summary: string; message: string; sessionMessage?: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal }): Promise<LocalResult> {
+export function askOnThisMac(opts: { summary: string; message: string; sessionMessage?: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal; confirm?: { title: string; detail: string } }): Promise<LocalResult> {
   const bin = ensureApprovalHelper();
   if (!bin || !existsSync(APPROVAL_KEY)) return Promise.resolve({ verdict: "unavailable" });
   return new Promise((resolve) => {
     const args = ["--summary", opts.summary, "--agent", opts.agent, "--rule", opts.rule ?? "ask me", "--timeout", String(opts.timeoutSec ?? 120),
       "--key", APPROVAL_KEY, "--message", Buffer.from(opts.message, "utf8").toString("base64"),
-      ...(opts.sessionMessage ? ["--message-session", Buffer.from(opts.sessionMessage, "utf8").toString("base64")] : [])];
+      ...(opts.sessionMessage ? ["--message-session", Buffer.from(opts.sessionMessage, "utf8").toString("base64")] : []),
+      ...(opts.confirm ? ["--confirm", opts.confirm.title, "--confirm-detail", opts.confirm.detail] : [])];
     const p = spawn(bin, args, {
       stdio: ["ignore", "pipe", "ignore"],
     });

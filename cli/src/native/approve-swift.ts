@@ -40,6 +40,9 @@ let keyPath = arg("key")
 let message = Data(base64Encoded: arg("message")) ?? Data()
 // Optional: a second message to sign when the person approves for the whole agent session.
 let sessionMessage = Data(base64Encoded: arg("message-session")) ?? Data()
+// Optional: actions that ask twice (e.g. making work public) show this confirmation before Touch ID.
+let confirmTitle = arg("confirm")
+let confirmDetail = arg("confirm-detail")
 
 // Sign with the Secure Enclave key, reusing the context the person just authenticated (no second prompt).
 func sign(_ ctx: LAContext, _ data: Data) -> String? {
@@ -95,6 +98,19 @@ struct ApprovalView: View {
   func approve() { approve(session: false) }
   func approveSession() { approve(session: true) }
   func approve(session: Bool) {
+    if !confirmTitle.isEmpty { // the second confirmation: an explicit dialog before Touch ID
+      let alert = NSAlert()
+      alert.messageText = confirmTitle
+      alert.informativeText = confirmDetail.isEmpty ? summary : confirmDetail + "\n\n" + summary
+      alert.alertStyle = .warning
+      alert.addButton(withTitle: "Make public")
+      alert.addButton(withTitle: "Cancel")
+      NSApp.activate(ignoringOtherApps: true)
+      if alert.runModal() != .alertFirstButtonReturn {
+        model.message = "Cancelled — nothing was approved."
+        return
+      }
+    }
     model.phase = .authenticating
     model.message = ""
     let ctx = LAContext()

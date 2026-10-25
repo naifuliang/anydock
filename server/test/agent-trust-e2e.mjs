@@ -137,8 +137,12 @@ check("an agent can't flip a public link on directly", (await call(agent, "POST"
 const askPub = await call(agent, "POST", "/api/actions", { action: "artifact.publish", payload: { artifactId: mine2pub.id }, agent: "claude-code" });
 check("it asks instead (default: ask me)", askPub.status === 202 && askPub.data.action.status === "pending", JSON.stringify(askPub.data));
 check("…and can't approve its own request without the device signature", (await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, via: "mac" })).status === 403);
-const signedPub = await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, signature: key.sign(message(askPub.data.action)) });
-check("Touch ID (signed) approval makes it public and returns the link", signedPub.status === 200 && signedPub.data.action.status === "executed" && /\/p\//.test(signedPub.data.action.result?.publicUrl || ""), JSON.stringify(signedPub.data.action?.result));
+const once = await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, signature: key.sign(message(askPub.data.action)) });
+check("asks twice: a plain Touch ID signature isn't enough to go public", once.status === 403, String(once.status));
+check("…\"this session\" is refused for it", (await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, scope: "session", signature: key.sign(message(askPub.data.action).replace("anydock-approve:v1", "anydock-approve-session:v1")) })).status === 400);
+check("…and no rule can pre-allow it", (await call(browser, "PUT", "/api/delegate/policy", { action: "artifact.publish", decision: "allow" })).status === 400);
+const signedPub = await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, signature: key.sign(message(askPub.data.action).replace("anydock-approve:v1", "anydock-approve-confirmed:v1")) });
+check("the panel's confirmed signature (after its second dialog) makes it public and returns the link", signedPub.status === 200 && signedPub.data.action.status === "executed" && /\/p\//.test(signedPub.data.action.result?.publicUrl || ""), JSON.stringify(signedPub.data.action?.result));
 const bobDoc = (await call(bob, "POST", "/api/artifacts", { title: `Bob pub ${run}`, kind: "doc", content: "# b" })).data.artifact;
 await call(bob, "POST", `/api/artifacts/${bobDoc.id}/share`, { to: `alice+${run}@acme.dev`, role: "editor" });
 check("only the owner's artifacts can be made public", (await call(agent, "POST", "/api/actions", { action: "artifact.publish", payload: { artifactId: bobDoc.id } })).status === 403);

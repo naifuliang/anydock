@@ -739,6 +739,11 @@ async function discordCard(projectId, guildId) {
 
 // ---------- delegate: approvals, rules, activity ----------
 async function decideAction(id, approve, scope) {
+  if (approve) { // some actions ask twice: a confirmation dialog on top of the approval click
+    const { action: cur } = await api("GET", "/api/actions/" + id).catch(() => ({ action: null }));
+    const q = cur && CONFIRM_TWICE[cur.action];
+    if (q && !confirm(q + "\n\n" + cur.summary)) return;
+  }
   const { action } = await api("POST", "/api/actions/" + id + "/decide", { approve, via: "dashboard", scope: scope || "once" });
   document.getElementById("ap-" + id)?.remove();
   toast(approve ? (scope === "session" ? "Allowed for this session — " : "Approved — ") + (action.status === "executed" ? "done" : (action.result?.detail || action.status)) : "Denied");
@@ -746,7 +751,8 @@ async function decideAction(id, approve, scope) {
 }
 // "This session": approve now, and let the same agent session do this kind of action again without asking (for a while).
 // Kinds of action that always need the person (mirrors ALWAYS_ASK in delegate.ts).
-const ALWAYS_ASK = ["app.grant", "artifact.delete"];
+const ALWAYS_ASK = ["app.grant", "artifact.delete", "artifact.publish"];
+const CONFIRM_TWICE = { "artifact.publish": "Make it public? Anyone with the link will be able to view it, without signing in." };
 const sessBtn = (a) => a.sessionId && !ALWAYS_ASK.includes(a.action) ? '<button class="btn sm" data-oks="' + a.id + '" title="Allow this kind of action for the rest of this agent session">This session</button>' : "";
 function bindDecide() {
   view.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => decideAction(b.dataset.ok, true));

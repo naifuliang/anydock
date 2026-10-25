@@ -540,9 +540,12 @@ export async function delegateAction(action: "slack.post" | "email" | "text" | "
       return null;
     })();
     // The panel signs exactly what the server will check (server/src/trust.ts), so the signature can't be reused.
-    const message = `anydock-approve:v1\n${act.id}\n${act.userId}\n${act.summary}`;
-    const sessionMessage = act.sessionId && action !== "app.grant" && action !== "artifact.delete" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
-    const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
+    // Going public asks twice: the panel shows a confirmation dialog first and then signs a distinct "confirmed" message.
+    const twice = action === "artifact.publish";
+    const message = `${twice ? "anydock-approve-confirmed:v1" : "anydock-approve:v1"}\n${act.id}\n${act.userId}\n${act.summary}`;
+    const sessionMessage = act.sessionId && !twice && action !== "app.grant" && action !== "artifact.delete" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
+    const confirm = twice ? { title: "Make it public?", detail: "Anyone with the link will be able to view it, without signing in." } : undefined;
+    const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, confirm, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
     const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
     ctrl.abort();
     if (decidedElsewhere) return describeAction(decidedElsewhere);
