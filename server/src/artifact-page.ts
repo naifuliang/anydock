@@ -1,8 +1,8 @@
 // The artifact page at /a/:id: view, edit together, share and hand over — one page for every kind.
 // Live: an ArtifactRoom socket brings other people's and agents' edits in as they land, plus who is where.
 // The Mac viewer (anydock open) loads this page with the CLI's token injected as window.__ANYDOCK_TOKEN.
-export function artifactPage(opts: { id: string; me: { id: string; name: string; email: string }; origin: string }): string {
-  const boot = JSON.stringify({ id: opts.id, me: opts.me, origin: opts.origin }).replace(/</g, "\\u003c");
+export function artifactPage(opts: { id: string; me: { id: string; name: string; email: string }; origin: string; pt?: string }): string {
+  const boot = JSON.stringify({ id: opts.id, me: opts.me, origin: opts.origin, pt: opts.pt ?? null }).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AnyDock</title>
@@ -198,6 +198,7 @@ async function api(method, path, body, raw) {
   const headers = {};
   if (TOKEN) headers.Authorization = "Bearer " + TOKEN;
   if (body !== undefined && !raw) headers["Content-Type"] = "application/json";
+  if (B.pt) { if (method !== "GET") { const e = new Error("This is a public view — sign in to AnyDock to edit."); e.status = 401; throw e; } path += (path.includes("?") ? "&" : "?") + "pt=" + encodeURIComponent(B.pt); }
   const res = await fetch(path, { method, headers, credentials: "same-origin", body: body === undefined ? undefined : raw ? body : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(data.message || data.error || ("HTTP " + res.status)); e.status = res.status; e.data = data; throw e; }
@@ -208,7 +209,7 @@ function ago(ts) { const s = (Date.now() - new Date(ts).getTime()) / 1000; if (s
 const initials = (n) => String(n || "?").split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join("");
 function download(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
 const safeName = () => (A.title || "artifact").replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80);
-const fileUrl = (p, v) => "/api/artifacts/" + A.id + "/files/" + p.split("/").map(encodeURIComponent).join("/") + (v ? "?v=" + v : "");
+const fileUrl = (p, v) => "/api/artifacts/" + A.id + "/files/" + p.split("/").map(encodeURIComponent).join("/") + (v ? "?v=" + v : "") + (B.pt ? (v ? "&" : "?") + "pt=" + encodeURIComponent(B.pt) : "");
 async function fileBlob(p) { const headers = TOKEN ? { Authorization: "Bearer " + TOKEN } : {}; const r = await fetch(fileUrl(p), { headers, credentials: "same-origin" }); if (!r.ok) throw new Error("Couldn't load " + p); return r.blob(); }
 const colorOf = (id) => ["#2b59ff", "#e5484d", "#12a594", "#f76b15", "#8e4ec6", "#d6409f", "#0090ff", "#46a758"][[...String(id || "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 8];
 
@@ -248,6 +249,7 @@ $("#title").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target
 
 let ws;
 function connect() {
+  if (B.pt) return; // public view: no live room
   const url = location.origin.replace(/^http/, "ws") + "/api/artifacts/" + B.id + "/live" + (TOKEN ? "?token=" + encodeURIComponent(TOKEN) : "");
   ws = new WebSocket(url);
   ws.onopen = () => { $("#live").classList.add("on"); sendFocus(); };
@@ -303,11 +305,17 @@ function renderShare() {
     SHARES.map((s) => '<div class="who"><span class="ini">' + esc(initials(s.name || s.toEmail)) + "</span>" + esc(s.name || s.toEmail) + '<span class="m">' + (s.role === "editor" ? "Can edit" : "Can view") + (owner ? ' · <a href="#" data-unshare="' + s.id + '">remove</a>' : "") + "</span></div>").join("") +
     (WORK ? '<p class="note">Also visible to whoever can see its work, <a href="/app#/w/' + WORK.id + '">' + esc(WORK.title) + "</a>; a handover of that work moves it too.</p>" : "") +
     (owner ? '<div class="sep"></div><b style="font-size:13.5px">Hand over</b><p class="note" style="margin:2px 0 8px">They become the owner, with this artifact\'s full history; you keep edit access.</p><div class="row"><input id="hoTo" type="email" placeholder="who takes it over"></div><textarea id="hoNote" placeholder="Note for them (what\'s done, what\'s next)"></textarea><button class="btn sm" id="hoGo">Hand over</button>' : "") +
+    (canEdit() ? '<div class="sep"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><b style="font-size:13.5px">Public link</b><p class="note" style="margin:2px 0 0">' + (A.public ? "Anyone with the link can view (read-only)." : "Off — only the people above can open it.") + '</p></div><button class="btn sm' + (A.public ? "" : " primary") + '" id="pubGo">' + (A.public ? "Turn off" : "Turn on") + "</button></div>" + (A.public && A.publicUrl ? '<div class="row" style="margin-top:8px"><input id="pubUrl" readonly value="' + esc(A.publicUrl) + '"><button class="btn sm" id="pubCopy">Copy</button></div>' : "") : "") +
     '<div class="sep"></div><div style="display:flex;justify-content:space-between"><button class="btn sm ghost" id="copyLink">Copy link</button>' +
     (owner ? '<button class="btn sm ghost" id="delArt" style="color:var(--red)">Delete</button>' : "") + "</div>";
   const go = $("#shGo"); if (go) go.onclick = async () => { const to = $("#shTo").value.trim(); if (!to) return; try { await api("POST", "/api/artifacts/" + A.id + "/share", { to, role: $("#shRole").value }); toast("Shared with " + to); await load(); renderShare(); } catch (e) { toast(e.message); } };
   const ho = $("#hoGo"); if (ho) ho.onclick = async () => { const to = $("#hoTo").value.trim(); if (!to) return; try { await api("POST", "/api/artifacts/" + A.id + "/handover", { to, note: $("#hoNote").value || undefined }); toast("Handed over to " + to); await load(); renderShare(); } catch (e) { toast(e.message); } };
   p.querySelectorAll("[data-unshare]").forEach((a) => (a.onclick = async (e) => { e.preventDefault(); await api("DELETE", "/api/artifacts/" + A.id + "/shares/" + a.dataset.unshare).catch((x) => toast(x.message)); await load(); renderShare(); }));
+  const pg = $("#pubGo"); if (pg) pg.onclick = async () => {
+    if (!A.public && !confirm("Anyone with the link will be able to view “" + A.title + "” — no sign-in needed. Turn on?")) return;
+    try { await api("POST", "/api/artifacts/" + A.id + "/public", { on: !A.public }); toast(A.public ? "Public link off" : "Public link on"); await load(); renderShare(); } catch (e) { toast(e.message); }
+  };
+  const pc = $("#pubCopy"); if (pc) pc.onclick = () => { navigator.clipboard.writeText(A.publicUrl); toast("Public link copied"); };
   $("#copyLink").onclick = () => { navigator.clipboard.writeText(location.origin + "/a/" + A.id); toast("Link copied"); };
   const del = $("#delArt");
   if (del) del.onclick = async () => {
@@ -855,6 +863,7 @@ async function renderPptx(blob, host, width) {
 
 // ---------- boot ----------
 (async () => {
+  if (B.pt) ["#shareBtn", "#historyBtn"].forEach((q) => { const el = $(q); if (el) el.hidden = true; }); // public view: read-only
   try { await load(); } catch (e) { main.innerHTML = '<div class="empty"><h2>Not found</h2><p>This artifact doesn\'t exist, or it hasn\'t been shared with you.</p><p><a class="btn" href="/app">Open AnyDock</a></p></div>'; return; }
   ({ doc: docView, slides: slidesView, sheet: sheetView, latex: sourceView, html: sourceView, app: appView, file: fileView })[A.kind]();
   connect();

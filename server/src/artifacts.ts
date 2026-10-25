@@ -21,6 +21,7 @@ export type Kind = "doc" | "slides" | "sheet" | "latex" | "html" | "app" | "file
 export type ArtifactRow = {
   id: string; ownerId: string; title: string; kind: Kind; format: string; workId: string | null; source: string | null;
   sessionId: string | null; version: number; createdAt: string; updatedAt: string; updatedBy: string | null;
+  publicToken?: string | null; publicAt?: string | null;
 };
 type SectionRow = {
   id: string; artifactId: string; position: number; heading: string; level: number; brief: string | null; body: string;
@@ -36,8 +37,11 @@ const LOCK_MS = 90_000;
 
 artifacts.use("/artifacts/*", authed);
 artifacts.use("/artifacts", authed);
+const PUBLIC_READ = /^\/api\/artifacts\/[^/]+(\/files\/.+|\/versions|\/text)?$/;
 async function authed(c: Context<AppEnv>, next: () => Promise<void>) {
   const session = c.get("session");
+  // Public link: read-only GETs carrying the artifact's public token; load() checks the token itself.
+  if (!session && c.req.method === "GET" && c.req.query("pt") && PUBLIC_READ.test(new URL(c.req.url).pathname)) return next();
   if (!session) return c.json({ error: "unauthorized" }, 401);
   c.set("user", session.user);
   // Shares to an email bind to the account once that person signs in with it.
@@ -71,6 +75,11 @@ export async function artifactAccess(db: D1Database, a: ArtifactRow, userId: str
 async function load(c: Context<AppEnv>, need: Access): Promise<{ a: ArtifactRow; access: Access } | Response> {
   const a = await c.env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(c.req.param("id")).first<ArtifactRow>();
   if (!a) return c.json({ error: "not_found" }, 404);
+  if (!c.get("session")) { // public link: view only, and only with this artifact's current token
+    const pt = c.req.query("pt");
+    if (need === "view" && pt && a.publicToken && pt === a.publicToken) return { a, access: "view" as Access };
+    return c.json({ error: "not_found" }, 404);
+  }
   const access = await artifactAccess(c.env.DB, a, c.get("user").id);
   if (!access) return c.json({ error: "not_found" }, 404);
   const rank = { view: 0, edit: 1, owner: 2 };
@@ -244,8 +253,44 @@ artifacts.post("/artifacts", async (c) => {
 
 async function artifactJson(c: Context<AppEnv>, a: ArtifactRow, access: Access) {
   const origin = new URL(c.req.url).origin;
-  return { ...a, access, url: `${origin}/a/${a.id}`, appUrl: await appUrl(c.env, origin, a) };
+  const { publicToken, ...rest } = a;
+  // The public link is shown to people who can edit; everyone else (and public viewers) only learns whether it's public.
+  const publicUrl = publicToken && access !== "view" ? `${origin}/p/${publicToken}` : null;
+  return { ...rest, public: Boolean(publicToken), publicUrl, access, url: `${origin}/a/${a.id}`, appUrl: await appUrl(c.env, origin, a) };
 }
+
+// ---------- public links ----------
+
+// Makes an artifact viewable by anyone with the link (keeps an existing link). Agents reach this only through an
+// approved "artifact.publish" action; people turn it on from the Share panel.
+export async function publishArtifact(env: Env, id: string, origin: string): Promise<string> {
+  const a = await env.DB.prepare(`select "publicToken" from "artifact" where "id" = ?1`).bind(id).first<{ publicToken: string | null }>();
+  let token = a?.publicToken;
+  if (!token) {
+    const b = new Uint8Array(18); crypto.getRandomValues(b);
+    token = btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    await env.DB.prepare(`update "artifact" set "publicToken" = ?2, "publicAt" = ?3 where "id" = ?1`).bind(id, token, now()).run();
+  }
+  return `${origin}/p/${token}`;
+}
+
+artifacts.post("/artifacts/:id/public", async (c) => {
+  const b = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!b.success) return c.json({ error: "invalid_body" }, 400);
+  if (!b.data.on) { // turning it off only narrows access: anyone who can edit, agents included
+    const l = await load(c, "edit");
+    if (l instanceof Response) return l;
+    await c.env.DB.prepare(`update "artifact" set "publicToken" = null, "publicAt" = null where "id" = ?1`).bind(l.a.id).run();
+    await event(c, l.a, "unpublished", null, {});
+    return c.json({ ok: true, public: false });
+  }
+  const l = await load(c, "owner");
+  if (l instanceof Response) return l;
+  if (isAgent(c)) return c.json({ error: "needs_approval", message: "Making it public needs the person's OK: ask with anydock_artifact_publish (action artifact.publish)." }, 403);
+  const url = await publishArtifact(c.env, l.a.id, new URL(c.req.url).origin);
+  await event(c, l.a, "published", null, {});
+  return c.json({ ok: true, public: true, publicUrl: url });
+});
 
 artifacts.get("/artifacts", async (c) => {
   const me = c.get("user").id;
@@ -278,10 +323,12 @@ artifacts.get("/artifacts/:id", async (c) => {
     db.prepare(`select "name","email" from "user" where "id" = ?1`).bind(l.a.ownerId).first(),
   ]);
   const t = now();
+  const pub = !c.get("session");
   return c.json({
     artifact: await artifactJson(c, l.a, l.access),
     owner, work, sections: secs.map((s) => ({ ...s, locked: Boolean(s.lockedUntil && s.lockedUntil > t) })),
     files, shares: shares.results, events: events.results,
+    ...(pub ? { owner: owner ? { name: (owner as { name: string }).name } : null, work: null, shares: [], events: [] } : {}),
   });
 });
 

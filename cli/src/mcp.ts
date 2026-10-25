@@ -447,6 +447,20 @@ const tools: Tool[] = [
     async run(a) { return delegateAction("app.grant", { artifactId: await resolveId(a.id), actions: a.actions, days: a.days ?? 7, ...(a.to?.length ? { to: a.to } : {}) }); },
   },
   {
+    name: "anydock_artifact_publish",
+    description:
+      "Make an artifact viewable by anyone with its link — no sign-in, read-only (or off=true to turn the public link off, which you may always do). " +
+      "Making it public asks the user first by default (Touch ID / password on their Mac, the dashboard or Slack). Only the owner's artifacts. " +
+      "Returns the public URL: open it in your built-in browser or give it to the user.",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The artifact (id, prefix or exact title)." }, off: { type: "boolean", description: "Turn the public link off." } }, required: ["id"] },
+    annotations: { openWorldHint: true },
+    async run(a) {
+      const id = await resolveId(a.id);
+      if (a.off) { await api("POST", `/api/artifacts/${id}/public`, { on: false }); return "The public link is off. Only the people it's shared with can open it."; }
+      return delegateAction("artifact.publish", { artifactId: id });
+    },
+  },
+  {
     name: "anydock_artifact_delete",
     description:
       "Delete an artifact for everyone (its history and files too). Only artifacts the user owns; anything else is refused. " +
@@ -501,7 +515,7 @@ function describeAction(a: Act): string {
   }
 }
 
-export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant" | "artifact.delete", payload: Record<string, unknown>): Promise<string> {
+export async function delegateAction(action: "slack.post" | "email" | "text" | "app.grant" | "artifact.delete" | "artifact.publish", payload: Record<string, unknown>): Promise<string> {
   let act: Act;
   try {
     // Say which agent session is asking: rules can differ per session, and approvals can be "for this session".

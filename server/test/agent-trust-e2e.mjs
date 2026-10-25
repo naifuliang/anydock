@@ -120,6 +120,31 @@ const mine2 = (await call(browser, "POST", "/api/artifacts", { title: `Scratch2 
 const delAgain = await call(agent, "POST", "/api/actions", { action: "artifact.delete", payload: { artifactId: mine2.id }, agent: "claude-code", session: { source: "claude-code", sessionId: `s-${run}` } });
 check("\"this session\" never carries over to deleting", delAgain.status === 202);
 
+// Public links: the owner turns it on in the browser; agents must ask (Touch ID by default); anyone with the link can read.
+const pubDoc = (await call(browser, "POST", "/api/artifacts", { title: `Public ${run}`, kind: "doc", content: "# Hello\nVisible to anyone with the link." })).data.artifact;
+const pubOn = await call(browser, "POST", `/api/artifacts/${pubDoc.id}/public`, { on: true });
+check("owner turns on a public link from the browser", pubOn.status === 200 && /\/p\/[\w-]{20,}$/.test(pubOn.data.publicUrl), JSON.stringify(pubOn.data));
+const tok = pubOn.data.publicUrl.split("/p/")[1];
+const page = await fetch(`${BASE}/p/${tok}`, { redirect: "manual" });
+check("anyone can open /p/<token> without signing in", page.status === 200 && (await page.text()).includes('"pt":'));
+const anon = await call(null, "GET", `/api/artifacts/${pubDoc.id}?pt=${tok}`);
+check("…and read it, read-only, without shares, history or the link itself", anon.status === 200 && anon.data.artifact.access === "view" && anon.data.shares.length === 0 && anon.data.events.length === 0 && !anon.data.artifact.publicUrl && anon.data.sections.some((x) => x.body.includes("Visible")), JSON.stringify(anon.data?.artifact));
+check("a wrong token reads nothing", (await call(null, "GET", `/api/artifacts/${pubDoc.id}?pt=nope`)).status === 404);
+check("the public token can't write", (await call(null, "PUT", `/api/artifacts/${pubDoc.id}/content?pt=${tok}`, { content: "# hacked" })).status === 401);
+check("…or list anything", (await call(null, "GET", `/api/artifacts?pt=${tok}`)).status === 401);
+const mine2pub = (await call(browser, "POST", "/api/artifacts", { title: `Agent public ${run}`, kind: "doc", content: "# x" })).data.artifact;
+check("an agent can't flip a public link on directly", (await call(agent, "POST", `/api/artifacts/${mine2pub.id}/public`, { on: true })).status === 403);
+const askPub = await call(agent, "POST", "/api/actions", { action: "artifact.publish", payload: { artifactId: mine2pub.id }, agent: "claude-code" });
+check("it asks instead (default: ask me)", askPub.status === 202 && askPub.data.action.status === "pending", JSON.stringify(askPub.data));
+check("…and can't approve its own request without the device signature", (await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, via: "mac" })).status === 403);
+const signedPub = await call(agent, "POST", `/api/actions/${askPub.data.action.id}/decide`, { approve: true, signature: key.sign(message(askPub.data.action)) });
+check("Touch ID (signed) approval makes it public and returns the link", signedPub.status === 200 && signedPub.data.action.status === "executed" && /\/p\//.test(signedPub.data.action.result?.publicUrl || ""), JSON.stringify(signedPub.data.action?.result));
+const bobDoc = (await call(bob, "POST", "/api/artifacts", { title: `Bob pub ${run}`, kind: "doc", content: "# b" })).data.artifact;
+await call(bob, "POST", `/api/artifacts/${bobDoc.id}/share`, { to: `alice+${run}@acme.dev`, role: "editor" });
+check("only the owner's artifacts can be made public", (await call(agent, "POST", "/api/actions", { action: "artifact.publish", payload: { artifactId: bobDoc.id } })).status === 403);
+check("turning it off needs no approval (it only narrows)", (await call(agent, "POST", `/api/artifacts/${pubDoc.id}/public`, { on: false })).status === 200);
+check("…and the link stops working", (await fetch(`${BASE}/p/${tok}`, { redirect: "manual" })).status === 404 && (await call(null, "GET", `/api/artifacts/${pubDoc.id}?pt=${tok}`)).status === 404);
+
 // An agent can't mint itself a new login + key: approving a device code needs the person.
 const code = (await call(null, "POST", "/api/auth/device/code", { client_id: "anydock-cli" })).data;
 const claim = await call(agent, "GET", `/api/auth/device?user_code=${encodeURIComponent(code.user_code)}`);

@@ -38,6 +38,7 @@ Usage:
   anydock artifact list                         Yours, shared with you, and your works'
   anydock artifact share <id> <email> [--viewer] [--handover] [--note N]
   anydock artifact grant <app-id> slack.post,email.external [--days N] [--to a,b]   Give an app some of your permissions (you approve)
+  anydock artifact publish <id> [--off]             Public link: anyone with it can view (you approve)
   anydock artifact delete <id>                       Delete one you own, for everyone (you approve)
   anydock link [/path]                         A one-time sign-in link for a browser you drive (default /app)
   anydock open <artifact-id> [--link]           Open it (a native window on Mac, else the browser); --link prints a
@@ -91,6 +92,7 @@ async function main(): Promise<void> {
       days: { type: "string" },
       to: { type: "string" },
       link: { type: "boolean" },
+      off: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -274,6 +276,13 @@ async function artifactCommand(sub: string, rest: string[], v: Record<string, st
       const { delegateAction } = await import("./mcp.ts");
       return delegateAction("app.grant", { artifactId: await resolveId(rest[0]), actions: rest[1].split(",").map((x) => x.trim()), days: Number(v.days ?? 7), ...(typeof v.to === "string" ? { to: v.to.split(",").map((x) => x.trim()) } : {}) });
     }
+    case "publish": {
+      if (!rest[0]) throw new Error("Usage: anydock artifact publish <id> [--off]   (anyone with the link can view; asks you first)");
+      const id = await resolveId(rest[0]);
+      if (v.off) { const { api } = await import("./api.ts"); await api("POST", `/api/artifacts/${id}/public`, { on: false }); return "The public link is off."; }
+      const { delegateAction } = await import("./mcp.ts");
+      return delegateAction("artifact.publish", { artifactId: id });
+    }
     case "delete": {
       if (!rest[0]) throw new Error("Usage: anydock artifact delete <id>   (asks you to approve; only artifacts you own)");
       const { delegateAction } = await import("./mcp.ts");
@@ -284,7 +293,7 @@ async function artifactCommand(sub: string, rest: string[], v: Record<string, st
       return openInViewer(url, title) === "window" ? `Opened "${title}" in an AnyDock window.` : `Opened ${url}`;
     }
     default:
-      throw new Error(`Unknown: anydock artifact ${sub}. Try: create, write, read, upload, list, share, grant, delete, open.`);
+      throw new Error(`Unknown: anydock artifact ${sub}. Try: create, write, read, upload, list, share, publish, grant, delete, open.`);
   }
 }
 

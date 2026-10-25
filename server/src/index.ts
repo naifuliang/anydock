@@ -125,6 +125,16 @@ app.get("/a/:id", (c) => {
   return c.html(artifactPage({ id: c.req.param("id"), me: { id, name: name || email.split("@")[0]!, email }, origin: new URL(c.req.url).origin }));
 });
 
+// Public link: anyone with it can view the artifact, read-only, without signing in.
+app.get("/p/:token", async (c) => {
+  const a = await c.env.DB.prepare(`select "id" from "artifact" where "publicToken" = ?1`).bind(c.req.param("token")).first<{ id: string }>();
+  if (!a) return c.text("This link is no longer public.", 404);
+  const s = c.get("session");
+  // Someone who can already see it gets the full page; everyone else the public view.
+  if (s) return c.redirect(`/a/${a.id}`);
+  return c.html(artifactPage({ id: a.id, me: { id: "", name: "Guest", email: "" }, origin: new URL(c.req.url).origin, pt: c.req.param("token") }));
+});
+
 app.get("/login", (c) => {
   const next = safeNext(c.req.query("next"));
   if (c.get("session")) return c.redirect(next);

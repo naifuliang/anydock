@@ -13,7 +13,7 @@ import type { AppEnv, Env, User } from "./types.ts";
 export const delegate = new Hono<AppEnv>();
 
 type Decision = "allow" | "ask" | "deny";
-export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant" | "artifact.delete";
+export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant" | "artifact.delete" | "artifact.publish";
 
 export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decision; live: boolean }> = {
   "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "allow", live: true },
@@ -26,6 +26,8 @@ export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decis
   // Granting is itself a permission: handing some of an agent's powers to an app always needs the person.
   "app.grant": { label: "Let an app act for you", sub: "Give an app some of your agent's permissions — always asks", def: "ask", live: true },
   // Deleting is final for everyone, so an agent can only ask; only artifacts you own.
+  // Opening work to the whole internet: asks by default; the person may change that rule.
+  "artifact.publish": { label: "Make an artifact public", sub: "Anyone with the link can view it", def: "ask", live: true },
   "artifact.delete": { label: "Delete your artifacts", sub: "Docs, decks, sheets and apps you own — always asks", def: "ask", live: true },
 };
 
@@ -206,6 +208,14 @@ async function execute(env: Env, user: User, row: ActionRow): Promise<{ ok: bool
         .bind(crypto.randomUUID(), p.artifactId, user.id, p.grantorSessionId ?? null, a, p.to?.length ? JSON.stringify({ to: p.to }) : null, row.id, expires, ts)));
     return { ok: true, detail: `App "${p.title}" can now ${(p.actions as Grantable[]).map((a) => ACTIONS[a].label.toLowerCase()).join(", ")} until ${expires.slice(0, 10)}.` };
   }
+  if (row.action === "artifact.publish") {
+    const a = await env.DB.prepare(`select "id","ownerId" from "artifact" where "id" = ?1`).bind(p.artifactId).first<{ id: string; ownerId: string }>();
+    if (!a) return { ok: false, detail: "That artifact no longer exists." };
+    if (a.ownerId !== user.id) return { ok: false, detail: "Only the owner can make it public." };
+    const { publishArtifact } = await import("./artifacts.ts");
+    const url = await publishArtifact(env, a.id, env.BETTER_AUTH_URL || "https://anydock.ai");
+    return { ok: true, detail: `“${p.title}” is public: anyone with the link can view it — ${url}`, publicUrl: url };
+  }
   if (row.action === "artifact.delete") {
     const a = await env.DB.prepare(`select "id","ownerId" from "artifact" where "id" = ?1`).bind(p.artifactId).first<{ id: string; ownerId: string }>();
     if (!a) return { ok: true, detail: `“${p.title}” was already deleted.` };
@@ -354,7 +364,7 @@ delegate.put("/delegate/policy", async (c) => {
 
 const sessionRef = z.object({ source: z.enum(["claude-code", "codex"]), sessionId: z.string().min(1).max(200) });
 const askBody = z.object({
-  action: z.enum(["slack.post", "email", "text", "app.grant", "artifact.delete"]),
+  action: z.enum(["slack.post", "email", "text", "app.grant", "artifact.delete", "artifact.publish"]),
   payload: z.record(z.string(), z.unknown()),
   agent: z.string().max(80).optional(),
   session: sessionRef.optional(), // which agent session is asking (the MCP / CLI fills it in)
@@ -405,6 +415,18 @@ export async function classify(env: Env, user: User, name: string, raw: unknown,
       payload: { ...p.data, title: art.title, grantorSessionId },
       summary: `Let app “${art.title}” ${what}${p.data.to?.length ? ` (only ${p.data.to.join(", ")})` : ""} for ${p.data.days} day${p.data.days === 1 ? "" : "s"}`,
     };
+  }
+  if (name === "artifact.publish") {
+    const p = z.object({ artifactId: z.string().min(1).max(100) }).safeParse(raw);
+    if (!p.success) return { error: "invalid_payload", message: p.error.issues[0]?.message };
+    const art = await env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(p.data.artifactId).first<{ id: string; title: string; kind: string; ownerId: string; publicToken: string | null }>();
+    if (!art) return { error: "not_found", message: "No such artifact." };
+    if (art.ownerId !== user.id) {
+      const { artifactAccess } = await import("./artifacts.ts");
+      if (!(await artifactAccess(env.DB, art as any, user.id))) return { error: "not_found", message: "No such artifact." };
+      return { error: "forbidden", message: `Only the owner can make “${art.title}” public.` };
+    }
+    return { action: "artifact.publish", payload: { artifactId: art.id, title: art.title }, summary: `Make ${art.kind} “${art.title}” public: anyone with the link can view it` };
   }
   if (name === "artifact.delete") {
     const p = z.object({ artifactId: z.string().min(1).max(100) }).safeParse(raw);

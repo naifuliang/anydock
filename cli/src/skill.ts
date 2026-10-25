@@ -69,6 +69,10 @@ Permissions flow person → agent → app, and each step can only narrow. To let
 You can only grant what your rules allow, and every grant waits for the user's approval (Touch ID / password, dashboard,
 or Slack). Never try to work around a refusal.
 
+To let anyone view an artifact without signing in (a public, read-only link): \`anydock_artifact_publish id=<artifact>\`
+(CLI: \`${cli} artifact publish <id>\`). It asks the user first; the result has the public URL to open or pass on.
+Turn it off with \`off=true\` (\`--off\`) — that never needs approval.
+
 To delete an artifact: \`anydock_artifact_delete id=<artifact>\` (CLI: \`${cli} artifact delete <id>\`). Only ones the user
 owns; it always waits for the user's approval, because it's gone for everyone.
 
