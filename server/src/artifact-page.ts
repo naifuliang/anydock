@@ -23,9 +23,11 @@ export function artifactPage(opts: { id: string; me: { id: string; name: string;
     <div class="menu"><button class="btn" id="exportBtn">Export</button><div class="pop" id="exportPop" hidden></div></div>
     <button class="btn" id="historyBtn">History</button>
     <button class="btn primary" id="shareBtn">Share</button>
+    <button class="btn primary" id="reqBtn" hidden>Request access</button>
   </div>
 </header>
 <div class="sharepop" id="sharePop" hidden></div>
+<div class="sharepop" id="reqPop" hidden></div>
 <main id="main"><div class="loading"><div class="sk w60"></div><div class="sk"></div><div class="sk w80"></div></div></main>
 <aside class="drawer" id="drawer" hidden><div class="dh"><b>History</b><button class="x" id="closeDrawer">×</button></div><div id="events"></div></aside>
 <div class="toast" id="toast" hidden></div>
@@ -63,6 +65,7 @@ button { font:inherit; } a { color:inherit; }
 .pop { position:absolute; right:0; top:calc(100% + 6px); background:#fff; border:1px solid var(--line2); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.1); padding:6px; min-width:220px; z-index:30; }
 .pop button, .pop a { display:flex; width:100%; gap:8px; align-items:center; text-align:left; border:0; background:transparent; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13.5px; text-decoration:none; color:var(--text); }
 .pop button:hover, .pop a:hover { background:var(--soft); } .pop small { color:var(--muted); margin-left:auto; }
+.btn.armed { background:var(--red); border-color:var(--red); color:#fff; }
 .sharepop { position:fixed; right:16px; top:58px; z-index:40; width:400px; max-width:calc(100vw - 32px); background:#fff; border:1px solid var(--line2); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.14); padding:16px; animation:drop .2s ease-out; }
 @keyframes drop { from { transform:translateY(-6px); opacity:0; } }
 .sharepop h3 { margin:0 0 10px; font-size:15px; } .sharepop .row { display:flex; gap:6px; margin-bottom:10px; }
@@ -198,7 +201,7 @@ async function api(method, path, body, raw) {
   const headers = {};
   if (TOKEN) headers.Authorization = "Bearer " + TOKEN;
   if (body !== undefined && !raw) headers["Content-Type"] = "application/json";
-  if (B.pt) { if (method !== "GET") { const e = new Error("This is a public view — sign in to AnyDock to edit."); e.status = 401; throw e; } path += (path.includes("?") ? "&" : "?") + "pt=" + encodeURIComponent(B.pt); }
+  if (B.pt) { if (method !== "GET" && !/\/access-requests$/.test(path)) { const e = new Error("This is a public view — sign in to AnyDock to edit."); e.status = 401; throw e; } path += (path.includes("?") ? "&" : "?") + "pt=" + encodeURIComponent(B.pt); }
   const res = await fetch(path, { method, headers, credentials: "same-origin", body: body === undefined ? undefined : raw ? body : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(data.message || data.error || ("HTTP " + res.status)); e.status = res.status; e.data = data; throw e; }
@@ -305,7 +308,9 @@ function renderShare() {
     SHARES.map((s) => '<div class="who"><span class="ini">' + esc(initials(s.name || s.toEmail)) + "</span>" + esc(s.name || s.toEmail) + '<span class="m">' + (s.role === "editor" ? "Can edit" : "Can view") + (owner ? ' · <a href="#" data-unshare="' + s.id + '">remove</a>' : "") + "</span></div>").join("") +
     (WORK ? '<p class="note">Also visible to whoever can see its work, <a href="/app#/w/' + WORK.id + '">' + esc(WORK.title) + "</a>; a handover of that work moves it too.</p>" : "") +
     (owner ? '<div class="sep"></div><b style="font-size:13.5px">Hand over</b><p class="note" style="margin:2px 0 8px">They become the owner, with this artifact\'s full history; you keep edit access.</p><div class="row"><input id="hoTo" type="email" placeholder="who takes it over"></div><textarea id="hoNote" placeholder="Note for them (what\'s done, what\'s next)"></textarea><button class="btn sm" id="hoGo">Hand over</button>' : "") +
-    (canEdit() ? '<div class="sep"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><b style="font-size:13.5px">Public link</b><p class="note" style="margin:2px 0 0">' + (A.public ? "Anyone with the link can view (read-only)." : "Off — only the people above can open it.") + '</p></div><button class="btn sm' + (A.public ? "" : " primary") + '" id="pubGo">' + (A.public ? "Turn off" : "Turn on") + "</button></div>" + (A.public && A.publicUrl ? '<div class="row" style="margin-top:8px"><input id="pubUrl" readonly value="' + esc(A.publicUrl) + '"><button class="btn sm" id="pubCopy">Copy</button></div>' : "") : "") +
+    (canEdit() ? '<div class="sep"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><b style="font-size:13.5px">Public link</b><p class="note" style="margin:2px 0 0">' + (A.public ? "Anyone with the link can view (read-only)." : "Off — only the people above can open it.") + '</p></div><button class="btn sm' + (A.public ? "" : " primary") + '" id="pubGo">' + (A.public ? "Turn off" : "Turn on") + "</button></div>" + (A.public && A.publicUrl ? '<div class="row" style="margin-top:8px"><input id="pubUrl" readonly value="' + esc(A.publicUrl) + '"><button class="btn sm" id="pubCopy">Copy</button></div>' : "") +
+      (A.public && (A.kind === "app" || A.kind === "html") ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px"><div><b style="font-size:13.5px">Accept submissions</b><p class="note" style="margin:2px 0 0">' + (A.publicSubmit ? "On — visitors can add entries and files (never change or delete)." : "Off — visitors only see the app.") + '</p></div><button class="btn sm" id="subGo">' + (A.publicSubmit ? "Turn off" : "Turn on") + "</button></div>" : "") : "") +
+    (owner ? '<div id="reqs"></div>' : "") +
     '<div class="sep"></div><div style="display:flex;justify-content:space-between"><button class="btn sm ghost" id="copyLink">Copy link</button>' +
     (owner ? '<button class="btn sm ghost" id="delArt" style="color:var(--red)">Delete</button>' : "") + "</div>";
   const go = $("#shGo"); if (go) go.onclick = async () => { const to = $("#shTo").value.trim(); if (!to) return; try { await api("POST", "/api/artifacts/" + A.id + "/share", { to, role: $("#shRole").value }); toast("Shared with " + to); await load(); renderShare(); } catch (e) { toast(e.message); } };
@@ -316,6 +321,13 @@ function renderShare() {
     try { await api("POST", "/api/artifacts/" + A.id + "/public", { on: !A.public }); toast(A.public ? "Public link off" : "Public link on"); await load(); renderShare(); } catch (e) { toast(e.message); }
   };
   const pc = $("#pubCopy"); if (pc) pc.onclick = () => { navigator.clipboard.writeText(A.publicUrl); toast("Public link copied"); };
+  // Turning submissions on asks twice: the button arms first, then a confirmation dialog.
+  const sg = $("#subGo"); if (sg) sg.onclick = async () => {
+    if (!A.publicSubmit && !sg.classList.contains("armed")) { sg.classList.add("armed"); sg.textContent = "Click again to turn on"; setTimeout(() => { sg.classList.remove("armed"); sg.textContent = "Turn on"; }, 4000); return; }
+    if (!A.publicSubmit && !confirm("Anyone with the public link will be able to add entries and upload files (up to 100 MB each) to “" + A.title + "”. Turn on submissions?")) return;
+    try { await api("POST", "/api/artifacts/" + A.id + "/public-submit", { on: !A.publicSubmit }); toast(A.publicSubmit ? "Submissions off" : "Submissions on"); await load(); renderShare(); } catch (e) { toast(e.message); }
+  };
+  if (owner) renderRequests();
   $("#copyLink").onclick = () => { navigator.clipboard.writeText(location.origin + "/a/" + A.id); toast("Link copied"); };
   const del = $("#delArt");
   if (del) del.onclick = async () => {
@@ -323,6 +335,34 @@ function renderShare() {
     try { await api("DELETE", "/api/artifacts/" + A.id); location.href = "/app#/artifacts"; } catch (e) { toast(e.message); }
   };
 }
+
+// Access requests from the public link: the owner approves (as editor or viewer) or declines.
+async function renderRequests() {
+  const box = $("#reqs"); if (!box) return;
+  let reqs = [];
+  try { reqs = (await api("GET", "/api/artifacts/" + A.id + "/access-requests")).requests; } catch { return; }
+  if (!reqs.length) { box.innerHTML = ""; return; }
+  box.innerHTML = '<div class="sep"></div><b style="font-size:13.5px">Asking for access</b>' + reqs.map((r) =>
+    '<div class="who" style="flex-wrap:wrap"><span class="ini">' + esc(initials(r.name || r.email)) + "</span>" + esc(r.name || r.email) + '<span class="m">wants to ' + (r.role === "editor" ? "edit" : "view") + "</span>" +
+    (r.note ? '<p class="note" style="flex-basis:100%;margin:2px 0 0 34px">“' + esc(r.note) + "”</p>" : "") +
+    '<div class="row" style="flex-basis:100%;margin:6px 0 0 34px;gap:6px"><button class="btn sm primary" data-rq="' + r.id + '" data-role="' + r.role + '">Approve' + (r.role === "editor" ? " (edit)" : " (view)") + "</button>" +
+    (r.role === "editor" ? '<button class="btn sm" data-rq="' + r.id + '" data-role="viewer">View only</button>' : "") + '<button class="btn sm ghost" data-rq="' + r.id + '" data-no="1">Decline</button></div></div>').join("");
+  box.querySelectorAll("[data-rq]").forEach((b) => (b.onclick = async () => {
+    try { await api("POST", "/api/artifacts/" + A.id + "/access-requests/" + b.dataset.rq, b.dataset.no ? { approve: false } : { approve: true, role: b.dataset.role }); toast(b.dataset.no ? "Declined" : "Access given"); await load(); renderShare(); } catch (e) { toast(e.message); }
+  }));
+}
+
+// Public view: ask the owner for access (signed in), or sign in first.
+$("#reqBtn").onclick = () => {
+  if (!B.me.id) { location.href = "/login?next=" + encodeURIComponent(location.pathname); return; }
+  const p = $("#reqPop"); p.hidden = !p.hidden; if (p.hidden) return;
+  p.innerHTML = "<h3>Request access to “" + esc(A.title) + "”</h3><p class=\"note\">" + esc(OWNER && OWNER.name ? OWNER.name : "The owner") + " decides. You're signed in as " + esc(B.me.email) + '.</p><div class="row"><select id="rqRole"><option value="editor">Edit</option><option value="viewer">View (and follow along live)</option></select></div><textarea id="rqNote" placeholder="Note for them (optional)"></textarea><button class="btn primary sm" id="rqGo">Send request</button>';
+  $("#rqGo").onclick = async () => {
+    try { await api("POST", "/api/artifacts/" + A.id + "/access-requests", { pt: B.pt, role: $("#rqRole").value, note: $("#rqNote").value.trim() || undefined }); p.hidden = true; $("#reqBtn").textContent = "Requested"; $("#reqBtn").disabled = true; toast("Request sent"); }
+    catch (e) { toast(e.status === 409 ? "You already have access — reload" : e.message); }
+  };
+};
+document.addEventListener("click", (e) => { const p = $("#reqPop"); if (!p.hidden && !e.target.closest("#reqPop") && !e.target.closest("#reqBtn")) p.hidden = true; });
 
 // ---------- export menu ----------
 
@@ -707,10 +747,10 @@ function sourceView() {
 
 // ===== APP =====
 function appView() {
-  main.innerHTML = '<div class="appwrap"><iframe id="app" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads" src="' + A.appUrl + '"></iframe><div class="side"><h4>Running</h4><p class="note" style="margin:0 0 8px">Runs on its own origin: it can\'t see AnyDock or your accounts.</p><div style="display:flex;gap:6px"><a class="btn sm" target="_blank" href="' + A.appUrl + '">Open ↗</a><button class="btn sm" id="reloadApp">Reload</button></div><h4>Files · v' + A.version + "</h4>" +
+  main.innerHTML = '<div class="appwrap"><iframe id="app" allow="microphone; camera; clipboard-write; fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads" src="' + A.appUrl + '"></iframe><div class="side"><h4>Running</h4><p class="note" style="margin:0 0 8px">Runs on its own origin: it can\'t see AnyDock or your accounts.</p><div style="display:flex;gap:6px"><a class="btn sm" target="_blank" href="' + A.appUrl + '">Open ↗</a><button class="btn sm" id="reloadApp">Reload</button></div><h4>Files · v' + A.version + "</h4>" +
     (FILES.length ? FILES.map((f) => '<div class="fl"><span>' + esc(f.path) + "</span><span>" + (f.size > 1024 ? Math.round(f.size / 1024) + " KB" : f.size + " B") + "</span></div>").join("") : '<p class="note">No files yet. Your agent uploads the app with <code>anydock_artifact_upload</code>.</p>') + "</div></div>";
-  $(".side").insertAdjacentHTML("beforeend", '<h4>Permissions</h4><div id="grants"><div class="sk w80"></div></div>');
-  renderGrants($("#grants"));
+  if (B.pt) $(".side").insertAdjacentHTML("beforeend", '<h4>Public view</h4><p class="note" style="margin:0">' + (A.publicSubmit ? "You can add entries and files here; you can't change or delete anyone's." : "Read-only: nothing you do here is saved.") + "</p>");
+  else { $(".side").insertAdjacentHTML("beforeend", '<h4>Permissions</h4><div id="grants"><div class="sk w80"></div></div>'); renderGrants($("#grants")); }
   $("#reloadApp").onclick = () => ($("#app").src = A.appUrl + "?t=" + Date.now());
   VIEW = { event(ev) { if (ev.type === "version.uploaded") load().then(() => { appView(); toast("New version " + A.version + " from " + ev.by.name); }); }, exports() { return FILES.map((f) => [f.path, "download", async () => download(await fileBlob(f.path), f.path.split("/").pop())]); } };
 }
@@ -863,7 +903,7 @@ async function renderPptx(blob, host, width) {
 
 // ---------- boot ----------
 (async () => {
-  if (B.pt) ["#shareBtn", "#historyBtn"].forEach((q) => { const el = $(q); if (el) el.hidden = true; }); // public view: read-only
+  if (B.pt) { ["#shareBtn", "#historyBtn"].forEach((q) => { const el = $(q); if (el) el.hidden = true; }); $("#reqBtn").hidden = false; if (!B.me.id) $("#reqBtn").textContent = "Sign in to request access"; } // public view: read-only
   try { await load(); } catch (e) { main.innerHTML = '<div class="empty"><h2>Not found</h2><p>This artifact doesn\'t exist, or it hasn\'t been shared with you.</p><p><a class="btn" href="/app">Open AnyDock</a></p></div>'; return; }
   ({ doc: docView, slides: slidesView, sheet: sheetView, latex: sourceView, html: sourceView, app: appView, file: fileView })[A.kind]();
   connect();

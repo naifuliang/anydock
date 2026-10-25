@@ -12,7 +12,7 @@ import { projects } from "./projects.ts";
 import { works } from "./works.ts";
 import { organizations } from "./organizations.ts";
 import { agentForbidden, isAgentSession, recordDeviceLogin } from "./trust.ts";
-import { artifacts, usercontent } from "./artifacts.ts";
+import { artifactAccess, artifacts, usercontent, type ArtifactRow } from "./artifacts.ts";
 import { apps } from "./apps.ts";
 import { artifactPage } from "./artifact-page.ts";
 
@@ -127,12 +127,13 @@ app.get("/a/:id", (c) => {
 
 // Public link: anyone with it can view the artifact, read-only, without signing in.
 app.get("/p/:token", async (c) => {
-  const a = await c.env.DB.prepare(`select "id" from "artifact" where "publicToken" = ?1`).bind(c.req.param("token")).first<{ id: string }>();
+  const a = await c.env.DB.prepare(`select * from "artifact" where "publicToken" = ?1`).bind(c.req.param("token")).first<ArtifactRow>();
   if (!a) return c.text("This link is no longer public.", 404);
   const s = c.get("session");
-  // Someone who can already see it gets the full page; everyone else the public view.
-  if (s) return c.redirect(`/a/${a.id}`);
-  return c.html(artifactPage({ id: a.id, me: { id: "", name: "Guest", email: "" }, origin: new URL(c.req.url).origin, pt: c.req.param("token") }));
+  // Someone who can already see it gets the full page; everyone else the public view (signed in: with "Request access").
+  if (s && (await artifactAccess(c.env.DB, a, s.user.id))) return c.redirect(`/a/${a.id}`);
+  const me = s ? { id: s.user.id, name: s.user.name || s.user.email, email: s.user.email } : { id: "", name: "Guest", email: "" };
+  return c.html(artifactPage({ id: a.id, me, origin: new URL(c.req.url).origin, pt: c.req.param("token") }));
 });
 
 app.get("/login", (c) => {

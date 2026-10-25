@@ -58,6 +58,15 @@ Formats:
 An app's page can load \`<script src="_anydock.js"></script>\` (a relative path) and use \`window.anydock\`:
 - \`anydock.data.set(collection, key, value)\` / \`get\` / \`list(collection)\` / \`delete\` — a shared data store for the app
   (everyone using it sees the same data). Use this instead of localStorage for anything the team shares.
+  Values up to 1 MB, 50,000 per app.
+- \`await anydock.files.put(name, blob, type?)\` → \`{name, size, url}\` · \`files.list(prefix?)\` · \`files.get(name)\` (Blob) ·
+  \`files.url(name)\` · \`files.delete(name)\` — file storage for recordings, photos and attachments (≤100 MB each, 2 GB per
+  app); \`url\` plays directly in \`<audio>\`/\`<video>\`/\`<img>\` and seeks. Folders with "/" in the name. The app frame
+  may use the microphone and camera (\`getUserMedia\` + \`MediaRecorder\`, then \`files.put\`).
+- \`await anydock.mode()\` → "edit" (people with access) · "view" (a public link: read-only) · "submit" (a public link
+  while the owner accepts submissions: may add *new* keys and files, never overwrite or delete). Adapt the UI (hide edit
+  controls in "view"; use fresh keys like \`crypto.randomUUID()\` for submissions). Only the owner turns submissions on,
+  from the artifact page — you can't.
 - \`await anydock.call("slack.post", {to, text})\` · \`("email", {to, subject, body})\` · \`("text", {to, text})\` — act
   through AnyDock. Only works for what the app was granted, and the user's rules still apply (it may wait for approval).
 - Server code: put \`server.js\` (listening on \`process.env.PORT\`) or a \`package.json\` with a start script in the app

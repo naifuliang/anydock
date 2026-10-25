@@ -21,7 +21,7 @@ export type Kind = "doc" | "slides" | "sheet" | "latex" | "html" | "app" | "file
 export type ArtifactRow = {
   id: string; ownerId: string; title: string; kind: Kind; format: string; workId: string | null; source: string | null;
   sessionId: string | null; version: number; createdAt: string; updatedAt: string; updatedBy: string | null;
-  publicToken?: string | null; publicAt?: string | null;
+  publicToken?: string | null; publicAt?: string | null; publicSubmit?: number;
 };
 type SectionRow = {
   id: string; artifactId: string; position: number; heading: string; level: number; brief: string | null; body: string;
@@ -42,6 +42,7 @@ async function authed(c: Context<AppEnv>, next: () => Promise<void>) {
   const session = c.get("session");
   // Public link: read-only GETs carrying the artifact's public token; load() checks the token itself.
   if (!session && c.req.method === "GET" && c.req.query("pt") && PUBLIC_READ.test(new URL(c.req.url).pathname)) return next();
+  if (!session && c.req.method === "POST" && /^\/api\/artifacts\/[^/]+\/access-requests$/.test(new URL(c.req.url).pathname)) return c.json({ error: "unauthorized", message: "Sign in to AnyDock to request access." }, 401);
   if (!session) return c.json({ error: "unauthorized" }, 401);
   c.set("user", session.user);
   // Shares to an email bind to the account once that person signs in with it.
@@ -72,16 +73,20 @@ export async function artifactAccess(db: D1Database, a: ArtifactRow, userId: str
   return best;
 }
 
-async function load(c: Context<AppEnv>, need: Access): Promise<{ a: ArtifactRow; access: Access } | Response> {
+async function load(c: Context<AppEnv>, need: Access): Promise<{ a: ArtifactRow; access: Access; viaLink?: boolean } | Response> {
   const a = await c.env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(c.req.param("id")).first<ArtifactRow>();
   if (!a) return c.json({ error: "not_found" }, 404);
   if (!c.get("session")) { // public link: view only, and only with this artifact's current token
     const pt = c.req.query("pt");
-    if (need === "view" && pt && a.publicToken && pt === a.publicToken) return { a, access: "view" as Access };
+    if (need === "view" && pt && a.publicToken && pt === a.publicToken) return { a, access: "view" as Access, viaLink: true };
     return c.json({ error: "not_found" }, 404);
   }
   const access = await artifactAccess(c.env.DB, a, c.get("user").id);
-  if (!access) return c.json({ error: "not_found" }, 404);
+  if (!access) { // signed in but not shared: the public link still gives a read-only view (and lets them request access)
+    const pt = c.req.query("pt");
+    if (need === "view" && c.req.method === "GET" && pt && a.publicToken && pt === a.publicToken) return { a, access: "view" as Access, viaLink: true };
+    return c.json({ error: "not_found" }, 404);
+  }
   const rank = { view: 0, edit: 1, owner: 2 };
   if (rank[access] < rank[need]) return c.json({ error: "forbidden", message: need === "owner" ? "Only the owner can do this." : "You can view this artifact but not edit it." }, 403);
   return { a, access };
@@ -100,11 +105,19 @@ async function audience(db: D1Database, a: ArtifactRow): Promise<string[]> {
 
 // The sandboxed origin for running HTML and small apps: a capability URL, so the iframe needs no cookies.
 export const appSig = (env: Env, id: string) => hmacHex(env.BETTER_AUTH_SECRET, `artifact-app:${id}`).then((h) => h.slice(0, 32));
+// What public-link visitors get instead: the same app, read-only (writes only while the owner accepts submissions).
+export const appRoSig = (env: Env, id: string) => hmacHex(env.BETTER_AUTH_SECRET, `artifact-app-ro:${id}`).then((h) => h.slice(0, 32));
+// Which capability a /u/<id>/<sig>/ URL carries: "rw" (people with access), "ro" (public link), or none.
+export async function appCapability(env: Env, id: string, sig: string): Promise<"rw" | "ro" | null> {
+  if (sig === (await appSig(env, id))) return "rw";
+  if (sig === (await appRoSig(env, id))) return "ro";
+  return null;
+}
 // Apps run on their own origin (USERCONTENT_ORIGIN, e.g. https://u.anydock.ai): a different site from AnyDock, so they
 // can't read its cookies or call its API as the viewer, while still loading their own scripts and styles normally.
 const contentOrigin = (env: Env, origin: string) => env.USERCONTENT_ORIGIN ?? origin;
-const appUrl = async (env: Env, origin: string, a: ArtifactRow) =>
-  a.kind === "app" || a.kind === "html" ? `${contentOrigin(env, origin)}/u/${a.id}/${await appSig(env, a.id)}/` : null;
+const appUrl = async (env: Env, origin: string, a: ArtifactRow, viaLink = false) =>
+  a.kind === "app" || a.kind === "html" ? `${contentOrigin(env, origin)}/u/${a.id}/${await (viaLink ? appRoSig : appSig)(env, a.id)}/` : null;
 
 // ---------- markdown <-> sections ----------
 
@@ -251,12 +264,12 @@ artifacts.post("/artifacts", async (c) => {
   return c.json({ artifact: await artifactJson(c, a, "owner") }, 201);
 });
 
-async function artifactJson(c: Context<AppEnv>, a: ArtifactRow, access: Access) {
+async function artifactJson(c: Context<AppEnv>, a: ArtifactRow, access: Access, viaLink = false) {
   const origin = new URL(c.req.url).origin;
-  const { publicToken, ...rest } = a;
+  const { publicToken, publicSubmit, ...rest } = a;
   // The public link is shown to people who can edit; everyone else (and public viewers) only learns whether it's public.
   const publicUrl = publicToken && access !== "view" ? `${origin}/p/${publicToken}` : null;
-  return { ...rest, public: Boolean(publicToken), publicUrl, access, url: `${origin}/a/${a.id}`, appUrl: await appUrl(c.env, origin, a) };
+  return { ...rest, public: Boolean(publicToken), publicSubmit: Boolean(publicToken && publicSubmit), publicUrl, access, viaLink, url: `${origin}/a/${a.id}`, appUrl: await appUrl(c.env, origin, a, viaLink) };
 }
 
 // ---------- public links ----------
@@ -292,6 +305,82 @@ artifacts.post("/artifacts/:id/public", async (c) => {
   return c.json({ ok: true, public: true, publicUrl: url });
 });
 
+// Submissions: while on, public-link visitors of an app may add data and files (never edit, delete or act through
+// its grants). Turning it on is the owner, in the browser, after a confirmation; turning it off anyone who can edit.
+artifacts.post("/artifacts/:id/public-submit", async (c) => {
+  const b = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!b.success) return c.json({ error: "invalid_body" }, 400);
+  const l = await load(c, b.data.on ? "owner" : "edit");
+  if (l instanceof Response) return l;
+  if (b.data.on) {
+    if (isAgent(c)) return c.json({ error: "human_required", message: "Only the owner can let the public submit, from the artifact page." }, 403);
+    if (l.a.kind !== "app" && l.a.kind !== "html") return c.json({ error: "not_an_app", message: "Only apps take submissions." }, 400);
+    if (!l.a.publicToken) return c.json({ error: "not_public", message: "Turn on the public link first." }, 400);
+  }
+  await c.env.DB.prepare(`update "artifact" set "publicSubmit" = ?2 where "id" = ?1`).bind(l.a.id, b.data.on ? 1 : 0).run();
+  await event(c, l.a, b.data.on ? "submissions.on" : "submissions.off", null, {});
+  return c.json({ ok: true, publicSubmit: b.data.on });
+});
+
+// ---------- access requests (from a public link) ----------
+
+type AccessRequestRow = { id: string; artifactId: string; userId: string; role: string; note: string | null; status: string; decidedRole: string | null; createdAt: string; decidedAt: string | null };
+
+// Anyone signed in who holds the public link may ask; the owner decides. One pending request per person.
+artifacts.post("/artifacts/:id/access-requests", async (c) => {
+  const b = z.object({ pt: z.string().min(1), role: z.enum(["viewer", "editor"]).default("editor"), note: z.string().max(1000).optional() }).safeParse(await c.req.json().catch(() => null));
+  if (!b.success) return c.json({ error: "invalid_body", message: 'Send {"pt": "<public link token>", "role": "editor" | "viewer", "note"?}' }, 400);
+  const db = c.env.DB, me = c.get("user");
+  const a = await db.prepare(`select * from "artifact" where "id" = ?1`).bind(c.req.param("id")).first<ArtifactRow>();
+  if (!a || !a.publicToken || a.publicToken !== b.data.pt) return c.json({ error: "not_found" }, 404);
+  const have = await artifactAccess(db, a, me.id);
+  if (have === "owner" || have === "edit" || (have === "view" && b.data.role === "viewer")) return c.json({ error: "already_has_access", access: have }, 409);
+  const pending = await db.prepare(`select * from "artifactAccessRequest" where "artifactId" = ?1 and "userId" = ?2 and "status" = 'pending'`).bind(a.id, me.id).first<AccessRequestRow>();
+  if (pending) return c.json({ request: { id: pending.id, role: pending.role, status: "pending" } });
+  const id = newId(), ts = now(), inboxId = newId();
+  const owner = await db.prepare(`select "email" from "user" where "id" = ?1`).bind(a.ownerId).first<{ email: string }>();
+  await db.batch([
+    db.prepare(`insert into "artifactAccessRequest" ("id","artifactId","userId","role","note","status","createdAt") values (?1,?2,?3,?4,?5,'pending',?6)`).bind(id, a.id, me.id, b.data.role, b.data.note ?? null, ts),
+    db.prepare(`insert into "inboxItem" ("id","userId","toEmail","kind","workId","artifactId","fromUserId","body","createdAt") values (?1,?2,?3,'artifact.access_request',null,?4,?5,?6,?7)`)
+      .bind(inboxId, a.ownerId, owner?.email ?? "", a.id, me.id, `Asks to ${b.data.role === "editor" ? "edit" : "view"}${b.data.note ? ": " + b.data.note : ""}`, ts),
+  ]);
+  const item = { id: inboxId, kind: "artifact.access_request", artifactId: a.id, artifactTitle: a.title, workId: null, fromName: me.name || me.email, body: `Asks to ${b.data.role === "editor" ? "edit" : "view"}`, createdAt: ts };
+  c.executionCtx.waitUntil(publish(c.env, [a.ownerId], { type: "inbox.new", item }).catch(() => {}));
+  await event(c, a, "access.requested", `${me.email} (${b.data.role})`, {});
+  return c.json({ request: { id, role: b.data.role, status: "pending" } }, 201);
+});
+
+artifacts.get("/artifacts/:id/access-requests", async (c) => {
+  const l = await load(c, "owner");
+  if (l instanceof Response) return l;
+  const { results } = await c.env.DB.prepare(`select r."id", r."role", r."note", r."createdAt", u."name", u."email" from "artifactAccessRequest" r join "user" u on u."id" = r."userId"
+    where r."artifactId" = ?1 and r."status" = 'pending' order by r."createdAt"`).bind(l.a.id).all();
+  return c.json({ requests: results });
+});
+
+// The owner, in the browser: approve (as editor or viewer, defaulting to what they asked for) or decline.
+artifacts.post("/artifacts/:id/access-requests/:rid", async (c) => {
+  const l = await load(c, "owner");
+  if (l instanceof Response) return l;
+  if (isAgent(c)) return c.json({ error: "human_required", message: "The owner decides access requests on the artifact page." }, 403);
+  const b = z.object({ approve: z.boolean(), role: z.enum(["viewer", "editor"]).optional() }).safeParse(await c.req.json().catch(() => null));
+  if (!b.success) return c.json({ error: "invalid_body" }, 400);
+  const db = c.env.DB;
+  const r = await db.prepare(`select * from "artifactAccessRequest" where "id" = ?1 and "artifactId" = ?2`).bind(c.req.param("rid"), l.a.id).first<AccessRequestRow>();
+  if (!r) return c.json({ error: "not_found" }, 404);
+  if (r.status !== "pending") return c.json({ error: "already_decided", status: r.status }, 409);
+  const role = (b.data.role ?? r.role) as "viewer" | "editor";
+  const ts = now();
+  await db.prepare(`update "artifactAccessRequest" set "status" = ?2, "decidedRole" = ?3, "decidedAt" = ?4 where "id" = ?1`).bind(r.id, b.data.approve ? "approved" : "declined", b.data.approve ? role : null, ts).run();
+  await db.prepare(`update "inboxItem" set "readAt" = ?3 where "artifactId" = ?1 and "fromUserId" = ?2 and "kind" = 'artifact.access_request' and "readAt" is null`).bind(l.a.id, r.userId, ts).run().catch(() => {});
+  const who = await db.prepare(`select "email" from "user" where "id" = ?1`).bind(r.userId).first<{ email: string }>();
+  if (b.data.approve && who) {
+    await shareTo(c, l.a, who.email, role, "artifact.share", "Your access request was approved.");
+    await event(c, l.a, "shared", `${who.email} (${role}, requested)`);
+  } else await event(c, l.a, "access.declined", who?.email ?? null, {});
+  return c.json({ ok: true, status: b.data.approve ? "approved" : "declined", role: b.data.approve ? role : null });
+});
+
 artifacts.get("/artifacts", async (c) => {
   const me = c.get("user").id;
   const workId = c.req.query("workId");
@@ -323,9 +412,9 @@ artifacts.get("/artifacts/:id", async (c) => {
     db.prepare(`select "name","email" from "user" where "id" = ?1`).bind(l.a.ownerId).first(),
   ]);
   const t = now();
-  const pub = !c.get("session");
+  const pub = Boolean(l.viaLink);
   return c.json({
-    artifact: await artifactJson(c, l.a, l.access),
+    artifact: await artifactJson(c, l.a, l.access, pub),
     owner, work, sections: secs.map((s) => ({ ...s, locked: Boolean(s.lockedUntil && s.lockedUntil > t) })),
     files, shares: shares.results, events: events.results,
     ...(pub ? { owner: owner ? { name: (owner as { name: string }).name } : null, work: null, shares: [], events: [] } : {}),
@@ -369,8 +458,8 @@ artifacts.delete("/artifacts/:id", async (c) => {
 
 // Gone for everyone: rows (cascade) and stored files. Agents reach this only through an approved "artifact.delete".
 export async function deleteArtifact(env: Env, id: string) {
-  const files = await env.DB.prepare(`select "r2Key" from "artifactFile" where "artifactId" = ?1`).bind(id).all<{ r2Key: string }>();
-  if (files.results.length) await env.TRAJECTORIES.delete(files.results.map((f) => f.r2Key));
+  const files = await env.DB.prepare(`select "r2Key" from "artifactFile" where "artifactId" = ?1 union all select "r2Key" from "appFile" where "artifactId" = ?1`).bind(id).all<{ r2Key: string }>();
+  for (let i = 0; i < files.results.length; i += 1000) await env.TRAJECTORIES.delete(files.results.slice(i, i + 1000).map((f) => f.r2Key));
   await env.DB.batch([
     env.DB.prepare(`delete from "inboxItem" where "artifactId" = ?1`).bind(id), // an added column: its cascade isn't relied on
     env.DB.prepare(`delete from "artifact" where "id" = ?1`).bind(id),
@@ -716,9 +805,10 @@ usercontent.get("/u/:id/:sig/*", async (c) => {
   const content = c.env.USERCONTENT_ORIGIN;
   if (content?.startsWith("https://") && new URL(c.req.url).host !== new URL(content).host) return c.text("Not found", 404);
   const id = c.req.param("id");
-  if (c.req.param("sig") !== (await appSig(c.env, id))) return c.text("Not found", 404);
+  const cap = await appCapability(c.env, id, c.req.param("sig"));
+  if (!cap) return c.text("Not found", 404);
   const a = await c.env.DB.prepare(`select * from "artifact" where "id" = ?1`).bind(id).first<ArtifactRow>();
-  if (!a) return c.text("Not found", 404);
+  if (!a || (cap === "ro" && !a.publicToken)) return c.text("Not found", 404); // the read-only link dies with the public link
   const headers = {
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "no-store",

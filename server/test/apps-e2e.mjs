@@ -170,6 +170,74 @@ const gid = (await call(nolan, "GET", `/api/artifacts/${app.id}/grants`)).data.g
 await call(nolan, "DELETE", `/api/artifacts/${app.id}/grants/${gid}`);
 check("revoking a grant stops the app at once", (await appCall("POST", "_api/call", { action: "email", payload: { to: `jason+${run}@acme.dev`, subject: "x", body: "x" } })).status === 403);
 
+// ---------- files + bigger values ----------
+const putFile = (base, name, bytes, type) => fetch(base + "_api/files/" + name, { method: "PUT", headers: { "content-type": type }, body: bytes });
+const audio = new Uint8Array(3 * 1024 * 1024).map((_, i) => i % 251);
+const up = await putFile(appUrl, "recordings/standup%201.webm", audio, "audio/webm");
+const upJ = await up.json();
+check("files: upload a 3 MB recording", up.status === 201 && upJ.file.size === audio.length && upJ.file.name === "recordings/standup 1.webm", JSON.stringify(upJ).slice(0, 200));
+const fl = await appCall("GET", "_api/files?prefix=recordings/");
+check("files: list by prefix, with usage", fl.status === 200 && fl.data.files.length === 1 && fl.data.used === audio.length && fl.data.limit === 2 * 1024 ** 3);
+const part = await fetch(appUrl + "_api/files/recordings/standup%201.webm", { headers: { range: "bytes=1000-1999" } });
+const pb = new Uint8Array(await part.arrayBuffer());
+check("files: byte ranges (seekable audio/video)", part.status === 206 && pb.length === 1000 && pb[0] === 1000 % 251 && part.headers.get("content-type") === "audio/webm");
+const whole = await fetch(appUrl + "_api/files/recordings/standup%201.webm");
+check("files: whole file back, sandboxed", whole.status === 200 && (await whole.arrayBuffer()).byteLength === audio.length && whole.headers.get("content-security-policy") === "sandbox");
+await putFile(appUrl, "evil.html", "<script>alert(1)</script>", "text/html");
+check("files: a stored .html is never served as a document", (await fetch(appUrl + "_api/files/evil.html")).headers.get("content-type") === "application/octet-stream");
+check("files: bad names refused", (await putFile(appUrl, "a//b", "x", "text/plain")).status === 400);
+const big = { notes: "x".repeat(500 * 1024) };
+check("data store: values up to 1 MB", (await appCall("PUT", "_api/data/notes/long", { value: big })).status === 200);
+check("data store: over 1 MB refused", (await appCall("PUT", "_api/data/notes/huge", { value: "x".repeat(1100 * 1024) })).status === 413);
+check("files: delete", (await appCall("DELETE", "_api/files/evil.html")).status === 200 && (await fetch(appUrl + "_api/files/evil.html")).status === 404);
+
+// ---------- public link: read-only app, submissions, access requests ----------
+const agent2 = await deviceLogin(nolan, deviceKey().pub); // the first agent was signed out above
+const pubUrl = (await call(nolan, "POST", `/api/artifacts/${app.id}/public`, { on: true })).data.publicUrl;
+const pt = pubUrl.split("/p/")[1];
+const pubView = (await call(null, "GET", `/api/artifacts/${app.id}?pt=${pt}`)).data.artifact;
+const RO = pubView.appUrl;
+check("a public viewer gets a different, read-only app link", RO && RO !== appUrl && pubView.viaLink === true && pubView.publicSubmit === false);
+const roCall = (method, path, body) => call(null, method, new URL(RO).pathname + path, body, new URL(RO).origin);
+check("read-only link: the app loads and reads its data", (await fetch(RO + "_anydock.js")).status === 200 && (await roCall("GET", "_api/data/tasks")).data.items.length === 1);
+check("read-only link: mode is view", (await roCall("GET", "_api/info")).data.mode === "view");
+check("read-only link: can't write data", (await roCall("PUT", "_api/data/tasks/x", { value: 1 })).status === 403);
+check("read-only link: can't upload files", (await putFile(RO, "x.txt", "x", "text/plain")).status === 403);
+check("read-only link: can't act through grants or reach the backend", (await roCall("POST", "_api/call", { action: "email", payload: {} })).status === 403 && (await roCall("GET", "_backend/x")).status === 403);
+check("agents can't turn on submissions", (await call(agent2, "POST", `/api/artifacts/${app.id}/public-submit`, { on: true })).status === 403);
+const subOn = await call(nolan, "POST", `/api/artifacts/${app.id}/public-submit`, { on: true });
+check("the owner turns on submissions", subOn.status === 200 && (await roCall("GET", "_api/info")).data.mode === "submit");
+check("submissions: a visitor adds a new entry", (await roCall("PUT", "_api/data/responses/r1", { value: { name: "Ada" } })).status === 200);
+check("submissions: but can't overwrite one", (await roCall("PUT", "_api/data/tasks/t1", { value: { hacked: true } })).status === 409 && (await appCall("GET", "_api/data/tasks/t1")).data.value.done === false);
+check("submissions: or delete", (await roCall("DELETE", "_api/data/responses/r1")).status === 403);
+check("submissions: a visitor uploads a recording", (await putFile(RO, "voice/ada.webm", new Uint8Array(1000), "audio/webm")).status === 201);
+check("submissions: can't replace someone's file", (await putFile(RO, "recordings/standup%201.webm", "x", "audio/webm")).status === 409);
+check("submissions: still no grants", (await roCall("POST", "_api/call", { action: "email", payload: {} })).status === 403);
+await call(nolan, "POST", `/api/artifacts/${app.id}/public-submit`, { on: false });
+check("submissions off → read-only again", (await roCall("PUT", "_api/data/responses/r2", { value: 1 })).status === 403);
+// access request from the public link
+const jason = await signIn(`jason+${run}@acme.dev`);
+check("someone without access can't open the app's page data", (await call(jason, "GET", `/api/artifacts/${app.id}`)).status === 404);
+const jv = await call(jason, "GET", `/api/artifacts/${app.id}?pt=${pt}`);
+check("…but a signed-in visitor with the link gets the read-only view", jv.status === 200 && jv.data.artifact.viaLink === true && jv.data.artifact.appUrl === RO);
+check("anonymous visitors must sign in to request access", (await call(null, "POST", `/api/artifacts/${app.id}/access-requests`, { pt, role: "editor" })).status === 401);
+check("a wrong link token can't request", (await call(jason, "POST", `/api/artifacts/${app.id}/access-requests`, { pt: "nope", role: "editor" })).status === 404);
+const rq = await call(jason, "POST", `/api/artifacts/${app.id}/access-requests`, { pt, role: "editor", note: "Can I help?" });
+check("a signed-in visitor requests edit access", rq.status === 201 && rq.data.request.status === "pending");
+check("…once (a repeat returns the same request)", (await call(jason, "POST", `/api/artifacts/${app.id}/access-requests`, { pt, role: "editor" })).data.request.id === rq.data.request.id);
+const ownerInbox = (await call(nolan, "GET", "/api/inbox")).data.items ?? [];
+check("the owner gets it in their Inbox", ownerInbox.some((i) => i.kind === "artifact.access_request" && i.artifactId === app.id));
+const reqs = (await call(nolan, "GET", `/api/artifacts/${app.id}/access-requests`)).data.requests;
+check("the owner sees pending requests", reqs.length === 1 && reqs[0].note === "Can I help?");
+check("the owner's agent can't decide it", (await call(agent2, "POST", `/api/artifacts/${app.id}/access-requests/${rq.data.request.id}`, { approve: true })).status === 403);
+const ok = await call(nolan, "POST", `/api/artifacts/${app.id}/access-requests/${rq.data.request.id}`, { approve: true, role: "viewer" });
+check("the owner approves (as viewer)", ok.status === 200 && ok.data.role === "viewer");
+const jv2 = await call(jason, "GET", `/api/artifacts/${app.id}`);
+check("…and the requester now has that access", jv2.status === 200 && jv2.data.artifact.access === "view" && jv2.data.artifact.appUrl === appUrl);
+check("a decided request can't be decided again", (await call(nolan, "POST", `/api/artifacts/${app.id}/access-requests/${rq.data.request.id}`, { approve: true })).status === 409);
+await call(nolan, "POST", `/api/artifacts/${app.id}/public`, { on: false });
+check("turning the public link off kills the read-only app link", (await fetch(RO + "_anydock.js")).status === 404 && (await roCall("GET", "_api/data/tasks")).status === 404);
+
 mock.close();
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
 process.exit(failures ? 1 : 0);
