@@ -41,6 +41,8 @@ let message = Data(base64Encoded: arg("message")) ?? Data()
 // Optional: a second message to sign when the person approves for the whole agent session.
 let sessionMessage = Data(base64Encoded: arg("message-session")) ?? Data()
 // Optional: actions that ask twice (e.g. making work public) show this confirmation before Touch ID.
+// Optional: the message to sign for "Always allow" (every agent of the person) — offered under "More".
+let alwaysMessage = Data(base64Encoded: arg("message-always")) ?? Data()
 let confirmTitle = arg("confirm")
 let confirmDetail = arg("confirm-detail")
 
@@ -96,7 +98,22 @@ struct ApprovalView: View {
   var onClose: (String) -> Void
 
   func approve() { approve(session: false) }
-  func approveSession() { approve(session: true) }
+  func approveSession(_ minutes: Int) { sessionMinutes = minutes; approve(session: true) }
+  func approveAlways() {
+    // "Always" covers every agent of yours from now on: confirm it in a dialog first, then Touch ID.
+    let alert = NSAlert()
+    alert.messageText = "Always allow this?"
+    alert.informativeText = "Every agent of yours will be able to do this without asking, until you change the rule in AnyDock.\n\n" + summary
+    alert.alertStyle = .warning
+    alert.addButton(withTitle: "Always allow")
+    alert.addButton(withTitle: "Cancel")
+    NSApp.activate(ignoringOtherApps: true)
+    guard alert.runModal() == .alertFirstButtonReturn else { model.message = "Cancelled — nothing was approved."; return }
+    always = true
+    approve(session: false)
+  }
+  @State private var sessionMinutes = 480
+  @State private var always = false
   func approve(session: Bool) {
     if !confirmTitle.isEmpty { // the second confirmation: an explicit dialog before Touch ID
       let alert = NSAlert()
@@ -121,11 +138,13 @@ struct ApprovalView: View {
       model.message = "This Mac can't verify you right now."
       return
     }
-    ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: (session ? "allow for this agent session: " : "approve your agent's request: ") + summary) { ok, _ in
+    let reason = always ? "always allow, for all your agents: " : session ? "allow for this agent session: " : "approve your agent's request once: "
+    ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason + summary) { ok, _ in
       DispatchQueue.main.async {
-        if ok, let signature = sign(ctx, session ? sessionMessage : message) {
+        if ok, let signature = sign(ctx, always ? alwaysMessage : session ? sessionMessage : message) {
           withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { model.phase = .approved }
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose((session ? "approve-session " : "approve ") + signature) }
+          let out = always ? "approve-always " + signature : session ? "approve-session " + signature + " \(sessionMinutes)" : "approve " + signature
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { onClose(out) }
         } else if ok {
           model.phase = .idle
           model.message = "This Mac's approval key is missing. Run: anydock setup"
@@ -180,10 +199,20 @@ struct ApprovalView: View {
         Spacer()
         Button("Deny", action: deny).keyboardShortcut(.cancelAction).controlSize(.large).fixedSize()
           .disabled(model.phase != .idle)
-        if !sessionMessage.isEmpty {
-          Button("This session", action: approveSession).controlSize(.large).fixedSize()
-            .help("Allow this kind of action for the rest of this agent session")
-            .disabled(model.phase != .idle)
+        if !sessionMessage.isEmpty || !alwaysMessage.isEmpty {
+          Menu("More") {
+            if !sessionMessage.isEmpty {
+              Button("This session · 15 min") { approveSession(15) }
+              Button("This session · 8 hours") { approveSession(480) }
+            }
+            if !alwaysMessage.isEmpty {
+              Divider()
+              Button("Always allow — all agents…") { approveAlways() }
+            }
+          }
+          .menuStyle(.borderedButton).controlSize(.large).fixedSize()
+          .help("Allow for this agent session for a while, or always")
+          .disabled(model.phase != .idle)
         }
         Button(action: approve) {
           HStack(spacing: 5) {

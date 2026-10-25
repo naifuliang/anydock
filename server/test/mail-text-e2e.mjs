@@ -68,6 +68,9 @@ const run = Date.now();
 const aliceEmail = `alice+${run}@acme.dev`, bobEmail = `bob+${run}@acme.dev`;
 const alice = await signIn(aliceEmail);
 const bob = await signIn(bobEmail);
+// The person chooses Allow for these (the defaults ask every time).
+for (const k of ["slack.post", "email.internal"]) await call(alice, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
+for (const k of ["slack.post", "email.internal"]) await call(bob, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 
 let d = (await call(alice, "GET", "/api/delegate")).data;
 check("Gmail, Outlook and texting available, none connected", d.connections.gmail.available && d.connections.outlook.available && !d.connections.gmail.connected && d.connections.texting.available);

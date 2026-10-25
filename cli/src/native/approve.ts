@@ -9,8 +9,8 @@ import { appExecutable, buildApp } from "./bundle.ts";
 // The native approval panel (macOS). Built from source with swiftc into ~/.anydock/bin on first use and cached by hash,
 // so updating the CLI rebuilds it automatically. Anything else (Linux, no Xcode tools) reports "unavailable" and callers
 // fall back to the in-agent prompt or the dashboard.
-export type LocalVerdict = "approve" | "approve-session" | "deny" | "timeout" | "unavailable";
-export type LocalResult = { verdict: LocalVerdict; signature?: string };
+export type LocalVerdict = "approve" | "approve-session" | "approve-always" | "deny" | "timeout" | "unavailable";
+export type LocalResult = { verdict: LocalVerdict; signature?: string; minutes?: number };
 
 const HASH = createHash("sha256").update(APPROVE_SWIFT).digest("hex").slice(0, 10);
 // Built as an "AnyDock" app (no Dock icon — it's a panel), so the Touch ID dialog and the panel show AnyDock's name and icon.
@@ -46,13 +46,14 @@ export function ensureApprovalKey(opts: { fresh?: boolean } = {}): string | null
 }
 
 // message = the exact bytes the server expects signed (see server/src/trust.ts approvalMessage).
-export function askOnThisMac(opts: { summary: string; message: string; sessionMessage?: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal; confirm?: { title: string; detail: string } }): Promise<LocalResult> {
+export function askOnThisMac(opts: { summary: string; message: string; sessionMessage?: string; alwaysMessage?: string; agent: string; rule?: string; timeoutSec?: number; signal?: AbortSignal; confirm?: { title: string; detail: string } }): Promise<LocalResult> {
   const bin = ensureApprovalHelper();
   if (!bin || !existsSync(APPROVAL_KEY)) return Promise.resolve({ verdict: "unavailable" });
   return new Promise((resolve) => {
     const args = ["--summary", opts.summary, "--agent", opts.agent, "--rule", opts.rule ?? "ask me", "--timeout", String(opts.timeoutSec ?? 120),
       "--key", APPROVAL_KEY, "--message", Buffer.from(opts.message, "utf8").toString("base64"),
       ...(opts.sessionMessage ? ["--message-session", Buffer.from(opts.sessionMessage, "utf8").toString("base64")] : []),
+      ...(opts.alwaysMessage ? ["--message-always", Buffer.from(opts.alwaysMessage, "utf8").toString("base64")] : []),
       ...(opts.confirm ? ["--confirm", opts.confirm.title, "--confirm-detail", opts.confirm.detail] : [])];
     const p = spawn(bin, args, {
       stdio: ["ignore", "pipe", "ignore"],
@@ -63,8 +64,8 @@ export function askOnThisMac(opts: { summary: string; message: string; sessionMe
     opts.signal?.addEventListener("abort", () => p.kill());
     p.on("error", () => resolve({ verdict: "unavailable" }));
     p.on("exit", () => {
-      const [v, signature] = (out.trim().split("\n").pop() ?? "").split(" ") as [LocalVerdict, string?];
-      if (v === "approve" || v === "approve-session") resolve(signature ? { verdict: v, signature } : { verdict: "unavailable" });
+      const [v, signature, minutes] = (out.trim().split("\n").pop() ?? "").split(" ") as [LocalVerdict, string?, string?];
+      if (v === "approve" || v === "approve-session" || v === "approve-always") resolve(signature ? { verdict: v, signature, ...(minutes ? { minutes: Number(minutes) } : {}) } : { verdict: "unavailable" });
       else resolve({ verdict: ["deny", "timeout", "unavailable"].includes(v) ? v : "unavailable" });
     });
   });

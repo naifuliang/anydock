@@ -274,6 +274,12 @@ export function appPage(user: { name: string; email: string; image?: string | nu
   .banner { display:flex; gap:12px; align-items:center; padding:13px 16px; border-radius:14px; background:var(--ok-soft); color:var(--ok); margin-bottom:16px; font-weight:500; }
 
   /* overlays */
+  /* "More ▾" on approvals: this session (15 min / 8 h) or always (two clicks) */
+  details.more { position:relative; display:inline-block; } details.more > summary { list-style:none; cursor:pointer; } details.more > summary::-webkit-details-marker { display:none; }
+  details.more .mm { position:absolute; right:0; bottom:calc(100% + 6px); z-index:40; min-width:250px; background:#fff; border:1px solid var(--line2); border-radius:12px; box-shadow:0 18px 40px -16px rgba(0,0,0,.3); padding:5px; display:flex; flex-direction:column; }
+  details.more .mm button { text-align:left; border:0; background:transparent; padding:8px 10px; border-radius:8px; font:500 13px Geist, sans-serif; color:var(--text); cursor:pointer; }
+  details.more .mm button:hover { background:var(--soft); } details.more .mm small { display:block; color:var(--muted); font-weight:400; }
+  .armed, details.more .mm button.armed { background:#fef2f2 !important; color:#b42318 !important; box-shadow:inset 0 0 0 1px #f3b5b0; }
   .approval { position:fixed; right:20px; bottom:20px; z-index:30; width:min(390px, calc(100vw - 32px)); background:#fff; border:1px solid var(--line2); border-radius:16px;
               box-shadow:0 30px 70px -24px rgba(10,10,12,.45); padding:16px; display:grid; gap:10px; animation:pop .3s cubic-bezier(.2,.8,.2,1); }
   .approval .ah { display:flex; align-items:center; gap:10px; font-weight:600; }
@@ -738,33 +744,48 @@ async function discordCard(projectId, guildId) {
 }
 
 // ---------- delegate: approvals, rules, activity ----------
-async function decideAction(id, approve, scope) {
+async function decideAction(id, approve, scope, minutes) {
   if (approve) { // some actions ask twice: a confirmation dialog on top of the approval click
     const { action: cur } = await api("GET", "/api/actions/" + id).catch(() => ({ action: null }));
     const q = cur && CONFIRM_TWICE[cur.action];
     if (q && !confirm(q + "\n\n" + cur.summary)) return;
   }
-  const { action } = await api("POST", "/api/actions/" + id + "/decide", { approve, via: "dashboard", scope: scope || "once" });
+  const { action } = await api("POST", "/api/actions/" + id + "/decide", Object.assign({ approve, via: "dashboard", scope: scope || "once" }, minutes ? { minutes } : {}));
   document.getElementById("ap-" + id)?.remove();
-  toast(approve ? (scope === "session" ? "Allowed for this session — " : "Approved — ") + (action.status === "executed" ? "done" : (action.result?.detail || action.status)) : "Denied");
+  toast(approve ? (scope === "session" ? "Allowed for this session (" + (minutes >= 60 ? minutes / 60 + " h" : minutes + " min") + ") — " : scope === "always" ? "Always allowed — " : "Approved once — ") + (action.status === "executed" ? "done" : (action.result?.detail || action.status)) : "Denied");
   refreshPending(); route();
 }
 // "This session": approve now, and let the same agent session do this kind of action again without asking (for a while).
 // Kinds of action that always need the person (mirrors ALWAYS_ASK in delegate.ts).
 const ALWAYS_ASK = ["app.grant", "artifact.delete", "artifact.publish"];
 const CONFIRM_TWICE = { "artifact.publish": "Make it public? Anyone with the link will be able to view it, without signing in." };
-const sessBtn = (a) => a.sessionId && !ALWAYS_ASK.includes(a.action) ? '<button class="btn sm" data-oks="' + a.id + '" title="Allow this kind of action for the rest of this agent session">This session</button>' : "";
+// Approve = once. "More ▾": allow this agent session for a while, or always (for all your agents — needs a second click).
+const sessBtn = (a) => ALWAYS_ASK.includes(a.action) ? "" : '<details class="more"><summary class="btn sm">More ▾</summary><div class="mm">' +
+  (a.sessionId ? '<button data-more="' + a.id + '" data-scope="session" data-min="15">This session · 15 min<small>Only this agent session, then it asks again</small></button>' +
+    '<button data-more="' + a.id + '" data-scope="session" data-min="480">This session · 8 hours<small>Only this agent session</small></button>' : "") +
+  '<button data-more="' + a.id + '" data-scope="always">Always allow<small>Every agent of yours, until you change the rule</small></button></div></details>';
+// "Always" is never one click: the first click arms it (red), the second within 4 s confirms.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-more]"); if (!b) return;
+  e.preventDefault();
+  if (b.dataset.scope === "always" && !b.classList.contains("armed")) {
+    b.classList.add("armed"); b.dataset.label = b.innerHTML; b.innerHTML = "Click again to always allow<small>For every agent of yours</small>";
+    setTimeout(() => { if (b.isConnected && b.classList.contains("armed")) { b.classList.remove("armed"); b.innerHTML = b.dataset.label; } }, 4000);
+    return;
+  }
+  b.closest("details")?.removeAttribute("open");
+  decideAction(b.dataset.more, true, b.dataset.scope, b.dataset.min ? +b.dataset.min : undefined);
+});
 function bindDecide() {
   view.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => decideAction(b.dataset.ok, true));
-  view.querySelectorAll("[data-oks]").forEach((b) => b.onclick = () => decideAction(b.dataset.oks, true, "session"));
   view.querySelectorAll("[data-deny]").forEach((b) => b.onclick = () => decideAction(b.dataset.deny, false));
 }
 function showApproval(a) {
   if (document.getElementById("ap-" + a.id)) return;
   const el = document.createElement("div"); el.className = "approval"; el.id = "ap-" + a.id;
   el.innerHTML = '<div class="ah"><span>' + ICONS.key + '</span>Your agent is asking</div><div class="what">' + esc(a.summary) + '</div><p class="note" style="margin:0">' + esc(a.agent || "agent") + ' · your rule: ask me · also asking on your Mac</p>' +
-    '<div class="row"><button class="btn" data-d="0">Deny</button>' + (a.sessionId && !ALWAYS_ASK.includes(a.action) ? '<button class="btn" data-d="s">This session</button>' : '') + '<button class="btn solid" data-d="1">Approve</button></div>';
-  el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d !== "0", b.dataset.d === "s" ? "session" : "once"));
+    '<div class="row"><button class="btn" data-d="0">Deny</button>' + sessBtn(a) + '<button class="btn solid" data-d="1">Approve</button></div>';
+  el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => decideAction(a.id, b.dataset.d !== "0", "once"));
   document.body.appendChild(el); refreshPending();
 }
 // Per agent session permissions: each session inherits your rules; its own rules can only narrow them, except an
@@ -853,6 +874,12 @@ async function permissionsView(params = new URLSearchParams()) {
       (a.status === "pending" ? '<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-deny="' + a.id + '">Deny</button>' + sessBtn(a) + '<button class="btn sm solid" data-ok="' + a.id + '">Approve</button></div>' : '<span></span>') + '</div>').join("")
       : empty("permissions", "No agent actions yet", "Try it: ask your agent to <code>tell #launch the build is green</code>.")) + '</div>';
   view.querySelectorAll(".tri").forEach((t) => t.querySelectorAll("button").forEach((b) => b.onclick = async () => {
+    if (b.dataset.v === "allow" && !b.classList.contains("on") && !b.classList.contains("armed")) {
+      b.classList.add("armed"); b.textContent = "Click again";
+      setTimeout(() => { if (b.classList.contains("armed")) { b.classList.remove("armed"); b.textContent = "Allow"; } }, 4000);
+      return;
+    }
+    b.classList.remove("armed"); if (b.dataset.v === "allow") b.textContent = "Allow";
     await api("PUT", "/api/delegate/policy", { action: t.dataset.k, decision: b.dataset.v });
     t.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); toast("Rule saved");
   }));

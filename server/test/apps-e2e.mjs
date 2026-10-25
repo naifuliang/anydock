@@ -80,6 +80,8 @@ const approveAsMac = (agent, key, a) => call(agent, "POST", `/api/actions/${a.id
 // ---------- setup ----------
 const run = Date.now();
 const nolan = await signIn(`nolan+${run}@acme.dev`);
+// The person chooses Allow for these (the defaults ask every time).
+for (const k of ["slack.post", "email.internal"]) await call(nolan, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 const key = deviceKey();
 const agent = await deviceLogin(nolan, key.pub);
 

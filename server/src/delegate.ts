@@ -16,8 +16,8 @@ type Decision = "allow" | "ask" | "deny";
 export type ActionKey = "slack.post" | "email.internal" | "email.external" | "phone.text" | "phone.call" | "money.spend" | "github.push_main" | "app.grant" | "artifact.delete" | "artifact.publish";
 
 export const ACTIONS: Record<ActionKey, { label: string; sub: string; def: Decision; live: boolean }> = {
-  "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "allow", live: true },
-  "email.internal": { label: "Email teammates", sub: "Same company domain as you", def: "allow", live: true },
+  "slack.post": { label: "Post in Slack as you", sub: "Channels you're in, DMs to teammates", def: "ask", live: true },
+  "email.internal": { label: "Email teammates", sub: "Same company domain as you", def: "ask", live: true },
   "email.external": { label: "Email people outside the team", sub: "Any other address", def: "ask", live: true },
   "phone.text": { label: "Text a person", sub: "iMessage / SMS through Inkbox", def: "ask", live: true },
   "phone.call": { label: "Call a person", sub: "Voice through Inkbox", def: "ask", live: false },
@@ -252,17 +252,24 @@ export async function run(env: Env, user: User, row: ActionRow): Promise<ActionR
 }
 
 // Approve or deny a pending request, from any channel. Idempotent: only the first decision counts.
-export async function decide(env: Env, userId: string, id: string, approve: boolean, via: string, scope: "once" | "session" = "once"): Promise<ActionRow | null> {
+// scope: once (default) · session (this agent session only, for `minutes`, default 8 h) · always (a standing rule for all
+// of the person's agents — the UIs ask for it twice).
+export async function decide(env: Env, userId: string, id: string, approve: boolean, via: string, scope: "once" | "session" | "always" = "once", minutes?: number): Promise<ActionRow | null> {
   const db = env.DB;
   const claimed = await db
     .prepare(`update "actionRequest" set "status" = ?3, "decidedVia" = ?4, "decidedAt" = ?5 where "id" = ?1 and "userId" = ?2 and "status" = 'pending' returning *`)
-    .bind(id, userId, approve ? "approved" : "denied", scope === "session" && approve ? `${via} · this session` : via, now())
+    .bind(id, userId, approve ? "approved" : "denied", approve && scope === "session" ? `${via} · this session` : approve && scope === "always" ? `${via} · always` : via, now())
     .first<ActionRow>();
   if (!claimed) return load(db, id, userId);
   // "Approve for this session": the same action from the same agent session runs without asking, for a while.
   if (approve && scope === "session" && claimed.source && claimed.sessionId && !ALWAYS_ASK.has(claimed.action)) {
     await db.prepare(`insert into "sessionRule" ("id","userId","cliSessionId","source","sessionId","action","decision","scope","createdVia","requestId","expiresAt","createdAt") values (?1,?2,?3,?4,?5,?6,'allow',null,?7,?8,?9,?10)`)
-      .bind(crypto.randomUUID(), userId, claimed.cliSessionId, claimed.source, claimed.sessionId, claimed.action, via, claimed.id, new Date(Date.now() + SESSION_HOURS * 3_600_000).toISOString(), now()).run();
+      .bind(crypto.randomUUID(), userId, claimed.cliSessionId, claimed.source, claimed.sessionId, claimed.action, via, claimed.id, new Date(Date.now() + (minutes ?? SESSION_HOURS * 60) * 60_000).toISOString(), now()).run();
+  }
+  // "Always allow": a standing rule for every agent of the person (never for actions that must always ask).
+  if (approve && scope === "always" && !ALWAYS_ASK.has(claimed.action)) {
+    await db.prepare(`insert into "policy" ("userId","action","decision","updatedAt") values (?1,?2,'allow',?3)
+      on conflict ("userId","action") do update set "decision" = 'allow', "updatedAt" = excluded."updatedAt"`).bind(userId, claimed.action, now()).run();
   }
   const user = await userById(db, userId);
   const final = approve && user ? await run(env, user, claimed) : claimed;
@@ -511,10 +518,10 @@ delegate.get("/actions/:id", async (c) => {
 delegate.post("/actions/:id/decide", async (c) => {
   const user = signedIn(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).optional(), signature: z.string().max(200).optional(), scope: z.enum(["once", "session"]).default("once") })
+  const parsed = z.object({ approve: z.boolean(), via: z.enum(["dashboard", "agent", "mac"]).optional(), signature: z.string().max(200).optional(), scope: z.enum(["once", "session", "always"]).default("once"), minutes: z.number().int().min(5).max(480).optional() })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
-  const { approve, signature, scope } = parsed.data;
+  const { approve, signature, scope, minutes } = parsed.data;
   let via: string;
   if (!isAgent(c)) {
     via = "dashboard"; // a person signed in to the web app
@@ -526,14 +533,14 @@ delegate.post("/actions/:id/decide", async (c) => {
     if (!row) return c.json({ error: "not_found" }, 404);
     const sessionId = c.get("session")!.session.id;
     const twice = CONFIRM_TWICE.has(row.action);
-    if (twice && scope === "session") return c.json({ error: "invalid_body", message: "This can only be approved one request at a time." }, 400);
+    if (twice && scope !== "once") return c.json({ error: "invalid_body", message: "This can only be approved one request at a time." }, 400);
     const check = signature ? await verifyDeviceApproval(c.env, sessionId, row, signature, twice ? "confirmed" : scope) : { ok: false };
     if (!check.ok) {
       return c.json({ error: "human_required", message: "Approving needs the person: Touch ID or password on their Mac, the AnyDock dashboard, or Slack." }, 403);
     }
     via = "mac";
   }
-  const row = await decide(c.env, user.id, c.req.param("id"), approve, via, scope);
+  const row = await decide(c.env, user.id, c.req.param("id"), approve, via, scope, minutes);
   return row ? c.json({ action: actionJson(row) }) : c.json({ error: "not_found" }, 404);
 });
 

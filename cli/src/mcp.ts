@@ -545,12 +545,15 @@ export async function delegateAction(action: "slack.post" | "email" | "text" | "
     const message = `${twice ? "anydock-approve-confirmed:v1" : "anydock-approve:v1"}\n${act.id}\n${act.userId}\n${act.summary}`;
     const sessionMessage = act.sessionId && !twice && action !== "app.grant" && action !== "artifact.delete" ? `anydock-approve-session:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
     const confirm = twice ? { title: "Make it public?", detail: "Anyone with the link will be able to view it, without signing in." } : undefined;
-    const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, confirm, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
+    // "Always allow" (all agents, a standing rule) is offered under More, except for actions that must always ask.
+    const alwaysMessage = !twice && action !== "app.grant" && action !== "artifact.delete" ? `anydock-approve-always:v1\n${act.id}\n${act.userId}\n${act.summary}` : undefined;
+    const local = await askOnThisMac({ summary: act.summary, message, sessionMessage, alwaysMessage, confirm, agent: launchingAgent() ?? "agent", timeoutSec: 120, signal: ctrl.signal });
     const decidedElsewhere = ctrl.signal.aborted ? await elsewhere : null;
     ctrl.abort();
     if (decidedElsewhere) return describeAction(decidedElsewhere);
-    if (local.verdict === "approve" || local.verdict === "approve-session" || local.verdict === "deny") {
-      const body = local.verdict === "deny" ? { approve: false, via: "mac" } : { approve: true, signature: local.signature, scope: local.verdict === "approve-session" ? "session" : "once" };
+    if (local.verdict === "approve" || local.verdict === "approve-session" || local.verdict === "approve-always" || local.verdict === "deny") {
+      const body = local.verdict === "deny" ? { approve: false, via: "mac" }
+        : { approve: true, signature: local.signature, scope: local.verdict === "approve-session" ? "session" : local.verdict === "approve-always" ? "always" : "once", ...(local.minutes ? { minutes: local.minutes } : {}) };
       const { action: decided } = await api<{ action: Act }>("POST", `/api/actions/${act.id}/decide`, body);
       return describeAction(decided);
     }

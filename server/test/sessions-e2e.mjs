@@ -38,6 +38,8 @@ const msg = (a, scope) => `${scope === "session" ? "anydock-approve-session:v1" 
 
 const run = Date.now();
 const browser = await signIn(`nolan+${run}@acme.dev`);
+// The person chooses Allow for these (the defaults ask every time).
+for (const k of ["slack.post", "email.internal"]) await call(browser, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 const key = deviceKey();
 const agent = await deviceLogin(browser, key.pub);
 const A = { source: "claude-code", sessionId: `sess-a-${run}` }, B = { source: "codex", sessionId: `sess-b-${run}` };

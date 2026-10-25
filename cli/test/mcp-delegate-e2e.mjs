@@ -65,6 +65,8 @@ function mcp({ elicitation, answer }) {
 
 const run = Date.now();
 const browser = await cliLogin(`dave+${run}@acme.dev`);
+// The defaults ask every time; Dave chooses Allow for these two himself.
+for (const k of ["slack.post", "email.internal"]) await call(browser, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 
 // Even a client that supports elicitation is never asked: an in-agent "Allow?" can't approve (the CLI's token is an
 // agent token), so the tool waits for the person — dashboard here; Touch ID on a Mac; or Slack.

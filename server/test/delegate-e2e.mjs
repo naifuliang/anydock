@@ -71,7 +71,9 @@ await new Promise((r) => (ws.onopen = r));
 
 let d = (await call(alice, "GET", "/api/delegate")).data;
 const rule = (k) => d.actions.find((a) => a.key === k)?.decision;
-check("defaults: slack allow, internal email allow, external ask, spend deny", rule("slack.post") === "allow" && rule("email.internal") === "allow" && rule("email.external") === "ask" && rule("money.spend") === "deny");
+check("defaults: everything asks (one-time approvals), spend deny", rule("slack.post") === "ask" && rule("email.internal") === "ask" && rule("email.external") === "ask" && rule("money.spend") === "deny");
+// The rest of this suite exercises the "allow" paths: Alice chooses Allow for these herself.
+for (const k of ["slack.post", "email.internal"]) await call(alice, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 check("slack available, not connected", d.connections.slack.available && !d.connections.slack.connected);
 
 check("posting before connecting fails honestly", (await ask(alice, "slack.post", { to: "#launch", text: "hi" })).data?.action?.status === "failed");
@@ -135,6 +137,7 @@ const asked = (await ask(alice, "slack.post", { to: "#launch", text: "needs ok" 
 check("rule 'ask me' on Slack → pending", asked?.status === "pending");
 
 const bob = await signIn(`bob+${run}@acme.dev`);
+for (const k of ["slack.post", "email.internal"]) await call(bob, "PUT", "/api/delegate/policy", { action: k, decision: "allow" });
 check("others can't see or decide your actions", (await call(bob, "GET", `/api/actions/${asked.id}`)).status === 404 && (await call(bob, "POST", `/api/actions/${asked.id}/decide`, { approve: true })).status === 404);
 
 const logList = (await call(alice, "GET", "/api/actions")).data.actions;

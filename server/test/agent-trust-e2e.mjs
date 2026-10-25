@@ -149,6 +149,23 @@ check("only the owner's artifacts can be made public", (await call(agent, "POST"
 check("turning it off needs no approval (it only narrows)", (await call(agent, "POST", `/api/artifacts/${pubDoc.id}/public`, { on: false })).status === 200);
 check("…and the link stops working", (await fetch(`${BASE}/p/${tok}`, { redirect: "manual" })).status === 404 && (await call(null, "GET", `/api/artifacts/${pubDoc.id}?pt=${tok}`)).status === 404);
 
+// Approval scopes: once (default) · this session for N minutes · always (a standing rule; its own signature).
+const sc1 = await ask(agent, "scope-1");
+check("an ask defaults to one-time: still pending", sc1?.status === "pending");
+const replay = await call(agent, "POST", `/api/actions/${sc1.id}/decide`, { approve: true, scope: "always", signature: key.sign(message(sc1)) });
+check("a one-time signature can't be replayed as \"always\"", replay.status === 403);
+const alwaysOk = await call(agent, "POST", `/api/actions/${sc1.id}/decide`, { approve: true, scope: "always", signature: key.sign(message(sc1).replace("anydock-approve:v1", "anydock-approve-always:v1")) });
+check("the panel's \"always\" signature approves it and saves a standing rule", alwaysOk.status === 200 && /always/.test(alwaysOk.data.action.decidedVia) &&
+  (await call(browser, "GET", "/api/delegate")).data.actions.find((x) => x.key === "email.external").decision === "allow", JSON.stringify(alwaysOk.data?.action?.decidedVia));
+const sc2 = await ask(agent, "scope-2");
+check("…so the next one doesn't ask", sc2 && sc2.status !== "pending" && sc2.status !== "blocked", sc2?.status);
+await call(browser, "PUT", "/api/delegate/policy", { action: "email.external", decision: "ask" });
+const sc3 = (await call(agent, "POST", "/api/actions", { action: "email", payload: { to: "partner@gmail.com", subject: "s3", body: "hi" }, agent: "claude-code", session: { source: "claude-code", sessionId: `sc-${run}` } })).data.action;
+const fifteen = await call(browser, "POST", `/api/actions/${sc3.id}/decide`, { approve: true, scope: "session", minutes: 15 });
+const rules = (await call(browser, "GET", "/api/sessions")).data.sessions.find((x) => x.sessionId === `sc-${run}`)?.rules ?? [];
+const mins = rules.length ? (new Date(rules[0].expiresAt) - Date.now()) / 60000 : 0;
+check("\"this session · 15 min\" allows only that session, for 15 minutes", fifteen.status === 200 && mins > 13 && mins < 16, String(mins));
+
 // An agent can't mint itself a new login + key: approving a device code needs the person.
 const code = (await call(null, "POST", "/api/auth/device/code", { client_id: "anydock-cli" })).data;
 const claim = await call(agent, "GET", `/api/auth/device?user_code=${encodeURIComponent(code.user_code)}`);

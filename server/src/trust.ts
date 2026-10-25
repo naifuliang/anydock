@@ -43,11 +43,12 @@ const b64 = (s: string) => Uint8Array.from(atob(s), (ch) => ch.charCodeAt(0));
 // a different summary (or another request) produces a signature that doesn't verify.
 // "session" approvals sign a different message, so a one-time approval can't be replayed as a whole-session one.
 // "confirmed" is what the panel signs only after its second confirmation (actions in CONFIRM_TWICE, e.g. going public).
-export const approvalMessage = (id: string, userId: string, summary: string, scope: "once" | "session" | "confirmed" = "once") =>
-  `${scope === "session" ? "anydock-approve-session:v1" : scope === "confirmed" ? "anydock-approve-confirmed:v1" : "anydock-approve:v1"}\n${id}\n${userId}\n${summary}`;
+// "always" (allow for every agent, from now on) has its own message too: the panel signs it only after its own confirmation.
+export const approvalMessage = (id: string, userId: string, summary: string, scope: "once" | "session" | "confirmed" | "always" = "once") =>
+  `${{ once: "anydock-approve:v1", session: "anydock-approve-session:v1", confirmed: "anydock-approve-confirmed:v1", always: "anydock-approve-always:v1" }[scope]}\n${id}\n${userId}\n${summary}`;
 
 export async function verifyDeviceApproval(
-  env: Env, sessionId: string, row: { id: string; userId: string; summary: string }, signatureB64: string, scope: "once" | "session" | "confirmed" = "once",
+  env: Env, sessionId: string, row: { id: string; userId: string; summary: string }, signatureB64: string, scope: "once" | "session" | "confirmed" | "always" = "once",
 ): Promise<{ ok: boolean; keyName?: string }> {
   const key = await env.DB.prepare(`select "publicKey", "name" from "approvalKey" where "sessionId" = ?1 and "userId" = ?2`)
     .bind(sessionId, row.userId)
